@@ -7,18 +7,22 @@ import { cropEditor } from "./crop.js"
 const NODE = "MyNode_FaceProcessing"
 const SIZE = [1896, 745]
 
-// [label, widget, top px]
+// [label, widget, top, left, width] px from MyNode.svg; a row with a left is one of its short pills
 const ROWS = [
-  ["seed", "seed", 276], ["steps", "steps", 312], ["sampler", "sampler_name", 348], ["scheduler", "scheduler", 384],
-  ["resolution", "resolution_source", 425], ["Format", "aspect_ratio", 464], ["W", "custom_width", 506],
-  ["H", "custom_height", 542], ["ref_boost", "ref_boost", 601], ["grounding_px", "grounding_px", 643],
+  ["Resize", "resolution_source", 369.6, 58.6, 147.7], ["ref_boost", "ref_boost", 369.6, 220.3, 218.4],
+  ["grounding_px", "grounding_px", 369.6, 444.5, 247.7], ["W", "custom_width", 432.2, 372.8, 147.7],
+  ["H", "custom_height", 432.2, 539.3, 147.7],
+  ["", "aspect_ratio", 432.2, 259, 428], // a preset's pill, in W and H's place (not in MyNode.svg)
+  ["seed", "seed", 488.9], ["steps", "steps", 527.9], ["sampler", "sampler_name", 579.5], ["scheduler", "scheduler", 617.1],
 ]
 const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
-  ["LLM", "llm_name", 282], ["max_resolution", "max_resolution", 326],
-  ["seed mode", "control_after_generate", 370], // ComfyUI's own seed control: fixed / increment / decrement / randomize
-  ["Face Crop", "face_crop", 414], ["AI", "ai_prompt", 458], ["System", "system_file", 502],
-  ["SAVE", "save_to", 546], ["Crop", "manual_crop", 590], ["Update", "update", 634],
+  ["LLM", "llm_name", 281.4], ["LLM", "ai_prompt", 331.8, 25.9, 147.7], ["System", "system_file", 375.5, 25.9, 282.8],
+  ["Crop", "manual_crop", 444.3, 25.9, 147.7], ["FaceCrop", "face_crop", 445.5, 181.5, 194.1],
+  ["SAVE", "save_to", 517.6, 25.9, 282.8], ["Update", "update", 678.8, 451.4, 282.8],
+  // not in MyNode.svg: kept in its free right column
+  ["max_resolution", "max_resolution", 444.3, 451.4, 282.8],
+  ["seed mode", "control_after_generate", 517.6, 451.4, 282.8], // ComfyUI's own seed control: fixed / randomize / …
 ]
 // a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (face/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
@@ -196,9 +200,14 @@ function build(node) {
   }
 
   // on* handlers are blocks on purpose: one that returns false cancels its event (that once ate every key)
-  const row = (label, name, top, cls) => {
+  const row = ([label, name, top, left, width], cls) => {
     const w = W(name), r = el("div", cls)
     r.style.top = top + "px"
+    r.dataset.w = name
+    if (left !== undefined) {
+      r.classList.add("c")
+      Object.assign(r.style, { left: left + "px", width: width + "px" })
+    }
     r.append(txt("div", "k", label))
     if (!w) return r
     const v = el("div", "v")
@@ -255,15 +264,15 @@ function build(node) {
   const prompt = el("textarea", "mn-box"), ru = el("div", "mn-box")
   prompt.dataset.scroll = ru.dataset.scroll = ""
   prompt.spellcheck = false
-  prompt.style.top = "35px"
-  ru.style.top = "162px"
+  prompt.style.top = "33px"
+  ru.style.top = "201.3px"
   prompt.oninput = () => {
     W("text").value = prompt.value
     W("text").callback?.(prompt.value)
   }
   const lp = txt("div", "mn-lbl", "PROMPT"), lr = txt("div", "mn-lbl mn-lang", "RU")
   lp.style.top = "14px"
-  lr.style.top = "141px"
+  lr.style.top = "182.5px"
   // the box shows the RU translation; a click on its label switches to EN, the prompt the sampler got
   let shot = { RU: "", EN: "" }
   lr.title = "RU / EN"
@@ -299,7 +308,20 @@ function build(node) {
     lt.textContent = on ? "CLOSE TXT" : "LOAD TXT"
     prompt.readOnly = on
   })
-  mid.append(lp, lt, txtIn, prompt, lr, ru, ...ROWS.map(([label, name, top]) => row(label, name, top, "mn-row")))
+  // custom / preset: aspect_ratio "custom" is W × H; a preset shows its own pill in their place
+  const presets = () => comboValues(W("aspect_ratio")).filter((p) => p !== "custom")
+  let preset = null // the one custom goes back to
+  const mode = row(["", "", 432.2, 58.6, 181.6], "mn-row tog mn-mode"), mv = el("div", "v")
+  mode.firstChild.append(txt("span", "cu", "custom /"), " ", txt("span", "pr", "preset"))
+  mv.append(el("div", "mn-dot"))
+  mode.append(mv)
+  mode.onclick = () => {
+    const v = W("aspect_ratio")?.value
+    if (v !== "custom") preset = v
+    set("aspect_ratio", v !== "custom" ? "custom" : presets().includes(preset) ? preset : presets()[0])
+  }
+  binds.push(() => { mid.classList.toggle("preset", W("aspect_ratio")?.value !== "custom") })
+  mid.append(lp, lt, txtIn, prompt, lr, ru, mode, ...ROWS.map((s) => row(s, "mn-row")))
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
@@ -371,7 +393,7 @@ function build(node) {
 
   const setP = el("div", "mn-set"), shead = txt("div", "mn-shead", "Settings")
   setP.dataset.scroll = "" // scrolls once the added LoRAs push the rows past its bottom
-  const sRow = Object.fromEntries(SETTINGS.map(([label, name, top]) => [name, row(label, name, top, "mn-srow")]))
+  const sRow = Object.fromEntries(SETTINGS.map((s) => [s[1], row(s, "mn-srow")]))
 
   // Update: this pack against the newest on GitHub (update.py); a click checks again and gets the newer one
   const upVal = el("div", "sv")
@@ -554,8 +576,8 @@ const toast = (detail, severity = "info", life = 6000) => app.extensionManager.t
 // Settings → Update: GET /mynode/update (update.py), once per page and again on each click
 let updateInfo = null
 const checkUpdate = () => (updateInfo = api.fetchApi("/mynode/update").then((r) => r.json()).catch(() => null))
-const updateText = (s) => !s ? "no answer"
-  : `${s.version}${s.available ? ` → ${s.latest}` : s.latest ? " · latest" : s.error ? " · offline" : ""}${s.mode === "dev" ? " · dev" : ""}`
+const updateText = (s) => !s ? "no answer" : s.mode === "dev" ? `${s.version} · dev` // the dev copy has no update
+  : `${s.version}${s.available ? ` → ${s.latest}` : s.latest ? " · latest" : s.error ? " · offline" : ""}`
 
 // A workflow from another PC names its models by that PC's folders: take the same file from anywhere in this
 // ComfyUI's models, else this node's default of the family; what is still missing stays red in Settings

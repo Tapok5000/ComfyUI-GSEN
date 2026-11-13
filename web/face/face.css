@@ -50,16 +50,35 @@
 .mn-lbl{position:absolute;left:19px;font-size:11px;line-height:12px}
 .mn-lang{cursor:pointer}
 .mn-lang:hover{color:var(--lime)}
-.mn-box{position:absolute;left:16px;width:723px;height:98px;margin:0;padding:8px 10px;background:#222326;border:none;outline:none;resize:none;color:#d0d0d0;font:14px/1.35 Arial,Helvetica,sans-serif;overflow:auto;white-space:pre-wrap;user-select:text;-webkit-user-select:text;scrollbar-color:#454545 #2c2c2c}
+.mn-box{position:absolute;left:17.4px;width:717.2px;height:138.5px;margin:0;padding:8px 10px;background:#222326;border:none;outline:none;resize:none;color:#d0d0d0;font:14px/1.35 Arial,Helvetica,sans-serif;overflow:auto;white-space:pre-wrap;user-select:text;-webkit-user-select:text;scrollbar-color:#454545 #2c2c2c}
 .mn-lbl.on{color:var(--lime)}
 .mn-txt{left:auto;right:20px;color:var(--lime);cursor:pointer}
 .mn-txt:hover{color:#fff}
 .mn-row,.mn-srow{position:absolute;height:30px;border:1.3px solid #66676a;border-radius:16px;background:linear-gradient(#303134,#202124);font-size:18px;line-height:27.4px}
-.mn-row{left:17px;width:721px}
+.mn-row{left:58.6px;width:634.2px;height:29.1px;line-height:26.5px}
 .mn-row>.k,.mn-srow>.k{position:absolute;left:14px;top:0}
+.mn-row>.k{left:11px;color:var(--lime)}
 .mn-row>.v,.mn-srow>.v{position:absolute;right:13px;top:0;height:100%;display:flex;align-items:center;gap:8px}
+.mn-row>.v{right:11.5px}
 .mn-row.tog,.mn-srow.tog{cursor:pointer}
-.mn-row.tog>.v,.mn-srow.tog>.v{right:15px;gap:5px}
+.mn-row.tog>.v,.mn-srow.tog>.v{right:7.7px;gap:5px;font-size:21.33px}
+/* short pills (.c): left, top and width come from MyNode.svg via index.js */
+.mn-row.c,.mn-srow.c{height:32px;line-height:29.4px}
+.mn-row.c>.k{left:14px}
+.mn-row[data-w=resolution_source]>.k,.mn-row.mn-mode>.k{left:10px}
+.mn-srow.c>.k,.mn-srow[data-w=llm_name]>.k{left:11px;font-size:21.33px}
+.mn-srow[data-w=update]>.k{left:17px}
+.mn-srow.c>.sv{left:126.4px;background:linear-gradient(90deg,#222220,#393f28 50%,#1e1f22)}
+.c .mn-val{text-align:center}
+.mn-row.c:not(.tog)>.v{right:13.5px}
+.mn-row:not(.c) input.mn-val{min-width:0}
+/* custom / preset: the active word is lime; a preset hides W and H and shows its own pill */
+.mn-mode>.k>span{color:#b2b2b3}
+.mn-mid:not(.preset) .cu,.mn-mid.preset .pr{color:var(--lime)}
+.mn-row.mn-mode>.v{right:11.9px}
+.mn-mode .mn-dot{width:22px;height:22px;background:var(--lime)}
+.mn-mid.preset :is([data-w=custom_width],[data-w=custom_height]),.mn-mid:not(.preset) [data-w=aspect_ratio]{display:none}
+.mn-row[data-w=aspect_ratio]>.v{left:12px;justify-content:space-between}
 .mn-tri{flex:none;width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;cursor:pointer}
 .mn-tri.l{border-right:9px solid #d0d0d0}
 .mn-tri.r{border-left:9px solid #d0d0d0}
@@ -68,7 +87,7 @@
 .mn-val{min-width:56px;margin:0;padding:0;background:none;border:none;outline:none;color:#d0d0d0;font:18px Arial,Helvetica,sans-serif;text-align:right;white-space:nowrap;field-sizing:content;user-select:text;-webkit-user-select:text}
 div.mn-val{cursor:pointer}
 div.mn-val:hover{color:#fff}
-.mn-dot{width:22px;height:22px;border-radius:50%;background:#4a4b4e}
+.mn-dot{width:20.4px;height:20.4px;border-radius:50%;background:#4a4b4e}
 .mn-row.on .mn-dot,.mn-srow.on .mn-dot{background:var(--lime)}
 
 .mn-right{position:absolute;left:1286px;top:44px;width:610px;bottom:0;background:linear-gradient(#070a10,#303722)}
