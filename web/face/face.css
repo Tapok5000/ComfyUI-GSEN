@@ -19,8 +19,11 @@
 .mn-run:active{background-color:#0b0d05}
 .mn-open{position:absolute;left:1299px;top:11.8px;cursor:pointer}
 .mn-dims{left:1312px;top:.7px;width:584px;text-align:center;line-height:44px;font-size:18.4px;color:#3d4428}
+/* MyNode.svg has no timer under open Settings, and the pill straddles the panel's edge */
+.mn:has(.mn-set.open) :is(.mn-pill.t,.mn-clock,.mn-time){visibility:hidden}
 
-.mn-left{position:absolute;left:0;top:44px;width:528px;height:701px;background:#303a24}
+/* panels reach the bottom, not 701px: Nodes 2.0 makes the node 30px taller (a title bar it doesn't have) */
+.mn-left{position:absolute;left:0;top:44px;width:528px;bottom:0;background:#303a24}
 .mn-pick{position:absolute;left:6px;top:7px;width:513px;height:70px;border-radius:21px;background:#161a0a;color:var(--lime);cursor:pointer}
 .mn-pname{position:absolute;left:20px;max-width:228px;line-height:70px;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mn-pidx{position:absolute;left:258px;line-height:70px;font-size:13.7px}
@@ -43,7 +46,7 @@
 .mn-arrow.l{left:89px;border-right:13.5px solid var(--lime)}
 .mn-arrow.r{left:424px;border-left:13.5px solid var(--lime)}
 
-.mn-mid{position:absolute;left:528px;top:44px;width:759px;height:701px;background:#070a10}
+.mn-mid{position:absolute;left:528px;top:44px;width:759px;bottom:0;background:#070a10}
 .mn-lbl{position:absolute;left:19px;font-size:11px;line-height:12px}
 .mn-lang{cursor:pointer}
 .mn-lang:hover{color:var(--lime)}
@@ -68,8 +71,14 @@ div.mn-val:hover{color:#fff}
 .mn-dot{width:22px;height:22px;border-radius:50%;background:#4a4b4e}
 .mn-row.on .mn-dot,.mn-srow.on .mn-dot{background:var(--lime)}
 
-.mn-right{position:absolute;left:1286px;top:44px;width:610px;height:701px;background:linear-gradient(#070a10,#303722)}
-.mn-rbox{position:absolute;inset:22px;container-type:size;display:flex;align-items:center;justify-content:center}
+.mn-right{position:absolute;left:1286px;top:44px;width:610px;bottom:0;background:linear-gradient(#070a10,#303722)}
+.mn-rbox{position:absolute;inset:30px 22px 79px;container-type:size;display:flex;align-items:center;justify-content:center}
+.mn-stage{position:absolute;inset:8px;pointer-events:none}
+.mn-stage>img{position:absolute;inset:0}
+.mn-seam{position:absolute;top:0;bottom:0;width:1px;margin-left:-.5px;background:#bbe500;opacity:.6}
+.mn-cmp{position:absolute;left:0;right:0;bottom:19px;display:flex;justify-content:center;gap:8.2px}
+.mn-cbtn{width:72.9px;height:39.2px;border-radius:6.2px/8.25px;background:linear-gradient(#cbf700 50%,#bbe500 50%);box-shadow:0 0 4.9px #161a0a;color:rgba(32,40,0,.6);font-size:17px;line-height:39.5px;text-align:center;cursor:pointer}
+.mn-cbtn.on,.mn-cbtn:hover{color:#202800}
 .mn-frame{--ar:.6667;position:relative;width:min(100cqw,calc(100cqh * var(--ar)));aspect-ratio:var(--ar);padding:8px;background:#070a10}
 .mn-frame img{display:block;width:100%;height:100%;object-fit:contain;user-select:auto}
 .mn-frame img:not([src]){visibility:hidden}
@@ -85,13 +94,16 @@ div.mn-val:hover{color:#fff}
 .mn-rnum{position:absolute;left:0;right:0;top:100%;text-align:center;font-size:13.7px;line-height:20px;color:var(--lime)}
 .mn-frame:not(.many)>.mn-arrow,.mn-frame:not(.many)>.mn-rnum{display:none}
 
-.mn-set{position:absolute;left:528px;top:0;width:759px;height:745px;background:linear-gradient(#252629,#17181b);display:none;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#454545 #2c2c2c}
+.mn-set{position:absolute;left:528px;top:0;width:759px;bottom:0;background:linear-gradient(#252629,#17181b);display:none;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#454545 #2c2c2c}
 .mn-set.open{display:block}
 .mn-shead{position:sticky;z-index:1;top:0;width:100%;height:44px;background:linear-gradient(#d6ff00,#c2f000);border-left:2px solid #87a13e;color:#161a0a;font-size:20px;line-height:44px;padding-left:8px}
 .mn-srow{left:27px;width:707px}
 .mn-srow.combo{cursor:pointer}
 .mn-srow>.sv{position:absolute;left:282px;right:-1.3px;top:-1.3px;bottom:-1.3px;padding:0 13px 0 18px;border:1.3px solid #66676a;border-radius:16px;background:linear-gradient(90deg,rgba(135,161,62,.3),rgba(40,41,44,.6) 45%,#1f1f1f);font-size:15.5px;line-height:27.4px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mn-srow.combo:hover>.sv{color:#fff}
+.mn-srow>.sv.kind{padding-left:36px}
+.mn-kind{position:absolute;left:14px;top:50%;width:11px;height:11px;margin-top:-5.5px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(0,0,0,.45)}
+.mn-srow>.sv.missing{color:#ff6b6b}
 .mn-sval{width:100%;height:100%;margin:0;padding:0;background:none;border:none;outline:none;color:inherit;font:inherit;text-align:right;user-select:text;-webkit-user-select:text}
 .mn-sval::placeholder{color:#777}
 .mn-x{position:absolute;left:248px;top:2.7px;width:22px;height:22px;border-radius:50%;background:#4a4b4e;color:#d0d0d0;cursor:pointer}
@@ -102,7 +114,7 @@ div.mn-val:hover{color:#fff}
 .mn-lora>.sv:hover{color:#fff}
 .mn-send{position:absolute;width:1px;height:1px}
 
-.mn-gal{position:absolute;left:0;top:44px;width:528px;height:701px;display:none;background:linear-gradient(#2b3321,#0b0e11)}
+.mn-gal{position:absolute;left:0;top:44px;width:528px;bottom:0;display:none;background:linear-gradient(#2b3321,#0b0e11)}
 .mn-gal.open{display:block}
 .mn-gfil{position:absolute;left:0;top:0;width:100%;height:34px;border-left:2px solid #87a13e;background:linear-gradient(90deg,rgba(19,19,19,0),#131313)}
 .mn-gfil svg{position:absolute;left:4px;top:8px;opacity:.5}

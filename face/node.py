@@ -68,10 +68,16 @@ def _system_path(name):
     return PROMPTS / Path(name or next(iter(_prompt_files()), "system.txt")).name
 
 
+def _natural(name):
+    """Sort key where the numbers count as numbers: v2 after v1_2, v10 after v9."""
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
+
+
 def _files(id, kind, needle):
-    """A model combo; the default is the first file whose name contains needle (what 444.json used)."""
+    """A model combo; the default is the newest file whose name contains needle (the family 444.json used)."""
     options = folder_paths.get_filename_list(kind)
-    default = next((o for o in options if needle.lower() in o.lower()), options[0] if options else None)
+    family = [o for o in options if needle.lower() in o.lower()]
+    default = max(family, key=_natural) if family else (options[0] if options else None)
     return io.Combo.Input(id, options=options, default=default)
 
 
@@ -123,7 +129,7 @@ class FaceProcessing(io.ComfyNode):
                 io.Int.Input("grounding_px", default=1024, min=0, max=4096, step=64),
                 io.Int.Input("max_resolution", default=0, min=0, max=16384, step=8),
                 _files("unet_name", "diffusion_models", "krea2_turbo"),
-                _files("lora_name", "loras", "krea2_identity_edit_v1_2"),
+                _files("lora_name", "loras", "krea2_identity_edit"),
                 _files("clip_name", "text_encoders", "qwen3vl_4b_int8"),
                 _files("vae_name", "vae", "Wan2.1_VAE_upscale2x_imageonly"),
                 _files("llm_name", "text_encoders", "qwen3VLInstruct4bHeretic"),

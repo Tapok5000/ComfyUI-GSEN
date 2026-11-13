@@ -40,6 +40,28 @@ const view = (filename, subfolder, type) =>
 const thumb = (name, v) => api.apiURL(`/mynode/thumb?s=320&name=${encodeURIComponent(name)}&v=${v ?? 0}`)
 const clock = (ms) => new Date(ms).toISOString().slice(14, 19)
 
+// Model rows show a dot for the model's kind instead of the emoji marks in names (🟡 encoders, 🔴 VAE): drawn by
+// the node, it sits in the same place in every row, also where a name has no mark
+const KIND = { unet_name: "#b06cff", lora_name: "#35d07f", clip_name: "#ffd23f", vae_name: "#ff4d4d", llm_name: "#ffd23f" }
+const DEFAULTS = {} // per model input, the node def's default: Python's pick of the newest file of that family
+const plain = (s) => String(s ?? "").replace(/[\p{Extended_Pictographic}️‍]/gu, "")
+const baseName = (s) => String(s ?? "").split(/[\\/]/).pop()
+const fileOf = (s) => baseName(s).toLowerCase()
+
+// a model row's value: the dot, the name without its marks (whole in the tooltip); red when the file isn't there
+function modelValue(sv, color, value, files) {
+  const dot = el("i", "mn-kind"), label = el("span")
+  dot.style.setProperty("--c", color)
+  sv.classList.add("kind")
+  sv.append(dot, label)
+  return () => {
+    const v = value() ?? ""
+    label.textContent = plain(v)
+    sv.title = v
+    sv.classList.toggle("missing", !files().includes(v))
+  }
+}
+
 // ◀ number ▶; put() keeps a value, live() takes it while typing, so Ctrl+Enter right away runs it
 function numberField(get, put, live, { min = -Infinity, max = Infinity, precision = 0, step = 1 }) {
   const l = el("div", "mn-tri l"), inp = el("input", "mn-val"), r = el("div", "mn-tri r")
@@ -193,7 +215,8 @@ function build(node) {
       const sv = el("div", "sv")
       r.classList.add("combo")
       r.onclick = (e) => { menu(e, node, comboValues(w), (x) => set(name, x)) }
-      binds.push(() => { sv.textContent = sv.title = w.value ?? "" })
+      binds.push(KIND[name] ? modelValue(sv, KIND[name], () => w.value, () => comboValues(w))
+        : () => { sv.textContent = sv.title = w.value ?? "" })
       r.append(sv)
       return r
     } else if (w.type === "combo") {
@@ -280,9 +303,49 @@ function build(node) {
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
-  frame.append(rImg, ...["tl", "tr", "bl", "br"].map((c) => el("i", c)), rPrev, rNext, rNum)
+  // A/B compare as in ausboss Image Compare A/B: A = the input, B = the result; A lies over B, cut at the line
+  const stage = el("div", "mn-stage"), aImg = el("img"), seam = el("div", "mn-seam")
+  stage.append(aImg, seam)
+  frame.append(rImg, stage, ...["tl", "tr", "bl", "br"].map((c) => el("i", c)), rPrev, rNext, rNum)
   rbox.append(frame)
-  right.append(rbox)
+  const cmp = el("div", "mn-cmp"), modes = [["slide", "Slide"], ["a", "A"], ["b", "B"]].map(([m, label]) => {
+    const b = txt("div", "mn-cbtn", label)
+    b.dataset.m = m
+    b.onclick = () => {
+      node.setProperty("mn_compare", m) // the mode saves with the workflow
+      paintCompare()
+    }
+    return b
+  })
+  cmp.append(...modes)
+  right.append(rbox, cmp)
+  let split = 0 // Slide: the share of the width A covers; 0 = the result
+  const paintCompare = () => {
+    const m = node.properties?.mn_compare ?? "slide"
+    const f = !aImg.getAttribute("src") ? 0 : m === "a" ? 1 : m === "b" ? 0 : split
+    // a picture covered whole isn't drawn and one shown whole isn't cut: a cut between pixels leaves a hairline
+    aImg.style.visibility = f > 0 ? "visible" : "hidden"
+    aImg.style.clipPath = f >= 1 ? "none" : `inset(0 ${((1 - f) * 100).toFixed(2)}% 0 0)`
+    rImg.style.visibility = f >= 1 ? "hidden" : ""
+    seam.hidden = !(f > 0 && f < 1)
+    seam.style.left = `${(f * 100).toFixed(2)}%`
+    modes.forEach((b) => b.classList.toggle("on", b.dataset.m === m))
+  }
+  const setA = (src) => {
+    if (src) aImg.src = src
+    else aImg.removeAttribute("src")
+    paintCompare()
+  }
+  frame.addEventListener("pointermove", (e) => {
+    if ((node.properties?.mn_compare ?? "slide") !== "slide") return
+    const r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width
+    split = x < 0 || x > 1 || x <= 0.06 ? 0 : x >= 0.94 ? 1 : x // off the picture (the arrows): the result; edges land whole
+    paintCompare()
+  })
+  frame.addEventListener("pointerleave", () => {
+    split = 0 // the pointer gone, the result is back
+    paintCompare()
+  })
   const refreshFrame = () => {
     const ar = rImg.naturalWidth ? rImg.naturalWidth / rImg.naturalHeight : targetAspect()
     if (ar) frame.style.setProperty("--ar", ar)
@@ -290,6 +353,7 @@ function build(node) {
   rImg.onload = () => {
     dims.textContent = `${rImg.naturalWidth} × ${rImg.naturalHeight}`
     refreshFrame()
+    paintCompare()
   }
   // the results of the last run (a .txt makes one per line): ◀ ▶ flip through them, RU/EN go along
   let shots = [], shotsOf = null, at = 0
@@ -297,6 +361,7 @@ function build(node) {
     at = (i + shots.length) % shots.length
     shot = shots[at]
     rImg.src = shot.src
+    setA(shot.a)
     ru.textContent = shot[lr.textContent]
     rNum.textContent = `${at + 1}/${shots.length}`
     frame.classList.toggle("many", shots.length > 1)
@@ -342,7 +407,7 @@ function build(node) {
   const loraRow = (list, i) => {
     const r = el("div", "mn-srow mn-lora"), v = el("div", "v"), x = el("div", "mn-x", ICON.cross), sv = el("div", "sv")
     r.style.top = LORA_TOP + GAP * (i + 1) + "px"
-    sv.textContent = sv.title = list[i][0]
+    modelValue(sv, KIND.lora_name, () => list[i][0], loraFiles)()
     sv.onclick = (e) => { menu(e, node, loraFiles(), (f) => { list[i][0] = f; putLoras(list) }) }
     x.title = "Remove LoRA"
     x.onclick = () => { list.splice(i, 1); putLoras(list) }
@@ -433,6 +498,7 @@ function build(node) {
       pDims.textContent = ""
       if (src) pImg.src = src
       else pImg.removeAttribute("src")
+      if (!shots.length) setA(src) // no result yet: A is the input as it is now
     }
     updateCrop()
     refreshFrame()
@@ -463,7 +529,8 @@ function build(node) {
         shots = []
         shotsOf = promptId
       }
-      shots.push({ src: view(im.filename, im.subfolder, im.type) + `&t=${Date.now()}`, RU: out.ru?.[0] ?? "", EN: out.en?.[0] ?? "" })
+      shots.push({ src: view(im.filename, im.subfolder, im.type) + `&t=${Date.now()}`, RU: out.ru?.[0] ?? "", EN: out.en?.[0] ?? "",
+        a: pImg.getAttribute("src") }) // each result keeps the input it was made from
       showShot(shots.length - 1)
     },
   }
@@ -490,6 +557,33 @@ const checkUpdate = () => (updateInfo = api.fetchApi("/mynode/update").then((r) 
 const updateText = (s) => !s ? "no answer"
   : `${s.version}${s.available ? ` → ${s.latest}` : s.latest ? " · latest" : s.error ? " · offline" : ""}${s.mode === "dev" ? " · dev" : ""}`
 
+// A workflow from another PC names its models by that PC's folders: take the same file from anywhere in this
+// ComfyUI's models, else this node's default of the family; what is still missing stays red in Settings
+function relink(node) {
+  const W = (n) => node.widgets?.find((w) => w.name === n)
+  const found = [], swapped = [], missing = []
+  const pick = (v, files, fallback) => {
+    const same = files.find((f) => fileOf(f) === fileOf(v))
+    if (same) found.push(plain(same))
+    else if (files.includes(fallback)) swapped.push(`${plain(baseName(v))} → ${plain(fallback)}`)
+    else missing.push(plain(v))
+    return same ?? (files.includes(fallback) ? fallback : v)
+  }
+  for (const name of Object.keys(KIND)) {
+    const w = W(name)
+    if (w && !comboValues(w).includes(w.value)) w.value = pick(w.value, comboValues(w), DEFAULTS[name])
+  }
+  const lw = W("loras"), files = comboValues(W("lora_name"))
+  let list = []
+  try { list = JSON.parse(lw?.value || "[]") } catch { /* an unreadable list stays as it is */ }
+  if (list.some((entry) => !files.includes(entry[0]))) {
+    lw.value = JSON.stringify(list.map(([f, s]) => [files.includes(f) ? f : pick(f, files, null), s]))
+  }
+  if (found.length) toast(`Krea2 One took models from other folders: ${found.join("; ")}`, "info", 12000)
+  if (swapped.length) toast(`Krea2 One: not found, the default is used: ${swapped.join("; ")}`, "warn", 15000)
+  if (missing.length) toast(`Krea2 One: not in this ComfyUI's models: ${missing.join("; ")}. Pick them in Settings.`, "warn", 20000)
+}
+
 const ours = (id) => {
   const n = id != null ? nodeByExecId(id) : null
   return n?.comfyClass === NODE ? n : null
@@ -500,6 +594,7 @@ app.registerExtension({
 
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== NODE) return
+    for (const name of Object.keys(KIND)) DEFAULTS[name] = nodeData.input?.required?.[name]?.[1]?.default
     nodeType.title_mode = LiteGraph.NO_TITLE // the lime header is the title; no LiteGraph bar above it
     nodeType.collapsable = false
   },
@@ -520,6 +615,7 @@ app.registerExtension({
     const sys = node.widgets?.find((w) => w.name === "system_file")
     // 1.9.0 saved "" or a file from anywhere, and a renamed prompt is gone: take the first one there is
     if (sys && !comboValues(sys).includes(sys.value)) sys.value = comboValues(sys)[0] ?? ""
+    relink(node)
     node.setSize([...SIZE])
     node._mn?.refresh()
   },

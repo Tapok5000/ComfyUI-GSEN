@@ -185,6 +185,20 @@ def test_system_prompt():
     assert own["system_prompt"] == up["system_prompt"] == "Be brief." and first["system_prompt"] == "First."
 
 
+def test_newest_default():
+    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    real = folder_paths.get_filename_list
+    files = ["Edit\\krea2_identity_edit_v1_2.safetensors", "krea2_identity_edit_v2.safetensors", "other.safetensors",
+             "x_v9.safetensors", "x_v10.safetensors"]
+    folder_paths.get_filename_list = lambda kind: files
+    try:
+        assert node._files("lora_name", "loras", "krea2_identity_edit").default == "krea2_identity_edit_v2.safetensors"
+        assert node._files("lora_name", "loras", "x_v").default == "x_v10.safetensors"
+        assert node._files("lora_name", "loras", "absent").default == "Edit\\krea2_identity_edit_v1_2.safetensors"
+    finally:
+        folder_paths.get_filename_list = real
+
+
 def test_core_problems():
     node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
 
@@ -247,6 +261,7 @@ if __name__ == "__main__":
     test_prompt_list()
     test_manual_crop()
     test_system_prompt()
+    test_newest_default()
     test_core_problems()
     test_update()
     print("ok")
