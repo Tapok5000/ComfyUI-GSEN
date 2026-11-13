@@ -12,8 +12,6 @@ git clone https://github.com/Tapok5000/ComfyUI-MyNode
 
 ## Обновление
 
-Krea2 One → ↗ Settings → **Update**: там версия пака и новая на GitHub, щелчок ставит новую. Потом перезапустить ComfyUI и нажать Ctrl+F5.
+Krea2 One → ↗ Settings → **Update**  Потом перезапустить ComfyUI и нажать Ctrl+F5.
 
-Свои системные промты для AI кладите в `face/prompts`: обновление их не трогает.
-
-Что нового — в [CHANGELOG.md](CHANGELOG.md).
+Системные промты для LLM  `face/prompts`
