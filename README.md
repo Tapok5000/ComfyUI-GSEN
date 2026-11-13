@@ -1,7 +1,3 @@
-# MyNode
-
-Свои ноды для ComfyUI. Главная — **Krea2 One**: вырезка лица, AI-промт, Krea2 identity edit и RU/EN в одной ноде со своим интерфейсом.
-
 ## Установка
 
 В папке `ComfyUI/custom_nodes`:
