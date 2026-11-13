@@ -1,0 +1,21 @@
+[project]
+name = "comfyui-mynode"
+version = "1.11.0"
+description = "Personal ComfyUI nodes. Krea2 One: face crop, AI prompt, Krea2 identity edit and RU/EN in one node with its own face."
+requires-python = ">=3.10"
+dependencies = []  # only what ComfyUI itself ships: torch, einops, aiohttp, pillow
+
+[project.urls]
+Repository = "https://github.com/Tapok5000/ComfyUI-MyNode"  # Settings → Update reads newer versions from here
+
+[tool.comfy]
+DisplayName = "MyNode"
+requires-comfyui = ">=0.43.2"
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "SIM", "PL", "S102", "S307"]
+ignore = ["PLR0913", "PLR0917", "PLR2004", "PLR0914", "PLR0915", "UP035", "SIM108"]
