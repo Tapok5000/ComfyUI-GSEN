@@ -4,6 +4,7 @@ import functools
 import json
 import os
 import re
+from datetime import date
 from io import BytesIO
 
 from aiohttp import web
@@ -54,13 +55,17 @@ async def _thumb_route(request):
 
 
 def _save_path(folder, prefix, w=0, h=0):
-    """get_save_image_path for SAVE: a subfolder of ComfyUI's output (core refuses one that leaves it) or a full path."""
+    """get_save_image_path for SAVE, into a folder per day (SAVE/2026-11-14/): SAVE is a subfolder of ComfyUI's output
+    (core refuses one that leaves it) or a full path."""
+    prefix = os.path.join(date.today().isoformat(), prefix)
     if os.path.isabs(folder):
         return folder_paths.get_save_image_path(prefix, folder, w, h)
     return folder_paths.get_save_image_path(os.path.join(folder, prefix), folder_paths.get_output_directory(), w, h)
 
 
-RESULT = re.compile(r"ID_(\d+)\.png|FACE_(\d+)_\.png")  # results: ID_7.png, before 1.15.0 FACE_00007_.png
+DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+# a result's name in SAVE: 2026-11-14/ID_8.png; before 1.16.0 ID_7.png in SAVE itself, before 1.15.0 FACE_00007_.png
+RESULT = re.compile(r"(?:\d{4}-\d{2}-\d{2}/)?(?:ID_(\d+)\.png|FACE_(\d+)_\.png)")
 
 
 def result_id(name):
@@ -69,10 +74,17 @@ def result_id(name):
     return int(m[1] or m[2]) if m else None
 
 
+def results(path):
+    """[(id, name)] of every result in a SAVE folder, its day folders included, newest first."""
+    days = [d for d in os.listdir(path) if DAY.fullmatch(d) and os.path.isdir(os.path.join(path, d))]
+    names = os.listdir(path) + [f"{d}/{n}" for d in days for n in os.listdir(os.path.join(path, d))]
+    return sorted(((i, n) for n in names if (i := result_id(n))), reverse=True)
+
+
 def save_images(images, folder, cls, info=None):
-    """Results as ID_<n>.png, named like their gallery cards, with the workflow inside and info as a "mynode" text
-    chunk (the card reads it). n goes on from the highest result already there, old FACE_ files included, so an ID
-    never repeats. folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed)."""
+    """Results as SAVE/<day>/ID_<n>.png, named like their gallery cards, with the workflow inside and info as a "mynode"
+    text chunk (the card reads it). n goes on from the highest result in SAVE, other days and old names included, so an
+    ID never repeats. folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed)."""
     folder = folder.strip().strip('"')  # Explorer's "Copy as path" quotes the path
     if not folder:
         return ui.PreviewImage(images, cls=cls).as_dict()["images"]
@@ -80,7 +92,7 @@ def save_images(images, folder, cls, info=None):
     meta = ui.ImageSaveHelper._create_png_metadata(cls)
     if meta and info:
         meta.add_text("mynode", json.dumps(info, ensure_ascii=False))
-    first = 1 + max(filter(None, map(result_id, os.listdir(full))), default=0)
+    first = 1 + max((i for i, _ in results(os.path.dirname(full))), default=0)
     files = [f"ID_{first + i}.png" for i in range(len(images))]
     for file, im in zip(files, images, strict=True):
         ui.ImageSaveHelper._convert_tensor_to_pil(im).save(os.path.join(full, file), pnginfo=meta, compress_level=4)
@@ -90,9 +102,9 @@ def save_images(images, folder, cls, info=None):
 
 
 def save_text(text, folder, prefix):
-    """text as a numbered .txt in SAVE, next to the images; empty folder: not saved. Returns the path."""
+    """text as a numbered .txt in SAVE/<day>/; an empty folder or text is not saved. Returns the path."""
     folder = folder.strip().strip('"')
-    if not folder:
+    if not folder or not text.strip():
         return None
     full, name, counter, _, _ = _save_path(folder, prefix)
     path = os.path.join(full, f"{name}_{counter:05}_.txt")
@@ -135,7 +147,7 @@ def result_info(path):
 async def _results(request):
     """The results in a SAVE folder, newest first: [{name, id, mtime}]."""
     path = results_dir(request.query.get("folder", ""))
-    found = sorted(((result_id(n), n) for n in os.listdir(path) if result_id(n)), reverse=True) if path else []
+    found = results(path) if path else []
     return web.json_response([{"name": n, "id": i, "mtime": int(os.path.getmtime(os.path.join(path, n)))} for i, n in found])
 
 

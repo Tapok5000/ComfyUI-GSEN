@@ -167,6 +167,7 @@ div.mn-val:hover{color:#fff}
 .mn-resprompt,.mn-lout{position:absolute;background:#000;padding:10px;font-size:14px;line-height:1.35;color:#d0d0d0;white-space:pre-wrap;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#454545 #2c2c2c;user-select:text;-webkit-user-select:text}
 .mn-resprompt{left:461.4px;top:22.9px;width:282.8px;height:633.1px}
 :is(.mn-resprompt,.mn-lout):empty::before{content:"Prompt";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18.67px}
+.mn-lout.none:empty::before{content:"no prompt"}
 .mn-lout.busy:empty::before{content:"writing…";color:#9fc003}
 .mn-lbox{position:absolute;left:14.4px;top:71.9px;width:424.4px;height:468.4px;background:#000;--cs:13px;--cw:1.4px;--cl:6.9px;--ct:6.1px;--cr:7.4px;--cb:9px}
 .mn-lbox>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}

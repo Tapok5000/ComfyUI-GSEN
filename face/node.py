@@ -165,6 +165,8 @@ class FaceProcessing(io.ComfyNode):
                                 tooltip="The preview's crop: JSON {image, angle, box, pad} in pixels, used only for that image."),
                 io.Combo.Input("system_file", options=prompts, default=next(iter(prompts), None), optional=True,
                                tooltip="The AI's system prompt: a .txt from face/prompts (R lists new ones)."),
+                io.String.Input("llm_save_to", default="IMGtext", optional=True,
+                                tooltip="Where Settings → LLM keeps the prompts it writes, like save_to. Empty: not saved."),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -184,7 +186,7 @@ class FaceProcessing(io.ComfyNode):
     def execute(cls, image, text, seed, steps, sampler_name, scheduler, resolution_source, aspect_ratio,
                 custom_width, custom_height, ref_boost, grounding_px, max_resolution,
                 unet_name, lora_name, clip_name, vae_name, llm_name, face_crop=True, ai_prompt=False, save_to="Krea2One",
-                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file=""):
+                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", **_):  # **_: llm_save_to
         spec = crop_edit.spec_of(crop, image) if manual_crop else None
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)

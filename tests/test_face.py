@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import zipfile
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -43,6 +44,7 @@ import common  # noqa: E402
 from common import save_images  # noqa: E402
 
 target_size = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.sizes").target_size  # it imports crop_edit relatively
+DAY = date.today().isoformat()  # results go into SAVE/<day>/
 
 
 def tiny_dit():
@@ -97,12 +99,16 @@ def test_save_images():
         folder_paths.set_output_directory(os.path.join(d, "out"))
         folder_paths.set_temp_directory(os.path.join(d, "temp"))
         saved = save_images(img, "MyNode", None)
-        assert saved[1] == {"filename": "ID_2.png", "subfolder": "MyNode", "type": "output", "id": 2}  # named like its card
+        # in today's folder, named like its card
+        assert saved[1] == {"filename": "ID_2.png", "subfolder": os.path.join("MyNode", DAY), "type": "output", "id": 2}
         Image.new("RGB", (8, 8)).save(os.path.join(d, "out", "MyNode", "FACE_00007_.png"))  # one saved before 1.15.0
         assert save_images(img, "MyNode", None)[0]["filename"] == "ID_8.png"  # the IDs go on after it: never twice
-        absolute = save_images(img, f' "{d}\\abs" ', None)[0]  # /view can't serve it: a temp copy, with the ID
+        os.makedirs(os.path.join(d, "out", "MyNode", "2026-01-01"))
+        Image.new("RGB", (8, 8)).save(os.path.join(d, "out", "MyNode", "2026-01-01", "ID_20.png"))  # another day's
+        assert save_images(img, "MyNode", None)[0]["filename"] == "ID_21.png"
+        absolute = save_images(img, f' "{d}/abs/" ', None)[0]  # /view can't serve it: a temp copy, with the ID
         assert absolute["type"] == "temp" and absolute["id"] == 1
-        assert sorted(os.listdir(os.path.join(d, "abs"))) == ["ID_1.png", "ID_2.png"]
+        assert sorted(os.listdir(os.path.join(d, "abs", DAY))) == ["ID_1.png", "ID_2.png"]
         assert save_images(img, "", None)[0]["type"] == "temp"
         assert os.listdir(os.path.join(d, "out")) == ["MyNode"]
 
@@ -264,24 +270,26 @@ def test_gallery():
     ask = lambda route, **q: asyncio.run(route(SimpleNamespace(query=q)))  # noqa: E731
     with tempfile.TemporaryDirectory() as d:
         folder_paths.set_output_directory(os.path.join(d, "out"))
-        save_images(img, "R", cls)  # saved before 1.14.0: no "mynode" chunk, and named the old way
-        os.rename(os.path.join(d, "out", "R", "ID_1.png"), os.path.join(d, "out", "R", "FACE_00001_.png"))
+        save_images(img, "R", cls)  # saved before 1.14.0: no "mynode" chunk, named the old way, in SAVE itself
+        os.rename(os.path.join(d, "out", "R", DAY, "ID_1.png"), os.path.join(d, "out", "R", "FACE_00001_.png"))
         save_images(img, "R", cls, {"seed": 9, "en": "the AI's prompt"})
         os.makedirs(os.path.join(d, "x"))
         assert common.results_dir("R") and common.results_dir(os.path.join(d, "x"))  # in output, or a full path
         assert not common.results_dir("../x") and not common.results_dir("")  # a relative one can't leave output
         listed = json.loads(ask(common._results, folder="R").body)
-        assert [(r["name"], r["id"]) for r in listed] == [("ID_2.png", 2), ("FACE_00001_.png", 1)]  # newest first, old names too
+        # newest first, from the day folders and from SAVE itself
+        assert [(r["name"], r["id"]) for r in listed] == [(f"{DAY}/ID_2.png", 2), ("FACE_00001_.png", 1)]
         old = json.loads(ask(common._result, folder="R", name="FACE_00001_.png", info="1").body)
-        new = json.loads(ask(common._result, folder="R", name="ID_2.png", info="1").body)
+        new = json.loads(ask(common._result, folder="R", name=f"{DAY}/ID_2.png", info="1").body)
         # the old one gets its node's inputs from the workflow; its text was a link, so there is none
         assert old == {"width": 8, "height": 8, "seed": 7, "steps": 4, "sampler": "euler", "scheduler": "simple"}
         assert new == {"width": 8, "height": 8, "seed": 9, "en": "the AI's prompt"}
-        assert ask(common._result, folder="R", name="ID_2.png", s="64").content_type == "image/webp"
-        assert ask(common._result, folder="R", name="../R/ID_2.png").status == 404
-        assert ask(common._result, folder="..", name="ID_2.png").status == 404
-        assert common.save_text("a prompt", "R", "LLM").endswith(os.path.join("R", "LLM_00001_.txt"))
+        assert ask(common._result, folder="R", name=f"{DAY}/ID_2.png", s="64").content_type == "image/webp"
+        assert ask(common._result, folder="R", name=f"../R/{DAY}/ID_2.png").status == 404
+        assert ask(common._result, folder="..", name=f"{DAY}/ID_2.png").status == 404
+        assert common.save_text("a prompt", "R", "LLM").endswith(os.path.join("R", DAY, "LLM_00001_.txt"))
         assert common.save_text("not saved", "", "LLM") is None
+        assert common.save_text(" \n", "R", "LLM") is None  # the LLM wrote nothing: the face says "no prompt", no empty .txt
     (show,) = inputs_of(expand(seed=5), "MyNode_Show")
     assert json.loads(show["info"]) == {"seed": 5, "steps": 8, "sampler": "euler", "scheduler": "simple"}
 
@@ -303,6 +311,9 @@ def test_llm_tab():
     assert inputs_of(graph, "MyNode_LLMText") == [{"text": [gen_id, 0], "save_to": "R"}]
     assert inputs_of(graph, "LoadImage") == [{"image": "b.png"}] and inputs_of(graph, "CLIPLoader")[0]["clip_name"] == "m"
     assert math.isnan(node.LLMPrompt.fingerprint_inputs(image="b.png"))  # every Run expands anew: the text always comes back
+    last = node.FaceProcessing.define_schema().inputs[-1]  # the LLM's own SAVE, appended: saved workflows keep their values
+    assert (last.id, last.default, last.optional) == ("llm_save_to", "IMGtext", True)
+    expand(llm_save_to="X")  # the face's own Run takes it and leaves it be
 
 
 if __name__ == "__main__":
