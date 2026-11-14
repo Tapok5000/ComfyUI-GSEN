@@ -3,10 +3,10 @@
 В папке `ComfyUI/custom_nodes`:
 
 ```bash
-git clone https://github.com/Tapok5000/ComfyUI-MyNode ComfyUI-GSEN
+git clone https://github.com/Tapok5000/ComfyUI-GSEN
 ```
 
-Или скачать [zip](https://github.com/Tapok5000/ComfyUI-MyNode/archive/refs/heads/main.zip) и распаковать в `custom_nodes/ComfyUI-GSEN`. Потом перезапустить ComfyUI.
+Или скачать [zip](https://github.com/Tapok5000/ComfyUI-GSEN/archive/refs/heads/main.zip) и распаковать в `custom_nodes/ComfyUI-GSEN`. Потом перезапустить ComfyUI.
 
 Нужен ComfyUI 0.43.2 или новее.
 
