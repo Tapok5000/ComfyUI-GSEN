@@ -382,7 +382,7 @@ function build(node) {
   const setP = el("div", "mn-set"), shead = el("div", "mn-shead"), det = el("div", "mn-det")
   const upB = txt("div", "mn-up", "Update"), lRun = txt("div", "mn-run mn-lrun", "Run")
   const panes = { Settings: el("div", "mn-pane"), Gallery: el("div", "mn-pane"), LLM: el("div", "mn-pane") }
-  panes.Settings.dataset.scroll = panes.Gallery.dataset.scroll = "" // added LoRAs, many results: they scroll
+  panes.Settings.dataset.scroll = "" // scrolls once added LoRAs push the rows past the bottom
   let tab = "Settings"
   const tabs = Object.keys(panes).map((t) => {
     const b = txt("div", "mn-tab", t)
@@ -396,7 +396,8 @@ function build(node) {
     lRun.hidden = t !== "LLM"
     det.hidden = true
     if (t === "Gallery") loadGallery()
-    if (setP.classList.contains("open")) panes[t].focus({ preventScroll: true }) // so its wheel scrolls in Nodes 2.0 too
+    // the tab's scroll area takes the focus, so the wheel scrolls it in Nodes 2.0 too
+    if (setP.classList.contains("open")) (panes[t].querySelector("[data-scroll]") ?? panes[t]).focus({ preventScroll: true })
   }
   shead.append(...tabs, lRun, upB)
   const sRow = Object.fromEntries(SETTINGS.map((s) => [s[1], row(s, "mn-srow")]))
@@ -467,10 +468,15 @@ function build(node) {
   let sub = "Generated"
   const subs = ["Generated", "Last"].map((s) => {
     const b = txt("div", "mn-subtab", s)
-    b.onclick = () => { sub = s; loadGallery() }
+    b.onclick = () => {
+      sub = s
+      grid.scrollTop = 0
+      loadGallery()
+    }
     return b
   })
   subBar.append(...subs)
+  grid.dataset.scroll = "" // the cards scroll on their own, under the bar
   panes.Gallery.append(subBar, grid)
   const saved = (r) => ({ id: r.id, thumb: api.apiURL(resultRoute(r, "&s=320")), src: api.apiURL(resultRoute(r)),
     info: () => api.fetchApi(resultRoute(r, "&info=1")).then((x) => x.json()).catch(() => ({})) })

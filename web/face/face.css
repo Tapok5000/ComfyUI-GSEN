@@ -70,7 +70,8 @@
 .mn-row[data-w=resolution_source]>.k,.mn-row.mn-mode>.k{left:10px}
 .mn-srow.c>.k,.mn-srow[data-w=llm_name]>.k{left:11px;font-size:21.33px}
 .mn-srow[data-w=update]>.k{left:17px}
-.mn-srow.c>.sv{left:126.4px;background:linear-gradient(90deg,#222220,#393f28 50%,#1e1f22)}
+.mn-srow.c .mn-sval{text-align:center}
+.mn-srow.c>.sv{left:126.4px;padding:0 12px;text-align:center;line-height:29.4px;background:linear-gradient(90deg,#222220,#393f28 50%,#1e1f22)}
 .c .mn-val{text-align:center}
 .mn-row.c:not(.tog)>.v{right:13.5px}
 .mn-row:not(.c) input.mn-val{min-width:0}
@@ -133,10 +134,10 @@ div.mn-val:hover{color:#fff}
 :is(.mn-rescard,.mn-resbig,.mn-lbox)>.tr{right:var(--cr);top:var(--ct);border-width:var(--cw) var(--cw) 0 0}
 :is(.mn-rescard,.mn-resbig,.mn-lbox)>.bl{left:var(--cl);bottom:var(--cb);border-width:0 0 var(--cw) var(--cw)}
 :is(.mn-rescard,.mn-resbig,.mn-lbox)>.br{right:var(--cr);bottom:var(--cb);border-width:0 var(--cw) var(--cw) 0}
-.mn-resgrid{display:grid;grid-template-columns:repeat(4,183.7px);gap:2px 2.05px;padding:5.4px 0 16px 9.3px}
-/* Generated / Last: a black bar cut aslant, the chosen one lime with a darker lower half (MyNode.svg); it stays under
-   the header while the cards scroll */
-.mn-sub{position:sticky;z-index:1;top:54.97px;margin:54.97px 0 0 1.63px;width:181px;height:27.83px;background:rgba(0,0,0,.85);clip-path:polygon(0 0,100% 0,86% 100%,0 100%)}
+.mn-resgrid{position:absolute;left:0;right:1.7px;top:82.8px;bottom:1.9px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#454545 #2c2c2c;display:grid;grid-template-columns:repeat(4,183.7px);align-content:start;gap:2px 2.05px;padding:5.4px 0 16px 9.3px}
+/* Generated / Last: a black bar cut aslant, the chosen one lime with a darker lower half (MyNode.svg); the cards scroll
+   in their own box under it */
+.mn-sub{position:absolute;left:1.63px;top:54.97px;width:181px;height:27.83px;background:rgba(0,0,0,.85);clip-path:polygon(0 0,100% 0,86% 100%,0 100%)}
 .mn-subtab{position:absolute;top:0;height:100%;font-size:13.33px;line-height:26.9px;text-align:center;color:rgba(191,231,2,.85);cursor:pointer}
 .mn-subtab:first-child{left:1.9px;width:117.76px;padding-right:24.9px;clip-path:polygon(0 0,100% 0,78.4% 100%,0 100%)}
 .mn-subtab:last-child{left:94.26px;width:86.75px;clip-path:polygon(29.3% 0,100% 0,70.7% 100%,0 100%)}
