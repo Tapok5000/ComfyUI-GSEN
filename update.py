@@ -1,11 +1,13 @@
 """Settings → Update: this pack's version, the newest one on GitHub, and getting it.
 
 A git clone updates with git pull; a folder unpacked from a zip downloads GitHub's zip of main over itself; the
-development copy (the pack inside a bigger repo) is left alone. Files already in face/prompts are the user's system
+development copy (the pack inside a bigger repo) is left alone. Files already in assets/prompts are the user's system
 prompts and stay as they are; web/ mirrors the new version exactly, since the frontend loads every .js under it.
 """
 import asyncio
+import logging
 import re
+import shutil
 import subprocess
 import urllib.request
 import zipfile
@@ -16,11 +18,31 @@ from aiohttp import web
 
 from server import PromptServer
 
-from .face.node import core_problems
+from .assets.node import core_problems
 
 PACK = Path(__file__).resolve().parent
-KEEP = "face/prompts/"
+KEEP = "assets/prompts/"
 MIRROR = "web/"
+
+
+def migrate(pack=PACK):
+    """1.18.0 renamed face/ to assets/. An update from an older version leaves the user's prompts in face/prompts: they
+    move to assets/prompts as they are (theirs win, as KEEP always kept them), then the rest of face/, old code, goes."""
+    old = pack / "face"
+    if not old.is_dir():
+        return
+    try:
+        for f in sorted(old.glob("prompts/**/*")):
+            if f.is_file():
+                dest = pack / KEEP / f.relative_to(old / "prompts")
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                f.replace(dest)
+        shutil.rmtree(old)
+    except OSError as e:  # a file in use: the next start tries again
+        logging.warning("GSEN: moving face/ to assets/: %s", e)
+
+
+migrate()
 
 
 def field(text, key):

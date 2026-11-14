@@ -2,7 +2,7 @@
 
 Run from the ComfyUI folder:
     cd E:\\ComfyUI_2026\\ComfyUI
-    ..\\python_embeded\\python.exe custom_nodes\\ComfyUI-MyNode\\tests\\test_face.py
+    ..\\python_embeded\\python.exe custom_nodes\\ComfyUI-GSEN\\tests\\test_face.py
 """
 import asyncio
 import importlib
@@ -19,7 +19,7 @@ from types import SimpleNamespace
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""  # leave the GPU to a running ComfyUI
 PACK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FACE = os.path.join(PACK, "face")
+FACE = os.path.join(PACK, "assets")
 sys.path[:0] = [os.getcwd(), PACK, FACE]  # ComfyUI root (the cwd), the pack, the node's folder
 
 import torch  # noqa: E402
@@ -43,7 +43,7 @@ import nodes  # noqa: E402
 import common  # noqa: E402
 from common import save_images  # noqa: E402
 
-target_size = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.sizes").target_size  # it imports crop_edit relatively
+target_size = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.sizes").target_size  # it imports crop_edit relatively
 DAY = date.today().isoformat()  # results go into SAVE/<day>/
 
 
@@ -115,7 +115,7 @@ def test_save_images():
 
 def expand(**kw):
     """The graph FACE expands into, with test defaults for every input."""
-    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")  # as ComfyUI loads it: relative imports work
+    node = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.node")  # as ComfyUI loads it: relative imports work
     return node.FaceProcessing.execute(**{
         "image": "a.png", "text": "box", "seed": 1, "steps": 8, "sampler_name": "euler", "scheduler": "simple",
         "resolution_source": True, "aspect_ratio": "custom", "custom_width": 1024, "custom_height": 1536, "ref_boost": 2.0,
@@ -143,7 +143,7 @@ def test_old_core_llm():
 
 def test_prompt_list():
     nodes.NODE_CLASS_MAPPINGS["TextGenerateV2"] = None  # core 0.44+
-    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    node = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.node")
     assert node._prompts("a,\nstill a\n\nparagraph\n---------\r\n\n b \n---\n") == ["a,\nstill a\n\nparagraph", "b"]
     assert node._prompts("one <lora:x:1.1>\n\n\ntwo\nlines\r\n") == ["one <lora:x:1.1>", "two\nlines"]  # blank lines
     assert [i["prompt"] for i in inputs_of(expand(text=" as typed\n"), "MyNode_Krea2Encode")] == [" as typed\n"]
@@ -162,7 +162,7 @@ def test_prompt_list():
 
 
 def test_manual_crop():
-    crop_edit = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.crop_edit")
+    crop_edit = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.crop_edit")
     raw = json.dumps({"image": "a.png", "angle": 90, "box": [10, 20, 30, 40], "pad": [1, 2, 3, 4]})
     spec = crop_edit.spec_of(raw, "a.png")
     assert crop_edit.spec_of(raw, "b.png") is None and crop_edit.spec_of("{broken", "a.png") is None
@@ -182,7 +182,7 @@ def test_manual_crop():
 
 def test_system_prompt():
     nodes.NODE_CLASS_MAPPINGS["TextGenerateV2"] = None  # core 0.44+
-    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    node = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.node")
     real = node.PROMPTS
     with tempfile.TemporaryDirectory() as d:
         node.PROMPTS = Path(d)
@@ -201,7 +201,7 @@ def test_system_prompt():
 
 
 def test_newest_default():
-    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    node = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.node")
     real = folder_paths.get_filename_list
     files = ["Edit\\krea2_identity_edit_v1_2.safetensors", "krea2_identity_edit_v2.safetensors", "other.safetensors",
              "x_v9.safetensors", "x_v10.safetensors"]
@@ -215,7 +215,7 @@ def test_newest_default():
 
 
 def test_core_problems():
-    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    node = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.node")
 
     class Gen:  # TextGenerateV2 with the inputs core 0.44 gives it
         @classmethod
@@ -237,32 +237,57 @@ def test_core_problems():
 
 
 def test_update():
-    update = importlib.import_module("custom_nodes.ComfyUI-MyNode.update")
+    update = importlib.import_module("custom_nodes.ComfyUI-GSEN.update")
     assert update.field('[project]\nversion = "1.2.3"\n', "version") == "1.2.3"
     assert update.newer("1.10.0", "1.9.0") and not update.newer("1.9.0", "1.9.0")
     with tempfile.TemporaryDirectory() as d:
         repo = Path(d).resolve() / "repo"
-        pack = repo / "ComfyUI-MyNode"
-        (pack / "web" / "face").mkdir(parents=True)
-        (pack / "face" / "prompts").mkdir(parents=True)
+        pack = repo / "ComfyUI-GSEN"
+        (pack / "web" / "assets").mkdir(parents=True)
+        (pack / "assets" / "prompts").mkdir(parents=True)
         assert update.mode(pack) == "zip"
         (pack / ".git").mkdir()
         assert update.mode(pack) == "git"
         (pack / ".git").rmdir()
         (repo / ".git").mkdir()
         assert update.mode(pack) == "dev"
-        files = {"face/prompts/system.txt": "mine", "face/prompts/own.txt": "own", "web/face/old.js": "stale", "same.py": "same"}
+        files = {"assets/prompts/system.txt": "mine", "assets/prompts/own.txt": "own", "web/assets/old.js": "stale",
+                 "same.py": "same"}
         for name, text in files.items():
             (pack / name).write_text(text)
         buf = BytesIO()
         with zipfile.ZipFile(buf, "w") as z:
-            for name, text in {"pyproject.toml": 'version = "9.9.9"', "same.py": "same", "face/prompts/system.txt": "theirs",
-                               "face/prompts/new.txt": "new", "web/face/index.js": "js", "../evil.txt": "x"}.items():
-                z.writestr(f"ComfyUI-MyNode-main/{name}", text)
+            for name, text in {"pyproject.toml": 'version = "9.9.9"', "same.py": "same", "assets/prompts/system.txt": "theirs",
+                               "assets/prompts/new.txt": "new", "web/assets/index.js": "js", "../evil.txt": "x"}.items():
+                z.writestr(f"ComfyUI-GSEN-main/{name}", text)
         changed = update.unpack(buf.getvalue(), pack)
-        assert sorted(changed) == ["face/prompts/new.txt", "pyproject.toml", "web/face/index.js", "web/face/old.js"]
-        assert (pack / "face/prompts/system.txt").read_text() == "mine" and (pack / "face/prompts/own.txt").exists()
-        assert not (pack / "web/face/old.js").exists() and not (repo / "evil.txt").exists()
+        assert sorted(changed) == ["assets/prompts/new.txt", "pyproject.toml", "web/assets/index.js", "web/assets/old.js"]
+        assert (pack / "assets/prompts/system.txt").read_text() == "mine" and (pack / "assets/prompts/own.txt").exists()
+        assert not (pack / "web/assets/old.js").exists() and not (repo / "evil.txt").exists()
+        # updated from before 1.18.0: the user's prompts are still in face/, beside the old code
+        old = {"face/prompts/system.txt": "edited", "face/prompts/img_to_text/my.txt": "my", "face/node.py": "old"}
+        for name, text in old.items():
+            (pack / name).parent.mkdir(parents=True, exist_ok=True)
+            (pack / name).write_text(text)
+        update.migrate(pack)
+        assert (pack / "assets/prompts/system.txt").read_text() == "edited"  # theirs win, as KEEP always kept them
+        assert (pack / "assets/prompts/img_to_text/my.txt").read_text() == "my" and not (pack / "face").exists()
+        update.migrate(pack)  # nothing left to move
+
+
+def test_sounds():
+    ask = lambda route, **q: asyncio.run(route(SimpleNamespace(query=q)))  # noqa: E731
+    real = common.SOUNDS
+    with tempfile.TemporaryDirectory() as d:
+        common.SOUNDS = d
+        for name in ("b.mp3", "a.WAV", "README.txt"):
+            Path(d, name).write_bytes(b"")
+        try:
+            assert common.sounds() == ["a.WAV", "b.mp3"]  # audio only
+            assert ask(common._sound, name="b.mp3").status == 200
+            assert ask(common._sound, name="README.txt").status == ask(common._sound, name="../b.mp3").status == 404
+        finally:
+            common.SOUNDS = real
 
 
 def test_gallery():
@@ -299,7 +324,7 @@ def test_gallery():
 
 def test_llm_tab():
     nodes.NODE_CLASS_MAPPINGS["TextGenerateV2"] = None  # core 0.44+
-    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    node = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.node")
     real = node.IMG_TO_TEXT
     with tempfile.TemporaryDirectory() as d:
         node.IMG_TO_TEXT = Path(d)
@@ -335,6 +360,7 @@ if __name__ == "__main__":
     test_newest_default()
     test_core_problems()
     test_update()
+    test_sounds()
     test_gallery()
     test_llm_tab()
     print("ok")

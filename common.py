@@ -1,4 +1,4 @@
-"""Pack-wide pieces, shared by every node: the image galleries' HTTP routes, result saving, the expansion output."""
+"""Pack-wide pieces, shared by every node: the image galleries' and sounds' HTTP routes, result saving, the expansion output."""
 import asyncio
 import functools
 import json
@@ -52,6 +52,28 @@ async def _thumb_route(request):
     size = min(int(s), 1024) if s.isdigit() and int(s) >= 16 else 256
     data = await asyncio.get_running_loop().run_in_executor(None, _thumb, path, os.path.getmtime(path), size)
     return web.Response(body=data, content_type="image/webp", headers={"Cache-Control": "max-age=31536000"})
+
+
+SOUNDS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "Sound")
+
+
+def sounds():
+    """The sounds Krea2 One can play when a Run is done (Settings → Sound): the audio files in assets/Sound."""
+    names = os.listdir(SOUNDS) if os.path.isdir(SOUNDS) else []
+    return sorted(n for n in names if n.lower().endswith((".mp3", ".wav", ".ogg", ".m4a", ".flac")))
+
+
+@PromptServer.instance.routes.get("/mynode/sounds")
+async def _sounds(request):
+    return web.json_response(sounds())
+
+
+@PromptServer.instance.routes.get("/mynode/sound")
+async def _sound(request):
+    name = request.query.get("name", "")
+    if name not in sounds():  # only a listed name: it can't reach outside the folder
+        return web.Response(status=404)
+    return web.FileResponse(os.path.join(SOUNDS, name))
 
 
 def _save_path(folder, prefix, w=0, h=0):

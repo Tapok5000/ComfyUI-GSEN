@@ -83,7 +83,7 @@ def _files(id, kind, needle):
     return io.Combo.Input(id, options=options, default=default)
 
 
-# web/face/index.js counts prompts with the same two rules
+# web/assets/index.js counts prompts with the same two rules
 DASHES = re.compile(r"^[ \t]*-{3,}[ \t]*\r?$", re.M)
 BLANK_LINES = re.compile(r"\n\s*\n")
 LORA_TAG = re.compile(r"\s*<lora:([^:>]+)(?::([^:>]*))?[^>]*>", re.I)
@@ -125,7 +125,7 @@ class FaceProcessing(io.ComfyNode):
             node_id="MyNode_FaceProcessing",
             display_name="Krea2 One",
             search_aliases=["FACE Processing"],  # its name before 1.4.1
-            category="MyNode",
+            category="GSEN",
             description="Face crop + AI prompt + Krea2 identity edit + RU/EN in one node.",
             is_output_node=True,
             inputs=[
@@ -166,11 +166,11 @@ class FaceProcessing(io.ComfyNode):
                 io.String.Input("crop", default="", optional=True,
                                 tooltip="The preview's crop: JSON {image, angle, box, pad} in pixels, used only for that image."),
                 io.Combo.Input("system_file", options=prompts, default=next(iter(prompts), None), optional=True,
-                               tooltip="The AI's system prompt for the photo: a .txt from face/prompts (R lists new ones)."),
+                               tooltip="The AI's system prompt for the photo: a .txt from assets/prompts (R lists new ones)."),
                 io.String.Input("llm_save_to", default="IMGtext", optional=True,
                                 tooltip="Where Settings → LLM keeps the prompts it writes, like save_to. Empty: not saved."),
                 io.Combo.Input("llm_system_file", options=to_text, default=next(iter(to_text), None), optional=True,
-                               tooltip="Settings → LLM's system prompt, picture → prompt: a .txt from face/prompts/img_to_text."),
+                               tooltip="Settings → LLM's system prompt, picture → prompt: a .txt in assets/prompts/img_to_text."),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -233,19 +233,19 @@ class FaceProcessing(io.ComfyNode):
             g.node("MyNode_Show", images=result, ru=ru, en=prompt, save_to=save_to, info=info)
         if missing:  # the batch still runs, so say which tags did nothing
             note = "LoRA not found, skipped: " + ", ".join(sorted(missing))
-            logging.warning("MyNode: %s", note)
+            logging.warning("GSEN: %s", note)
             PromptServer.instance.send_sync("mynode.toast", {"text": note})
         return Expansion(expand=g.finalize())
 
 
 class LLMPrompt(io.ComfyNode):
-    """Settings → LLM: the AI step alone. A picture and a picture → prompt system prompt (face/prompts/img_to_text) in;
+    """Settings → LLM: the AI step alone. A picture and a picture → prompt system prompt (assets/prompts/img_to_text) in;
     the prompt the LLM writes is shown on the node and saved as a .txt in its SAVE (parts.LLMText). The face queues it
     on its own, outside the workflow."""
 
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_LLM", category="MyNode", is_output_node=True, is_dev_only=True, enable_expand=True,
+        return io.Schema(node_id="MyNode_LLM", category="GSEN", is_output_node=True, is_dev_only=True, enable_expand=True,
                          inputs=[io.String.Input("image"), io.String.Input("llm_name"),
                                  io.String.Input("system_file", default=""), io.String.Input("save_to", default="")],
                          outputs=[])

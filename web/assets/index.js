@@ -5,26 +5,26 @@ import { canvasControls, comboValues, el, hideWidgets, menu, nodeByExecId, txt }
 import { cropEditor } from "./crop.js"
 
 const NODE = "MyNode_FaceProcessing"
-const SIZE = [1896, 745]
+const SIZE = [1890.6, 745]
 
 // [label, widget, top, left, width] px from MyNode.svg; a row with a left is one of its short pills
 const ROWS = [
-  ["Resize", "resolution_source", 369.6, 58.6, 147.7], ["ref_boost", "ref_boost", 369.6, 220.3, 218.4],
-  ["grounding_px", "grounding_px", 369.6, 444.5, 247.7], ["W", "custom_width", 432.2, 372.8, 147.7],
-  ["H", "custom_height", 432.2, 539.3, 147.7],
-  ["", "aspect_ratio", 432.2, 259, 428], // a preset's pill, in W and H's place (not in MyNode.svg)
+  ["Resize", "resolution_source", 369.6, 62, 147.7], ["ref_boost", "ref_boost", 369.6, 222.9, 218.4],
+  ["grounding_px", "grounding_px", 369.6, 447, 247.7], ["W", "custom_width", 432.2, 376, 147.7],
+  ["H", "custom_height", 432.2, 542.4, 147.7],
+  ["", "aspect_ratio", 432.2, 262.2, 427.8], // a preset's pill, in W and H's place (not in MyNode.svg)
   ["seed", "seed", 488.9], ["steps", "steps", 527.9], ["sampler", "sampler_name", 579.5], ["scheduler", "scheduler", 617.1],
 ]
 const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
   ["LLM", "llm_name", 281.4], ["LLM", "ai_prompt", 331.8, 25.9, 147.7], ["System", "system_file", 375.5, 25.9, 282.8],
   ["Crop", "manual_crop", 444.3, 25.9, 147.7], ["FaceCrop", "face_crop", 445.5, 181.5, 194.1],
-  ["SAVE", "save_to", 517.6, 25.9, 282.8],
+  ["SAVE", "save_to", 517.6, 25.9, 282.8], ["Sound", "sound", 590, 25.9, 282.8], // no widget: node properties
   // not in MyNode.svg: kept in its free right column
   ["max_resolution", "max_resolution", 444.3, 451.4, 282.8],
   ["seed mode", "control_after_generate", 517.6, 451.4, 282.8], // ComfyUI's own seed control: fixed / randomize / …
 ]
-// a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (face/node.py: _prompts)
+// a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (assets/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
 const countPrompts = (t) => t.split(DASHES.test(t) ? DASHES : /\n\s*\n/).filter((p) => p.trim()).length
 
@@ -35,6 +35,28 @@ const ICON = {
   search: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#777" stroke-width="2.6" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg>`,
   plus: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M11 6v10M6 11h10"/></svg>`,
   cross: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m7 7 8 8m0-8-8 8"/></svg>`,
+  // MyNode.svg's 🔊 and 🔇 (font glyphs there), outlined: one box, the speaker in the same place in both
+  on: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m4.508,13.687h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h3.156v0.010l6.041,-2.833q0.416,-0.197 0.937,-0.135 0.531,0.052 0.916,0.333 0.385,0.281 0.385,0.75v4.864q0.927,0.020 1.572,0.687 0.656,0.666 0.656,1.604 0,0.927 -0.656,1.593 -0.645,0.666 -1.572,0.697v4.677q0,0.468 -0.281,0.791 -0.281,0.333 -0.698,0.437 -0.416,0.114 -0.843,-0.083zm6.791,-11.989q-0.01,0 -0.021,0 0,0 0,0 -0.052,0 -0.083,0l-0.01,0.010 -5.166,2.427v8.572l5.281,2.343zm5.312,3.031q1.291,1.427 1.354,3.364 0.073,2.270 -1.531,3.874 -0.083,0.072 -0.156,0.145 -0.239,0.218 -0.531,0.197 -0.291,-0.020 -0.510,-0.218 -0.208,-0.208 -0.208,-0.531 0,-0.333 0.229,-0.552 0.562,-0.520 0.885,-1.229 0.322,-0.708 0.322,-1.531 0,-0.812 -0.322,-1.520 -0.323,-0.718 -0.885,-1.229 -0.229,-0.218 -0.229,-0.531v-0.020q0,-0.333 0.208,-0.531 0.218,-0.208 0.510,-0.218 0.291,-0.020 0.531,0.197 0.166,0.145 0.333,0.333zm-0.458,-2.322q0.854,0.489 1.541,1.218 0.875,0.927 1.343,2.114 0.479,1.177 0.489,2.437 0.01,1.375 -0.5,2.635 -0.510,1.25 -1.479,2.218 -0.635,0.635 -1.395,1.072 -0.375,0.218 -0.375,0.656 0,0.427 0.375,0.645 0.375,0.218 0.75,0 1.239,-0.718 2.166,-1.802 0.927,-1.093 1.437,-2.458 0.520,-1.364 0.520,-2.895 0,-1.520 -0.520,-2.885 -0.510,-1.364 -1.437,-2.458 -0.927,-1.093 -2.166,-1.802 -0.375,-0.218 -0.75,0 -0.375,0.208 -0.375,0.645 0,0.427 0.375,0.656z"/></svg>`,
+  off: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m12.799,11.967v3.447q0,0.468 -0.281,0.791 -0.281,0.333 -0.697,0.437 -0.416,0.114 -0.843,-0.083l-6.468,-2.874h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h2.635l-1.625,-1.625q-0.260,-0.260 -0.260,-0.625 0,-0.375 0.260,-0.635 0.260,-0.260 0.625,-0.260 0.375,0 0.635,0.260l14.885,14.874q0.260,0.270 0.260,0.645 0,0.364 -0.260,0.624 -0.260,0.260 -0.635,0.260 -0.364,0 -0.625,-0.260zm-1.5,-1.5 -5.281,-5.281v7.520l5.281,2.343zm3.729,-2.020q0,-0.937 -0.656,-1.604 -0.645,-0.666 -1.572,-0.687v-4.864q0,-0.468 -0.385,-0.75 -0.385,-0.281 -0.916,-0.333 -0.520,-0.062 -0.937,0.135l-3.364,1.572 1.135,1.135 2.854,-1.343h0.01q0.021,-0.010 0.083,-0.010 0,0 0,0 0.01,0 0.021,0v4.322l3.468,3.468q0.260,-0.489 0.260,-1.041z"/></svg>`,
+}
+// GSEN in MyNode.svg's Sci-Fi font, outlined (158.29 x 29.46): the Settings header's logo, the boxes' watermark, the
+// middle's background tiles
+const GSEN = "m34.766,19.738q0,1.835 -0.566,3.455 -0.566,1.600 -1.620,2.811 -1.034,1.190 -2.518,1.893 -1.464,0.683 -3.162,0.683h-18.078q-1.581,0 -3.689,-1.112 -2.108,-1.112 -3.631,-2.947 -1.503,-1.835 -1.503,-3.846v-12.611q0,-1.542 1.190,-3.299 1.190,-1.776 3.104,-2.967 1.932,-1.210 3.943,-1.210h25.653v6.559h-21.065q-1.190,0 -2.245,0.585 -1.054,0.566 -1.698,1.464 -0.644,0.898 -0.644,1.835v6.188q0,1.444 0.644,2.537 0.644,1.073 1.757,1.659 1.112,0.566 2.518,0.566h10.737q1.112,0 1.893,-0.566 0.800,-0.585 0.800,-1.581 0,-0.995 -0.663,-1.503 -0.663,-0.507 -1.425,-0.507h-7.906v-6.559h9.995q0.136,0.019 1.542,0.312 1.405,0.292 2.909,1.151 1.522,0.839 2.616,2.577 1.112,1.718 1.112,4.431zm39.514,4.529q0,1.757 -1.034,3.045 -1.015,1.269 -2.869,1.269h-32.388v-6.872h25.985q0.683,0 1.444,-0.488 0.761,-0.507 0.761,-1.522 0,-0.546 -0.331,-1.034 -0.312,-0.488 -0.956,-0.780 -0.644,-0.292 -1.405,-0.292h-19.659q-1.405,0 -2.518,-0.702 -1.093,-0.722 -1.698,-1.659 -0.585,-0.956 -0.585,-1.561v-9.078q0,-1.171 1.288,-2.577 1.308,-1.425 3.358,-1.425h29.089v6.637h-24.013q-0.741,0 -1.190,0.624 -0.449,0.624 -0.449,1.308 0,0.624 0.605,1.327 0.624,0.702 1.757,0.702h19.698q2.616,0 3.865,1.347 1.249,1.347 1.249,3.533zm41.506,-10.913q0,1.874 -0.995,3.162 -0.995,1.268 -3.318,1.268l-25.555,-0.039v1.366q0,1.054 0.800,1.971 0.82,0.898 1.757,0.898h26.883v6.598h-28.386q-2.830,0 -4.900,-1.483 -2.069,-1.503 -3.143,-3.494 -1.073,-1.991 -1.073,-3.260v-12.143q0,-1.405 0.761,-2.772 0.781,-1.386 2.05,-2.498 1.269,-1.112 2.655,-1.737 1.405,-0.644 2.596,-0.644h23.193q0.995,0 2.225,0.624 1.229,0.605 2.225,1.522 0.995,0.917 1.600,1.952 0.624,1.034 0.624,1.952zm-7.867,-4.119q0,-0.878 -0.741,-1.425 -0.741,-0.546 -1.659,-0.546l-16.789,-0.039q-1.073,0 -1.952,0.937 -0.859,0.937 -0.859,2.030v1.151h21.963zm50.369,13.236q0,1.210 -0.761,2.869 -0.741,1.639 -2.440,2.889 -1.679,1.229 -4.275,1.229 -2.674,0 -3.963,-0.741 -1.288,-0.722 -2.752,-2.694l-13.588,-16.399q-0.644,-0.859 -1.034,-1.093 -0.371,-0.253 -0.937,-0.253 -0.371,0 -0.761,0.292 -0.390,0.273 -0.390,0.780v19.191h-7.926v-22.275q0,-0.585 0.370,-1.581 0.390,-1.015 1.269,-2.088 0.878,-1.093 2.323,-1.835 1.464,-0.761 3.514,-0.761 2.596,0 4.060,0.878 1.483,0.859 2.381,1.874l13.685,16.106q0.644,0.878 1.093,1.132 0.449,0.234 1.054,0.234 0.702,0 0.859,-0.409 0.175,-0.429 0.175,-1.190v-18.039h8.043z"
+const svgUrl = (attrs, body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${body}</svg>`)}")`
+// face.css takes them as --mn-mark (the boxes' watermark, white at 3%) and --mn-tile: black GSENs at 5%, turned 45°,
+// where MyNode.svg's pattern5 falls on the middle panel
+const MARK = svgUrl('viewBox="0 0 158.293 29.4603" preserveAspectRatio="none"', `<path d="${GSEN}" fill="#fff" fill-opacity=".03"/>`)
+const TILE = svgUrl("", `<defs><pattern id="g" width="190.031" height="76.629" patternUnits="userSpaceOnUse"
+  patternTransform="matrix(.423226 .423631 -.423374 .423483 -264.622 802.567)"><path d="${GSEN}"/></pattern></defs>
+  <rect width="100%" height="100%" fill="url(#g)" opacity=".05"/>`)
+
+// Settings → Sound: the files in assets/Sound (common.py), played when a Run is done
+let sounds = []
+const fetchSounds = () => api.fetchApi("/mynode/sounds").then((r) => r.json()).then((l) => (sounds = l)).catch(() => sounds)
+const play = (name) => {
+  const a = new Audio(api.apiURL(`/mynode/sound?name=${encodeURIComponent(name)}`))
+  a.volume = 0.5 // as LC Notify, where these sounds come from, plays them
+  a.play().catch(() => {}) // a page nobody has clicked yet may not play
 }
 
 const dirOf = (p) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "")
@@ -122,8 +144,7 @@ function build(node) {
     app.extensionManager.command.execute("Comfy.QueueSelectedOutputNodes")
   }
   track.append(fill)
-  head.append(txt("div", "mn-title", "Krea2 One"), el("div", "mn-pill t"), el("div", "mn-pill p"),
-    el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, dims)
+  head.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, dims)
 
   const left = el("div", "mn-left")
   const pick = el("div", "mn-pick"), pName = el("div", "mn-pname"), pIdx = el("div", "mn-pidx")
@@ -255,15 +276,15 @@ function build(node) {
   const prompt = el("textarea", "mn-box"), ru = el("div", "mn-box")
   prompt.dataset.scroll = ru.dataset.scroll = ""
   prompt.spellcheck = false
-  prompt.style.top = "33px"
-  ru.style.top = "201.3px"
+  Object.assign(prompt.style, { left: "21px", top: "15.3px" }) // the two boxes don't line up in MyNode.svg either
+  Object.assign(ru.style, { left: "19.7px", top: "208.9px" })
   prompt.oninput = () => {
     W("text").value = prompt.value
     W("text").callback?.(prompt.value)
   }
-  const lp = txt("div", "mn-lbl", "PROMPT"), lr = txt("div", "mn-lbl mn-lang", "RU")
-  lp.style.top = "14px"
-  lr.style.top = "182.5px"
+  const lp = txt("div", "mn-cap", "PROMPT"), lr = txt("div", "mn-cap mn-lang", "RU")
+  Object.assign(lp.style, { left: "29.9px", top: "23.9px" })
+  Object.assign(lr.style, { left: "28.7px", top: "217.8px" })
   // the box shows the RU translation; a click on its label switches to EN, the prompt the sampler got
   let shot = { RU: "", EN: "" }
   lr.title = "RU / EN"
@@ -273,9 +294,9 @@ function build(node) {
   }
   // LOAD TXT keeps the file's text in the hidden "prompts" widget; while it is there, Run makes an image per
   // prompt and the box shows them read-only. CLOSE TXT goes back to the box's own prompt.
-  const lt = txt("div", "mn-lbl mn-txt"), txtIn = el("input")
+  const lt = txt("div", "mn-ltxt"), txtIn = el("input"), snd = el("div", "mn-snd")
   const loaded = () => W("prompts")?.value ?? ""
-  lt.style.top = "14px"
+  snd.title = "Sound when a Run is done: on / off"
   txtIn.type = "file"
   txtIn.accept = ".txt,text/plain"
   txtIn.hidden = true
@@ -302,7 +323,7 @@ function build(node) {
   // custom / preset: aspect_ratio "custom" is W × H; a preset shows its own pill in their place
   const presets = () => comboValues(W("aspect_ratio")).filter((p) => p !== "custom")
   let preset = null // the one custom goes back to
-  const mode = row(["", "", 432.2, 58.6, 147.7], "mn-row tog mn-mode")
+  const mode = row(["", "", 432.2, 62, 147.7], "mn-row tog mn-mode")
   mode.firstChild.append(txt("span", "cu", "custom /"), " ", txt("span", "pr", "preset"))
   mode.onclick = () => {
     const v = W("aspect_ratio")?.value
@@ -310,7 +331,7 @@ function build(node) {
     set("aspect_ratio", v !== "custom" ? "custom" : presets().includes(preset) ? preset : presets()[0])
   }
   binds.push(() => { mid.classList.toggle("preset", W("aspect_ratio")?.value !== "custom") })
-  mid.append(lp, lt, txtIn, prompt, lr, ru, mode, ...ROWS.map((s) => row(s, "mn-row")))
+  mid.append(lp, lt, txtIn, prompt, lr, ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")))
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
@@ -396,12 +417,14 @@ function build(node) {
     tabs.forEach((b) => b.classList.toggle("on", b.textContent === t))
     for (const [k, p] of Object.entries(panes)) p.hidden = k !== t
     lRun.hidden = t !== "LLM"
+    logo.hidden = t !== "Settings" // MyNode.svg has it on the Settings board only; on LLM, Run sits there
     det.hidden = true
     if (t === "Gallery") loadGallery()
     // the tab's scroll area takes the focus, so the wheel scrolls it in Nodes 2.0 too
     if (setP.classList.contains("open")) (panes[t].querySelector("[data-scroll]") ?? panes[t]).focus({ preventScroll: true })
   }
-  shead.append(...tabs, lRun, upB)
+  const logo = el("div", "mn-logo", `<svg viewBox="0 0 158.293 29.4603" preserveAspectRatio="none" fill="currentColor"><path d="${GSEN}"/></svg>`)
+  shead.append(...tabs, logo, lRun, upB)
   const sRow = Object.fromEntries(SETTINGS.map((s) => [s[1], row(s, "mn-srow")]))
 
   // Update: this pack against the newest on GitHub (update.py); a click checks again and gets the newer one
@@ -415,11 +438,11 @@ function build(node) {
     const s = await checkUpdate()
     paintUp(s)
     if (s?.mode === "dev") return toast("This PC holds the development copy: it is the source, nothing to update.")
-    if (!s?.available) return toast(s?.error ?? `MyNode ${s?.version} is the newest.`, s?.error ? "warn" : "info")
+    if (!s?.available) return toast(s?.error ?? `GSEN ${s?.version} is the newest.`, s?.error ? "warn" : "info")
     upB.textContent = "updating…"
     const r = await api.fetchApi("/mynode/update", { method: "POST" }).then((x) => x.json()).catch((e) => ({ error: String(e) }))
     upB.textContent = r.ok ? "Restart" : "Update"
-    toast(r.ok ? `MyNode ${r.version} is in. Restart ComfyUI, then Ctrl+F5.` : r.error ?? r.log, r.ok ? "success" : "error", 15000)
+    toast(r.ok ? `GSEN ${r.version} is in. Restart ComfyUI, then Ctrl+F5.` : r.error ?? r.log, r.ok ? "success" : "error", 15000)
   }
 
   // more LoRAs: rows right under the LoRa row; the hidden "loras" widget keeps them as [[file, strength], ...]
@@ -459,6 +482,31 @@ function build(node) {
     sEnd.style.top = END + shift + "px"
   })
   panes.Settings.append(...Object.values(sRow), extra, sEnd)
+
+  // Sound: 🔊 / 🔇 on the middle and in Settings switch it, its field picks the file; both save with the workflow
+  const sIcon = el("div", "mn-snd"), sName = el("div", "sv")
+  sRow.sound.classList.add("mn-sound")
+  sRow.sound.append(sIcon, sName)
+  const muted = () => !!node.properties?.mn_mute
+  const soundName = () => (sounds.includes(node.properties?.mn_sound) ? node.properties.mn_sound : sounds[0] ?? "")
+  let shownMute = null
+  const paintSound = () => {
+    if (muted() !== shownMute) snd.innerHTML = sIcon.innerHTML = (shownMute = muted()) ? ICON.off : ICON.on
+    sName.textContent = sName.title = soundName()
+  }
+  snd.onclick = sRow.sound.onclick = async (e) => {
+    if (!e.target.closest(".sv")) {
+      node.setProperty("mn_mute", !muted())
+      return paintSound()
+    }
+    menu(e, node, await fetchSounds(), (f) => {
+      node.setProperty("mn_sound", f)
+      paintSound()
+      play(f) // a name says little: picking one plays it
+    })
+  }
+  binds.push(paintSound)
+  fetchSounds().then(paintSound)
 
   // Gallery: Generated = what this node made since the page opened, Last = everything in SAVE (common.py:
   // /mynode/results); newest first. A card opens over them with its picture, size, sampling settings and prompt.
@@ -530,7 +578,7 @@ function build(node) {
   }
 
   // LLM: the AI step alone (MyNode_LLM): a picture, the same LLM as Settings, its own System (picture → prompt, from
-  // face/prompts/img_to_text) and SAVE; Run queues just that, and the prompt the LLM writes comes back here (setup(): LLM_RUNS)
+  // assets/prompts/img_to_text) and SAVE; Run queues just that, and the prompt the LLM writes comes back here (setup(): LLM_RUNS)
   const lBox = el("div", "mn-lbox"), lImg = el("img"), lUp = el("div", "mn-upload mn-lup", ICON.upload + "Upload")
   const lOut = el("div", "mn-lout"), lFile = picker((name) => {
     node.setProperty("mn_llm_image", name) // saves with the workflow; the node's own image is untouched
@@ -681,6 +729,7 @@ function build(node) {
       lOut.textContent = text.trim() ? text : ""
       lOut.className = lOut.textContent ? "mn-lout" : "mn-lout none" // ran, wrote nothing: "no prompt" (not run yet: "Prompt")
     },
+    ding: () => { if (!muted() && soundName()) play(soundName()) },
   }
 
   // hideInPanel: the right Parameters panel sets widget.width to its own width, and the canvas sizes this face by it
@@ -697,7 +746,7 @@ function build(node) {
   refresh()
 }
 
-const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "MyNode", detail, life })
+const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "GSEN", detail, life })
 
 // a hidden file input for pictures: the chosen file goes to ComfyUI's input/, put() gets its name there
 function picker(put) {
@@ -796,7 +845,7 @@ app.registerExtension({
     const css = el("link")
     css.rel = "stylesheet"
     css.href = new URL("./face.css", import.meta.url)
-    document.head.append(css)
+    document.head.append(css, txt("style", null, `.mn{--mn-mark:${MARK};--mn-tile:${TILE}}`))
     ;(updateInfo ?? checkUpdate()).then((s) => {
       if (s?.problems?.length) {
         toast(`This ComfyUI changed what Krea2 One is built from: ${s.problems.join("; ")}. Run may fail; Settings → Update brings a fixed version.`, "warn", 20000)
@@ -813,12 +862,19 @@ app.registerExtension({
     })
     for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, stop)
     api.addEventListener("progress", ({ detail }) => running?._mn.progress(detail.value, detail.max))
+    const DONE = new Map() // prompt id -> the Krea2 One that made something in it: it chimes once, when all of it is done
     api.addEventListener("executed", ({ detail }) => {
-      ours(detail.display_node ?? detail.node)?._mn.show(detail.output, detail.prompt_id)
-      if (detail.output?.mn_llm) LLM_RUNS.get(detail.prompt_id)?._mn.llm(detail.output.mn_llm[0])
+      const n = ours(detail.display_node ?? detail.node), l = detail.output?.mn_llm && LLM_RUNS.get(detail.prompt_id)
+      n?._mn.show(detail.output, detail.prompt_id)
+      l?._mn.llm(detail.output.mn_llm[0])
+      if (n || l) DONE.set(detail.prompt_id, n || l)
     })
+    api.addEventListener("execution_success", ({ detail }) => DONE.get(detail?.prompt_id)?._mn.ding())
     for (const ev of ["execution_error", "execution_interrupted"]) { // ComfyUI shows the error itself
       api.addEventListener(ev, ({ detail }) => LLM_RUNS.get(detail?.prompt_id)?._mn.llm(""))
+    }
+    for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) {
+      api.addEventListener(ev, ({ detail }) => DONE.delete(detail?.prompt_id))
     }
     api.addEventListener("mynode.toast", ({ detail }) => {
       app.extensionManager.toast.add({ severity: "warn", summary: "Krea2 One", detail: detail.text, life: 8000 })

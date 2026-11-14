@@ -1,5 +1,5 @@
 // Krea2 One's Crop, edited on its input preview: turn, crop box, padding. Same model as ausboss Image Crop + Rotate +
-// Pad, and face/crop_edit.py applies it: the picture turns clockwise on a canvas grown to fit, the box is cut from
+// Pad, and assets/crop_edit.py applies it: the picture turns clockwise on a canvas grown to fit, the box is cut from
 // that canvas, the padding is gray. Saved as {angle, box: [x, y, w, h], pad: [left, top, right, bottom]} in pixels.
 const LIME = "#c7f400", INK = "#070a10"
 const CW = 306, CH = 447 // face.css .mn-pbox
