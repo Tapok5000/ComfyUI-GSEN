@@ -96,6 +96,16 @@ export function canvasControls(node, root, handle) {
     root.addEventListener("pointermove", move)
     root.addEventListener("pointerup", end)
   }, true)
+  // Nodes 2.0 gives the wheel to the canvas unless it is over a [data-capture-wheel] element that holds the focus
+  // (frontend useCanvasInteractions), so a press inside a scroll area focuses it and the wheel then scrolls it
+  for (const sc of root.querySelectorAll("[data-scroll]")) {
+    sc.dataset.captureWheel = "true"
+    if (!sc.matches("textarea, input, [tabindex]")) sc.tabIndex = -1
+  }
+  root.addEventListener("pointerdown", (e) => {
+    const sc = e.target.closest?.("[data-scroll]")
+    if (sc && !sc.contains(document.activeElement)) sc.focus({ preventScroll: true })
+  }, true)
   root.addEventListener("wheel", (e) => {
     const sc = e.target.closest?.("[data-scroll]")
     if (!e.ctrlKey && sc && sc.scrollHeight > sc.clientHeight) return e.stopPropagation()

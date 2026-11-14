@@ -19,7 +19,7 @@ const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
   ["LLM", "llm_name", 281.4], ["LLM", "ai_prompt", 331.8, 25.9, 147.7], ["System", "system_file", 375.5, 25.9, 282.8],
   ["Crop", "manual_crop", 444.3, 25.9, 147.7], ["FaceCrop", "face_crop", 445.5, 181.5, 194.1],
-  ["SAVE", "save_to", 517.6, 25.9, 282.8], ["Update", "update", 678.8, 451.4, 282.8],
+  ["SAVE", "save_to", 517.6, 25.9, 282.8],
   // not in MyNode.svg: kept in its free right column
   ["max_resolution", "max_resolution", 444.3, 451.4, 282.8],
   ["seed mode", "control_after_generate", 517.6, 451.4, 282.8], // ComfyUI's own seed control: fixed / randomize / …
@@ -126,10 +126,11 @@ function build(node) {
   const left = el("div", "mn-left")
   const pick = el("div", "mn-pick"), pName = el("div", "mn-pname"), pIdx = el("div", "mn-pidx")
   pick.append(pName, pIdx, el("div", "mn-pbtn"))
-  const up = el("div", "mn-upload", ICON.upload + "Upload"), file = el("input")
-  file.type = "file"
-  file.accept = "image/*"
-  file.hidden = true
+  const up = el("div", "mn-upload", ICON.upload + "Upload"), file = picker((name) => {
+    const list = W("image").options.values
+    if (Array.isArray(list) && !list.includes(name)) list.push(name), list.sort()
+    set("image", name)
+  })
   const prev = el("div", "mn-prev"), pDims = el("div", "mn-pdims"), pBox = el("div", "mn-pbox"), pWrap = el("div", "mn-pwrap")
   const pImg = el("img"), crop = el("div", "mn-crop"), la = el("div", "mn-arrow l"), ra = el("div", "mn-arrow r")
   pImg.draggable = false
@@ -186,18 +187,6 @@ function build(node) {
   la.onclick = () => stepImage(-1)
   ra.onclick = () => stepImage(1)
   up.onclick = () => file.click()
-  file.onchange = async () => {
-    const f = file.files[0]
-    file.value = ""
-    if (!f) return
-    const body = new FormData()
-    body.append("image", f)
-    const r = await api.fetchApi("/upload/image", { method: "POST", body })
-    if (r.status !== 200) return app.extensionManager.toast.add({ severity: "error", summary: "Upload", detail: r.statusText, life: 3000 })
-    const d = await r.json(), name = d.subfolder ? `${d.subfolder}/${d.name}` : d.name, list = W("image").options.values
-    if (Array.isArray(list) && !list.includes(name)) list.push(name), list.sort()
-    set("image", name)
-  }
 
   // on* handlers are blocks on purpose: one that returns false cancels its event (that once ate every key)
   const row = ([label, name, top, left, width], cls) => {
@@ -311,10 +300,8 @@ function build(node) {
   // custom / preset: aspect_ratio "custom" is W × H; a preset shows its own pill in their place
   const presets = () => comboValues(W("aspect_ratio")).filter((p) => p !== "custom")
   let preset = null // the one custom goes back to
-  const mode = row(["", "", 432.2, 58.6, 181.6], "mn-row tog mn-mode"), mv = el("div", "v")
+  const mode = row(["", "", 432.2, 58.6, 147.7], "mn-row tog mn-mode")
   mode.firstChild.append(txt("span", "cu", "custom /"), " ", txt("span", "pr", "preset"))
-  mv.append(el("div", "mn-dot"))
-  mode.append(mv)
   mode.onclick = () => {
     const v = W("aspect_ratio")?.value
     if (v !== "custom") preset = v
@@ -391,24 +378,44 @@ function build(node) {
   rPrev.onclick = () => { showShot(at - 1) }
   rNext.onclick = () => { showShot(at + 1) }
 
-  const setP = el("div", "mn-set"), shead = txt("div", "mn-shead", "Settings")
-  setP.dataset.scroll = "" // scrolls once the added LoRAs push the rows past its bottom
+  // Settings: a panel over the middle with tabs, as in MyNode.svg; its header also holds Update and the LLM tab's Run
+  const setP = el("div", "mn-set"), shead = el("div", "mn-shead"), det = el("div", "mn-det")
+  const upB = txt("div", "mn-up", "Update"), lRun = txt("div", "mn-run mn-lrun", "Run")
+  const panes = { Settings: el("div", "mn-pane"), Gallery: el("div", "mn-pane"), LLM: el("div", "mn-pane") }
+  panes.Settings.dataset.scroll = panes.Gallery.dataset.scroll = "" // added LoRAs, many results: they scroll
+  let tab = "Settings"
+  const tabs = Object.keys(panes).map((t) => {
+    const b = txt("div", "mn-tab", t)
+    b.onclick = () => { showTab(t) }
+    return b
+  })
+  const showTab = (t) => {
+    tab = t
+    tabs.forEach((b) => b.classList.toggle("on", b.textContent === t))
+    for (const [k, p] of Object.entries(panes)) p.hidden = k !== t
+    lRun.hidden = t !== "LLM"
+    det.hidden = true
+    if (t === "Gallery") loadGallery()
+    if (setP.classList.contains("open")) panes[t].focus({ preventScroll: true }) // so its wheel scrolls in Nodes 2.0 too
+  }
+  shead.append(...tabs, lRun, upB)
   const sRow = Object.fromEntries(SETTINGS.map((s) => [s[1], row(s, "mn-srow")]))
 
   // Update: this pack against the newest on GitHub (update.py); a click checks again and gets the newer one
-  const upVal = el("div", "sv")
-  sRow.update.classList.add("combo")
-  sRow.update.append(upVal)
-  ;(updateInfo ?? checkUpdate()).then((s) => { upVal.textContent = updateText(s) })
-  sRow.update.onclick = async () => {
-    upVal.textContent = "checking…"
+  const paintUp = (s) => {
+    upB.textContent = s?.available ? `Update ${s.latest}` : "Update"
+    upB.title = updateText(s)
+  }
+  ;(updateInfo ?? checkUpdate()).then(paintUp)
+  upB.onclick = async () => {
+    upB.textContent = "checking…"
     const s = await checkUpdate()
-    upVal.textContent = updateText(s)
+    paintUp(s)
     if (s?.mode === "dev") return toast("This PC holds the development copy: it is the source, nothing to update.")
     if (!s?.available) return toast(s?.error ?? `MyNode ${s?.version} is the newest.`, s?.error ? "warn" : "info")
-    upVal.textContent = `updating to ${s.latest}…`
+    upB.textContent = "updating…"
     const r = await api.fetchApi("/mynode/update", { method: "POST" }).then((x) => x.json()).catch((e) => ({ error: String(e) }))
-    upVal.textContent = r.ok ? `${r.version} · restart ComfyUI` : "update failed"
+    upB.textContent = r.ok ? "Restart" : "Update"
     toast(r.ok ? `MyNode ${r.version} is in. Restart ComfyUI, then Ctrl+F5.` : r.error ?? r.log, r.ok ? "success" : "error", 15000)
   }
 
@@ -448,8 +455,93 @@ function build(node) {
     for (const [, name, top] of SETTINGS) if (top > LORA_TOP) sRow[name].style.top = top + shift + "px"
     sEnd.style.top = END + shift + "px"
   })
-  setP.append(shead, ...Object.values(sRow), extra, sEnd)
-  openB.onclick = () => { setP.classList.toggle("open") } // ↗ sits right of the panel, so it also closes it
+  panes.Settings.append(...Object.values(sRow), extra, sEnd)
+
+  // Gallery: the results in SAVE (common.py: /mynode/results), newest first; a card opens over them with its
+  // picture, size, sampling settings and prompt, as saved in the PNG
+  const grid = el("div", "mn-resgrid"), folder = () => String(W("save_to")?.value ?? "")
+  const resultRoute = (r, q = "") => `/mynode/result?folder=${encodeURIComponent(folder())}&name=${encodeURIComponent(r.name)}&v=${r.mtime}${q}`
+  const corners = () => ["tl", "tr", "bl", "br"].map((c) => el("i", c))
+  panes.Gallery.append(grid)
+  // shortcut: every card at once (thumbnails load lazily); page the list if a SAVE folder grows past a few thousand
+  const loadGallery = async () => {
+    const list = await api.fetchApi(`/mynode/results?folder=${encodeURIComponent(folder())}`).then((r) => r.json()).catch(() => [])
+    grid.replaceChildren(...list.map((r) => {
+      const c = el("div", "mn-rescard"), box = el("div", "mn-resimg"), im = el("img")
+      im.loading = "lazy"
+      im.decoding = "async"
+      im.draggable = false
+      im.src = api.apiURL(resultRoute(r, "&s=320"))
+      box.append(im)
+      c.append(box, ...corners(), txt("div", "mn-resid", `ID_${r.id}`))
+      c.onclick = () => { openResult(r) }
+      return c
+    }))
+    if (!list.length) grid.append(txt("div", "mn-resnone", folder().trim() ? `No results in ${folder()} yet` : "SAVE is empty: results aren't kept"))
+  }
+  const big = el("div", "mn-resbig"), bBox = el("div", "mn-resimg"), bImg = el("img"), bSize = el("div", "mn-ressize")
+  const bId = el("div", "mn-resid"), par = el("div", "mn-respar"), said = el("div", "mn-resprompt")
+  bImg.draggable = false
+  said.dataset.scroll = ""
+  bBox.append(bImg, bSize)
+  big.append(bBox, ...corners(), bId)
+  det.append(big, par, said)
+  det.onclick = (e) => { if (e.target === det) det.hidden = true } // the dark around the card: back to the cards
+  bImg.onload = () => { bSize.textContent = `${bImg.naturalWidth}x${bImg.naturalHeight}` }
+  let opened = null
+  const openResult = async (r) => {
+    opened = r
+    det.hidden = false
+    bSize.textContent = said.textContent = ""
+    bImg.src = api.apiURL(resultRoute(r))
+    bId.textContent = `ID_${r.id}`
+    par.replaceChildren()
+    const info = await api.fetchApi(resultRoute(r, "&info=1")).then((x) => x.json()).catch(() => ({}))
+    if (opened !== r) return // another card was opened meanwhile
+    par.replaceChildren(...[["seed", info.seed], ["step", info.steps], ["sampler", info.sampler], ["scheduler", info.scheduler]]
+      .flatMap(([k, v]) => [txt("span", "k", k), txt("span", "v", String(v ?? "—"))]))
+    said.textContent = info.en ?? ""
+  }
+
+  // LLM: the AI step alone (MyNode_LLM): a picture, the same LLM, System and SAVE as Settings; Run queues just that,
+  // and the prompt the LLM writes comes back here (setup(): LLM_RUNS)
+  const lBox = el("div", "mn-lbox"), lImg = el("img"), lUp = el("div", "mn-upload mn-lup", ICON.upload + "Upload")
+  const lOut = el("div", "mn-lout"), lFile = picker((name) => {
+    node.setProperty("mn_llm_image", name) // saves with the workflow; the node's own image is untouched
+    refresh()
+  })
+  const llmImage = () => node.properties?.mn_llm_image || W("image")?.value || "" // none uploaded: the node's input
+  lImg.draggable = false
+  lOut.dataset.scroll = ""
+  lBox.append(lImg, ...corners())
+  lUp.onclick = () => lFile.click()
+  panes.LLM.append(lBox, lUp, lFile, lOut, ...[["LLM", "llm_name", 611.5], ["System", "system_file", 655.1], ["SAVE", "save_to", 698.6]]
+    .map(([label, name, top]) => row([label, name, top, 74.7, 282.8], "mn-srow")))
+  binds.push(() => {
+    const name = llmImage(), src = name ? view(baseOf(name), dirOf(name), "input") : ""
+    if (lImg.dataset.src === src) return
+    lImg.dataset.src = src
+    if (src) lImg.src = src
+    else lImg.removeAttribute("src")
+  })
+  lRun.onclick = async () => {
+    const image = llmImage()
+    if (!image) return toast("Upload a picture first.", "warn")
+    lOut.textContent = ""
+    lOut.classList.add("busy")
+    const prompt = { mynode_llm: { class_type: "MyNode_LLM", inputs: {
+      image, llm_name: W("llm_name")?.value ?? "", system_file: W("system_file")?.value ?? "", save_to: folder() } } }
+    const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ prompt, client_id: api.clientId ?? api.initialClientId }) })
+    const d = await r.json().catch(() => ({}))
+    if (r.ok) return LLM_RUNS.set(d.prompt_id, node)
+    lOut.classList.remove("busy")
+    const why = Object.values(d.node_errors ?? {}).flatMap((n) => n.errors?.map((e) => e.details || e.message) ?? [])
+    toast(`LLM: ${why.join("; ") || d.error?.message || r.statusText}`, "error", 8000)
+  }
+
+  setP.append(shead, ...Object.values(panes), det)
+  showTab(tab)
+  openB.onclick = () => { if (setP.classList.toggle("open")) showTab(tab) } // ↗ sits right of the panel: it also closes it
 
   const gal = el("div", "mn-gal"), gfil = el("div", "mn-gfil", ICON.search), gIn = el("input")
   const gDirs = el("div", "mn-gdirs"), gHead = el("div", "mn-ghead"), gList = el("div", "mn-glist")
@@ -505,7 +597,8 @@ function build(node) {
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return
     gal.classList.remove("open")
-    setP.classList.remove("open")
+    if (!det.hidden) det.hidden = true // an open card first, then the panel
+    else setP.classList.remove("open")
   }, { signal: off.signal })
 
   const refresh = () => {
@@ -554,6 +647,11 @@ function build(node) {
       shots.push({ src: view(im.filename, im.subfolder, im.type) + `&t=${Date.now()}`, RU: out.ru?.[0] ?? "", EN: out.en?.[0] ?? "",
         a: pImg.getAttribute("src") }) // each result keeps the input it was made from
       showShot(shots.length - 1)
+      if (setP.classList.contains("open") && tab === "Gallery" && det.hidden) loadGallery()
+    },
+    llm: (text) => {
+      lOut.classList.remove("busy")
+      lOut.textContent = text
     },
   }
 
@@ -572,6 +670,28 @@ function build(node) {
 }
 
 const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "MyNode", detail, life })
+
+// a hidden file input for pictures: the chosen file goes to ComfyUI's input/, put() gets its name there
+function picker(put) {
+  const inp = el("input")
+  inp.type = "file"
+  inp.accept = "image/*"
+  inp.hidden = true
+  inp.onchange = async () => {
+    const f = inp.files[0]
+    inp.value = ""
+    if (!f) return
+    const body = new FormData()
+    body.append("image", f)
+    const r = await api.fetchApi("/upload/image", { method: "POST", body })
+    if (r.status !== 200) return toast(`Upload: ${r.statusText}`, "error", 3000)
+    const d = await r.json()
+    put(d.subfolder ? `${d.subfolder}/${d.name}` : d.name)
+  }
+  return inp
+}
+
+const LLM_RUNS = new Map() // prompt id of a Settings → LLM run -> its node; the run isn't part of the graph
 
 // Settings → Update: GET /mynode/update (update.py), once per page and again on each click
 let updateInfo = null
@@ -663,7 +783,13 @@ app.registerExtension({
     })
     for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, stop)
     api.addEventListener("progress", ({ detail }) => running?._mn.progress(detail.value, detail.max))
-    api.addEventListener("executed", ({ detail }) => ours(detail.display_node ?? detail.node)?._mn.show(detail.output, detail.prompt_id))
+    api.addEventListener("executed", ({ detail }) => {
+      ours(detail.display_node ?? detail.node)?._mn.show(detail.output, detail.prompt_id)
+      if (detail.output?.mn_llm) LLM_RUNS.get(detail.prompt_id)?._mn.llm(detail.output.mn_llm[0])
+    })
+    for (const ev of ["execution_error", "execution_interrupted"]) { // ComfyUI shows the error itself
+      api.addEventListener(ev, ({ detail }) => LLM_RUNS.get(detail?.prompt_id)?._mn.llm(""))
+    }
     api.addEventListener("mynode.toast", ({ detail }) => {
       app.extensionManager.toast.add({ severity: "warn", summary: "Krea2 One", detail: detail.text, life: 8000 })
     })

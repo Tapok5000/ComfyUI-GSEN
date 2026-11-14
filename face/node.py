@@ -102,6 +102,18 @@ def _lora_tags(prompt, files):
     return (LORA_TAG.sub("", prompt).strip() if tags else prompt), tags
 
 
+def _generate(g, llm, image, prompt, system):
+    """The AI step: the LLM writes the prompt from the picture. Core before 0.44 has only TextGenerate, with one
+    "image" input instead of the "images" list."""
+    new_core = "TextGenerateV2" in nodes.NODE_CLASS_MAPPINGS
+    generate, image_in = ("TextGenerateV2", "images.image1") if new_core else ("TextGenerate", "image")
+    return g.node(generate, clip=llm, prompt=prompt, max_length=300, thinking=True, use_default_template=True, mtp="auto",
+                  system_prompt=system, **{image_in: image, "sampling_mode": "on", "sampling_mode.temperature": 0.35,
+                                           "sampling_mode.top_k": 40, "sampling_mode.top_p": 0.9, "sampling_mode.min_p": 0.0,
+                                           "sampling_mode.repetition_penalty": 1.03, "sampling_mode.seed": 2302131607,
+                                           "sampling_mode.presence_penalty": 0.0}).out(0)
+
+
 class FaceProcessing(io.ComfyNode):
     # input order = widgets_values order in saved workflows: append new inputs at the end, never reorder
     @classmethod
@@ -190,9 +202,7 @@ class FaceProcessing(io.ComfyNode):
         vae = g.node("VAELoader", vae_name=vae_name).out(0)
         llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0) if ai_prompt else None
         system = _system_path(system_file).read_text(encoding="utf-8") if ai_prompt else None
-        # core before 0.44 has only TextGenerate, with one "image" input instead of the "images" list
-        new_core = "TextGenerateV2" in nodes.NODE_CLASS_MAPPINGS
-        generate, image_in = ("TextGenerateV2", "images.image1") if new_core else ("TextGenerate", "image")
+        info = json.dumps({"seed": seed, "steps": steps, "sampler": sampler_name, "scheduler": scheduler})
         latent = g.node("EmptyLatentImage", width=width, height=height, batch_size=1).out(0)
 
         files, missing = {_stem(f): f for f in folder_paths.get_filename_list("loras")}, set()
@@ -206,12 +216,7 @@ class FaceProcessing(io.ComfyNode):
                     missing.add(name)
             own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost).out(0)
             if ai_prompt:
-                prompt = g.node(generate, clip=llm, prompt=prompt, max_length=300, thinking=True,
-                                use_default_template=True, mtp="auto", system_prompt=system, **{
-                                    image_in: ref, "sampling_mode": "on", "sampling_mode.temperature": 0.35,
-                                    "sampling_mode.top_k": 40, "sampling_mode.top_p": 0.9, "sampling_mode.min_p": 0.0,
-                                    "sampling_mode.repetition_penalty": 1.03, "sampling_mode.seed": 2302131607,
-                                    "sampling_mode.presence_penalty": 0.0}).out(0)
+                prompt = _generate(g, llm, ref, prompt, system)
             ru = g.node("MyNode_Translate", text=prompt).out(0)
             pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=grounding_px).out(0)
             neg = g.node("ConditioningZeroOut", conditioning=pos).out(0)
@@ -219,9 +224,39 @@ class FaceProcessing(io.ComfyNode):
                              steps=steps, cfg=1.0, sampler_name=sampler_name, scheduler=scheduler, denoise=1.0).out(0)
             result = g.node("MyNode_Decode", samples=samples, vae=vae).out(0)
             # a Show per prompt, not one at the end: a stopped batch keeps the images already made
-            g.node("MyNode_Show", images=result, ru=ru, en=prompt, save_to=save_to)
+            g.node("MyNode_Show", images=result, ru=ru, en=prompt, save_to=save_to, info=info)
         if missing:  # the batch still runs, so say which tags did nothing
             note = "LoRA not found, skipped: " + ", ".join(sorted(missing))
             logging.warning("MyNode: %s", note)
             PromptServer.instance.send_sync("mynode.toast", {"text": note})
+        return Expansion(expand=g.finalize())
+
+
+class LLMPrompt(io.ComfyNode):
+    """Settings → LLM: the AI step alone. A picture and the System prompt in; the prompt the LLM writes is shown on
+    the node and saved as a .txt in SAVE (parts.LLMText). The face queues it on its own, outside the workflow."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_LLM", category="MyNode", is_output_node=True, is_dev_only=True, enable_expand=True,
+                         inputs=[io.String.Input("image"), io.String.Input("llm_name"),
+                                 io.String.Input("system_file", default=""), io.String.Input("save_to", default="")],
+                         outputs=[])
+
+    @classmethod
+    def fingerprint_inputs(cls, **_):
+        # always expand anew: a cached expansion skips LLMText, and the face would never hear back
+        return float("nan")
+
+    @classmethod
+    def validate_inputs(cls, image=None):
+        return FaceProcessing.validate_inputs(image)
+
+    @classmethod
+    def execute(cls, image, llm_name, system_file="", save_to=""):
+        g = GraphBuilder()
+        picture = g.node("LoadImage", image=image).out(0)
+        llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0)
+        text = _generate(g, llm, picture, "", _system_path(system_file).read_text(encoding="utf-8"))
+        g.node("MyNode_LLMText", text=text, save_to=save_to)
         return Expansion(expand=g.finalize())

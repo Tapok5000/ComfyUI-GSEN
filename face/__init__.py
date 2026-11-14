@@ -1,5 +1,5 @@
 """Krea2 One (was FACE Processing): the node and the small internal nodes its graph expands into."""
-from .node import FaceProcessing
-from .parts import CropRotatePad, Decode, FaceCrop, Krea2Encode, Krea2Patch, Show, Translate
+from .node import FaceProcessing, LLMPrompt
+from .parts import CropRotatePad, Decode, FaceCrop, Krea2Encode, Krea2Patch, LLMText, Show, Translate
 
-NODES = [FaceProcessing, FaceCrop, Krea2Patch, Krea2Encode, Translate, Decode, Show, CropRotatePad]
+NODES = [FaceProcessing, FaceCrop, Krea2Patch, Krea2Encode, Translate, Decode, Show, CropRotatePad, LLMPrompt, LLMText]

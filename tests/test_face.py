@@ -4,8 +4,10 @@ Run from the ComfyUI folder:
     cd E:\\ComfyUI_2026\\ComfyUI
     ..\\python_embeded\\python.exe custom_nodes\\ComfyUI-MyNode\\tests\\test_face.py
 """
+import asyncio
 import importlib
 import json
+import math
 import os
 import sys
 import tempfile
@@ -37,6 +39,7 @@ sys.modules["server"] = SimpleNamespace(PromptServer=SimpleNamespace(instance=Si
 import faces  # noqa: E402
 import krea2_edit  # noqa: E402
 import nodes  # noqa: E402
+import common  # noqa: E402
 from common import save_images  # noqa: E402
 
 target_size = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.sizes").target_size  # it imports crop_edit relatively
@@ -250,6 +253,54 @@ def test_update():
         assert not (pack / "web/face/old.js").exists() and not (repo / "evil.txt").exists()
 
 
+def test_gallery():
+    img = torch.rand(1, 8, 8, 3)
+    typed = {"5": {"class_type": "MyNode_FaceProcessing", "inputs": {"seed": 7, "steps": 4, "sampler_name": "euler",
+                                                                       "scheduler": "simple", "text": ["9", 0]}}}
+    cls = SimpleNamespace(hidden=SimpleNamespace(prompt=typed, extra_pnginfo=None))
+    ask = lambda route, **q: asyncio.run(route(SimpleNamespace(query=q)))  # noqa: E731
+    with tempfile.TemporaryDirectory() as d:
+        folder_paths.set_output_directory(os.path.join(d, "out"))
+        save_images(img, "R", "FACE", cls)  # saved before 1.14.0: no "mynode" chunk
+        save_images(img, "R", "FACE", cls, {"seed": 9, "en": "the AI's prompt"})
+        os.makedirs(os.path.join(d, "x"))
+        assert common.results_dir("R") and common.results_dir(os.path.join(d, "x"))  # in output, or a full path
+        assert not common.results_dir("../x") and not common.results_dir("")  # a relative one can't leave output
+        listed = json.loads(ask(common._results, folder="R").body)
+        assert [(r["name"], r["id"]) for r in listed] == [("FACE_00002_.png", 2), ("FACE_00001_.png", 1)]  # newest first
+        old = json.loads(ask(common._result, folder="R", name="FACE_00001_.png", info="1").body)
+        new = json.loads(ask(common._result, folder="R", name="FACE_00002_.png", info="1").body)
+        # the old one gets its node's inputs from the workflow; its text was a link, so there is none
+        assert old == {"width": 8, "height": 8, "seed": 7, "steps": 4, "sampler": "euler", "scheduler": "simple"}
+        assert new == {"width": 8, "height": 8, "seed": 9, "en": "the AI's prompt"}
+        assert ask(common._result, folder="R", name="FACE_00002_.png", s="64").content_type == "image/webp"
+        assert ask(common._result, folder="R", name="../R/FACE_00002_.png").status == 404
+        assert ask(common._result, folder="..", name="FACE_00002_.png").status == 404
+        assert common.save_text("a prompt", "R", "LLM").endswith(os.path.join("R", "LLM_00001_.txt"))
+        assert common.save_text("not saved", "", "LLM") is None
+    (show,) = inputs_of(expand(seed=5), "MyNode_Show")
+    assert json.loads(show["info"]) == {"seed": 5, "steps": 8, "sampler": "euler", "scheduler": "simple"}
+
+
+def test_llm_tab():
+    nodes.NODE_CLASS_MAPPINGS["TextGenerateV2"] = None  # core 0.44+
+    node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
+    real = node.PROMPTS
+    with tempfile.TemporaryDirectory() as d:
+        node.PROMPTS = Path(d)
+        (node.PROMPTS / "describe.txt").write_text("Describe.", encoding="utf-8")
+        try:
+            graph = node.LLMPrompt.execute(image="b.png", llm_name="m", system_file="describe.txt", save_to="R").expand
+        finally:
+            node.PROMPTS = real
+    (gen_id,) = [k for k, n in graph.items() if n["class_type"] == "TextGenerateV2"]
+    gen = graph[gen_id]["inputs"]
+    assert gen["system_prompt"] == "Describe." and gen["prompt"] == ""  # the System prompt and the picture only
+    assert inputs_of(graph, "MyNode_LLMText") == [{"text": [gen_id, 0], "save_to": "R"}]
+    assert inputs_of(graph, "LoadImage") == [{"image": "b.png"}] and inputs_of(graph, "CLIPLoader")[0]["clip_name"] == "m"
+    assert math.isnan(node.LLMPrompt.fingerprint_inputs(image="b.png"))  # every Run expands anew: the text always comes back
+
+
 if __name__ == "__main__":
     test_forward_matches_core()
     test_target_size()
@@ -264,4 +315,6 @@ if __name__ == "__main__":
     test_newest_default()
     test_core_problems()
     test_update()
+    test_gallery()
+    test_llm_tab()
     print("ok")

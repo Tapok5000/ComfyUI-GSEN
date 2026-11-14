@@ -1,7 +1,9 @@
-"""Pack-wide pieces, shared by every node: the image gallery's HTTP routes, result saving, the expansion output."""
+"""Pack-wide pieces, shared by every node: the image galleries' HTTP routes, result saving, the expansion output."""
 import asyncio
 import functools
+import json
 import os
+import re
 from io import BytesIO
 
 from aiohttp import web
@@ -51,20 +53,99 @@ async def _thumb_route(request):
     return web.Response(body=data, content_type="image/webp", headers={"Cache-Control": "max-age=31536000"})
 
 
-def save_images(images, folder, prefix, cls):
-    """Results as numbered PNGs with the workflow inside. folder: a subfolder of ComfyUI's output, an absolute
-    path, or empty (not saved, only previewed). Returns the entries a node's face shows."""
+def _save_path(folder, prefix, w=0, h=0):
+    """get_save_image_path for SAVE: a subfolder of ComfyUI's output (core refuses one that leaves it) or a full path."""
+    if os.path.isabs(folder):
+        return folder_paths.get_save_image_path(prefix, folder, w, h)
+    return folder_paths.get_save_image_path(os.path.join(folder, prefix), folder_paths.get_output_directory(), w, h)
+
+
+def save_images(images, folder, prefix, cls, info=None):
+    """Results as numbered PNGs with the workflow inside, and info as a "mynode" text chunk (the gallery card reads it).
+    folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed). Returns what a face shows."""
     folder = folder.strip().strip('"')  # Explorer's "Copy as path" quotes the path
     if not folder:
         return ui.PreviewImage(images, cls=cls).as_dict()["images"]
-    if not os.path.isabs(folder):  # core refuses a path that leaves the output folder
-        return ui.ImageSaveHelper.get_save_images_ui(images, os.path.join(folder, prefix), cls=cls).as_dict()["images"]
-    full, name, counter, _, _ = folder_paths.get_save_image_path(prefix, folder, images[0].shape[1], images[0].shape[0])
+    full, name, counter, sub, _ = _save_path(folder, prefix, images[0].shape[1], images[0].shape[0])
     meta = ui.ImageSaveHelper._create_png_metadata(cls)
-    for i, im in enumerate(images):
-        path = os.path.join(full, f"{name}_{counter + i:05}_.png")
-        ui.ImageSaveHelper._convert_tensor_to_pil(im).save(path, pnginfo=meta, compress_level=4)
-    return ui.PreviewImage(images, cls=cls).as_dict()["images"]  # /view only serves output, input and temp
+    if meta and info:
+        meta.add_text("mynode", json.dumps(info, ensure_ascii=False))
+    files = [f"{name}_{counter + i:05}_.png" for i in range(len(images))]
+    for file, im in zip(files, images, strict=True):
+        ui.ImageSaveHelper._convert_tensor_to_pil(im).save(os.path.join(full, file), pnginfo=meta, compress_level=4)
+    if os.path.isabs(folder):  # /view only serves output, input and temp
+        return ui.PreviewImage(images, cls=cls).as_dict()["images"]
+    return [{"filename": file, "subfolder": sub, "type": "output"} for file in files]
+
+
+def save_text(text, folder, prefix):
+    """text as a numbered .txt in SAVE, next to the images; empty folder: not saved. Returns the path."""
+    folder = folder.strip().strip('"')
+    if not folder:
+        return None
+    full, name, counter, _, _ = _save_path(folder, prefix)
+    path = os.path.join(full, f"{name}_{counter:05}_.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+    return path
+
+
+RESULT = re.compile(r"FACE_(\d+)_\.png")  # what save_images names Krea2 One's results; the number is the card's ID
+
+
+def results_dir(folder):
+    """The folder SAVE names, if it exists. A relative one must stay inside output, like save_images keeps it."""
+    folder = folder.strip().strip('"')
+    if not folder:
+        return None
+    out = folder_paths.get_output_directory()
+    path = os.path.abspath(folder if os.path.isabs(folder) else os.path.join(out, folder))
+    if not os.path.isabs(folder) and not folder_paths.is_within_directory(out, path):
+        return None
+    return path if os.path.isdir(path) else None
+
+
+def result_info(path):
+    """A result's size, sampling settings and prompt (en, ru), from the PNG's "mynode" chunk; a PNG saved before
+    1.14.0 has none, so its node's inputs come from the workflow's prompt chunk."""
+    with Image.open(path) as im:
+        chunks, (w, h) = dict(im.info), im.size
+    out = {"width": w, "height": h}
+    try:
+        out |= json.loads(chunks.get("mynode") or "{}")
+        if "seed" not in out:
+            prompt = json.loads(chunks.get("prompt") or "{}")
+            node = next((n.get("inputs", {}) for n in prompt.values() if n.get("class_type") == "MyNode_FaceProcessing"), {})
+            keys = {"seed": "seed", "steps": "steps", "sampler": "sampler_name", "scheduler": "scheduler", "en": "text"}
+            out |= {k: node[v] for k, v in keys.items() if isinstance(node.get(v), (str, int, float))}  # a link is a list
+    except (ValueError, AttributeError, TypeError):  # a chunk some other tool wrote
+        pass
+    return out
+
+
+@PromptServer.instance.routes.get("/mynode/results")
+async def _results(request):
+    """The results in a SAVE folder, newest first: [{name, id, mtime}]."""
+    path = results_dir(request.query.get("folder", ""))
+    found = sorted(((int(m[1]), n) for n in os.listdir(path) if (m := RESULT.fullmatch(n))), reverse=True) if path else []
+    return web.json_response([{"name": n, "id": i, "mtime": int(os.path.getmtime(os.path.join(path, n)))} for i, n in found])
+
+
+@PromptServer.instance.routes.get("/mynode/result")
+async def _result(request):
+    """One result by folder and name: the PNG; with s=320 a thumbnail; with info=1 what result_info reads."""
+    q = request.query
+    base, name = results_dir(q.get("folder", "")), q.get("name", "")
+    path = os.path.join(base, name) if base and RESULT.fullmatch(name) else ""
+    if not os.path.isfile(path):
+        return web.Response(status=404)
+    if q.get("info"):
+        return web.json_response(await asyncio.to_thread(result_info, path))
+    if q.get("s", "").isdigit():
+        size = min(max(int(q["s"]), 16), 1024)
+        data = await asyncio.get_running_loop().run_in_executor(None, _thumb, path, os.path.getmtime(path), size)
+        return web.Response(body=data, content_type="image/webp", headers={"Cache-Control": "max-age=31536000"})
+    return web.FileResponse(path)
 
 
 class Expansion(io.NodeOutput):

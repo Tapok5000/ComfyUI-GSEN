@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from comfy_api.latest import io
 
-from ..common import save_images
+from ..common import save_images, save_text
 from . import crop_edit, faces, krea2_edit
 
 
@@ -116,16 +116,34 @@ class Decode(io.ComfyNode):
 
 
 class Show(io.ComfyNode):
-    """Saves the result and sends one UI message with it, RU and EN (separate messages would overwrite each other)."""
+    """Saves the result and sends one UI message with it, RU and EN (separate messages would overwrite each other).
+    info: the sampling settings, JSON; saved in the PNG with the prompt for Settings → Gallery."""
 
     @classmethod
     def define_schema(cls):
         return io.Schema(node_id="MyNode_Show", category="MyNode", is_output_node=True, is_dev_only=True,
                          inputs=[io.Image.Input("images"), io.String.Input("ru", force_input=True),
-                                 io.String.Input("en", force_input=True), io.String.Input("save_to", default="")],
+                                 io.String.Input("en", force_input=True), io.String.Input("save_to", default=""),
+                                 io.String.Input("info", default="{}")],
                          outputs=[])
 
     @classmethod
-    def execute(cls, images, ru, en, save_to=""):
+    def execute(cls, images, ru, en, save_to="", info="{}"):
+        saved = save_images(images, save_to, "FACE", cls, {**json.loads(info or "{}"), "en": en, "ru": ru})
         # not "images": that key makes the frontend add its own preview widget and break the layout
-        return io.NodeOutput(ui={"mn_images": save_images(images, save_to, "FACE", cls), "ru": [ru], "en": [en]})
+        return io.NodeOutput(ui={"mn_images": saved, "ru": [ru], "en": [en]})
+
+
+class LLMText(io.ComfyNode):
+    """Settings → LLM's result: the text on the node, and a numbered .txt in SAVE."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_LLMText", category="MyNode", is_output_node=True, is_dev_only=True,
+                         inputs=[io.String.Input("text", force_input=True), io.String.Input("save_to", default="")],
+                         outputs=[])
+
+    @classmethod
+    def execute(cls, text, save_to=""):
+        save_text(text, save_to, "LLM")
+        return io.NodeOutput(ui={"mn_llm": [text]})
