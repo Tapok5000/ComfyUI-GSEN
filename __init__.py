@@ -1,6 +1,7 @@
 """GSEN (was MyNode): personal ComfyUI nodes. One folder per node; a new node = its folder + one entry in NODES."""
 import contextlib
 import logging
+import sys
 
 from typing_extensions import override
 
@@ -36,7 +37,8 @@ class MyNodeExtension(ComfyExtension):
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
         shown = sum(not n.define_schema().is_dev_only for n in NODES)
         with contextlib.suppress(OSError, UnicodeError):  # a console that can't take it: the nodes still load
-            print(banner(update.field(update._pyproject(), "version"), shown), flush=True)
+            # sys.__stdout__: deepdiff (ComfyUI-Crystools loads it) calls colorama.init(), and sys.stdout loses the colours
+            print(banner(update.field(update._pyproject(), "version"), shown), file=sys.__stdout__, flush=True)
         for problem in core_problems():  # this ComfyUI changed a core node Krea2 One's graph is built from
             logging.warning("GSEN: %s. Run may fail; Settings → Update gets a version that knows this ComfyUI.", problem)
         return NODES
