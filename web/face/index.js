@@ -457,27 +457,45 @@ function build(node) {
   })
   panes.Settings.append(...Object.values(sRow), extra, sEnd)
 
-  // Gallery: the results in SAVE (common.py: /mynode/results), newest first; a card opens over them with its
-  // picture, size, sampling settings and prompt, as saved in the PNG
-  const grid = el("div", "mn-resgrid"), folder = () => String(W("save_to")?.value ?? "")
+  // Gallery: Generated = what this node made since the page opened, Last = everything in SAVE (common.py:
+  // /mynode/results); newest first. A card opens over them with its picture, size, sampling settings and prompt.
+  // Items: {id, thumb, src, info: () => Promise of what the PNG keeps}
+  const grid = el("div", "mn-resgrid"), subBar = el("div", "mn-sub"), folder = () => String(W("save_to")?.value ?? "")
   const resultRoute = (r, q = "") => `/mynode/result?folder=${encodeURIComponent(folder())}&name=${encodeURIComponent(r.name)}&v=${r.mtime}${q}`
   const corners = () => ["tl", "tr", "bl", "br"].map((c) => el("i", c))
-  panes.Gallery.append(grid)
+  const made = [] // show() puts each new result first
+  let sub = "Generated"
+  const subs = ["Generated", "Last"].map((s) => {
+    const b = txt("div", "mn-subtab", s)
+    b.onclick = () => { sub = s; loadGallery() }
+    return b
+  })
+  subBar.append(...subs)
+  panes.Gallery.append(subBar, grid)
+  const saved = (r) => ({ id: r.id, thumb: api.apiURL(resultRoute(r, "&s=320")), src: api.apiURL(resultRoute(r)),
+    info: () => api.fetchApi(resultRoute(r, "&info=1")).then((x) => x.json()).catch(() => ({})) })
   // shortcut: every card at once (thumbnails load lazily); page the list if a SAVE folder grows past a few thousand
   const loadGallery = async () => {
-    const list = await api.fetchApi(`/mynode/results?folder=${encodeURIComponent(folder())}`).then((r) => r.json()).catch(() => [])
+    const want = sub
+    subs.forEach((b) => b.classList.toggle("on", b.textContent === want))
+    const list = want === "Generated" ? made
+      : (await api.fetchApi(`/mynode/results?folder=${encodeURIComponent(folder())}`).then((r) => r.json()).catch(() => [])).map(saved)
+    if (want !== sub) return // switched while the list was on its way
     grid.replaceChildren(...list.map((r) => {
       const c = el("div", "mn-rescard"), box = el("div", "mn-resimg"), im = el("img")
       im.loading = "lazy"
       im.decoding = "async"
       im.draggable = false
-      im.src = api.apiURL(resultRoute(r, "&s=320"))
+      im.src = r.thumb
       box.append(im)
-      c.append(box, ...corners(), txt("div", "mn-resid", `ID_${r.id}`))
+      c.append(box, ...corners(), txt("div", "mn-resid", r.id ? `ID_${r.id}` : "—"))
       c.onclick = () => { openResult(r) }
       return c
     }))
-    if (!list.length) grid.append(txt("div", "mn-resnone", folder().trim() ? `No results in ${folder()} yet` : "SAVE is empty: results aren't kept"))
+    if (!list.length) {
+      grid.append(txt("div", "mn-resnone", want === "Generated" ? "Nothing made since the page opened"
+        : folder().trim() ? `No results in ${folder()} yet` : "SAVE is empty: results aren't kept"))
+    }
   }
   const big = el("div", "mn-resbig"), bBox = el("div", "mn-resimg"), bImg = el("img"), bSize = el("div", "mn-ressize")
   const bId = el("div", "mn-resid"), par = el("div", "mn-respar"), said = el("div", "mn-resprompt")
@@ -493,10 +511,10 @@ function build(node) {
     opened = r
     det.hidden = false
     bSize.textContent = said.textContent = ""
-    bImg.src = api.apiURL(resultRoute(r))
-    bId.textContent = `ID_${r.id}`
+    bImg.src = r.src
+    bId.textContent = r.id ? `ID_${r.id}` : "—"
     par.replaceChildren()
-    const info = await api.fetchApi(resultRoute(r, "&info=1")).then((x) => x.json()).catch(() => ({}))
+    const info = await r.info()
     if (opened !== r) return // another card was opened meanwhile
     par.replaceChildren(...[["seed", info.seed], ["step", info.steps], ["sampler", info.sampler], ["scheduler", info.scheduler]]
       .flatMap(([k, v]) => [txt("span", "k", k), txt("span", "v", String(v ?? "—"))]))
@@ -647,6 +665,8 @@ function build(node) {
       shots.push({ src: view(im.filename, im.subfolder, im.type) + `&t=${Date.now()}`, RU: out.ru?.[0] ?? "", EN: out.en?.[0] ?? "",
         a: pImg.getAttribute("src") }) // each result keeps the input it was made from
       showShot(shots.length - 1)
+      const src = shots[shots.length - 1].src, info = out.mn_info?.[0] ?? { en: out.en?.[0] }
+      made.unshift({ id: im.id, thumb: src, src, info: async () => info }) // Settings → Gallery → Generated
       if (setP.classList.contains("open") && tab === "Gallery" && det.hidden) loadGallery()
     },
     llm: (text) => {

@@ -60,22 +60,33 @@ def _save_path(folder, prefix, w=0, h=0):
     return folder_paths.get_save_image_path(os.path.join(folder, prefix), folder_paths.get_output_directory(), w, h)
 
 
-def save_images(images, folder, prefix, cls, info=None):
-    """Results as numbered PNGs with the workflow inside, and info as a "mynode" text chunk (the gallery card reads it).
-    folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed). Returns what a face shows."""
+RESULT = re.compile(r"ID_(\d+)\.png|FACE_(\d+)_\.png")  # results: ID_7.png, before 1.15.0 FACE_00007_.png
+
+
+def result_id(name):
+    """A result's number, the ID the gallery shows; None for any other file."""
+    m = RESULT.fullmatch(name)
+    return int(m[1] or m[2]) if m else None
+
+
+def save_images(images, folder, cls, info=None):
+    """Results as ID_<n>.png, named like their gallery cards, with the workflow inside and info as a "mynode" text
+    chunk (the card reads it). n goes on from the highest result already there, old FACE_ files included, so an ID
+    never repeats. folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed)."""
     folder = folder.strip().strip('"')  # Explorer's "Copy as path" quotes the path
     if not folder:
         return ui.PreviewImage(images, cls=cls).as_dict()["images"]
-    full, name, counter, sub, _ = _save_path(folder, prefix, images[0].shape[1], images[0].shape[0])
+    full, _, _, sub, _ = _save_path(folder, "ID", images[0].shape[1], images[0].shape[0])
     meta = ui.ImageSaveHelper._create_png_metadata(cls)
     if meta and info:
         meta.add_text("mynode", json.dumps(info, ensure_ascii=False))
-    files = [f"{name}_{counter + i:05}_.png" for i in range(len(images))]
+    first = 1 + max(filter(None, map(result_id, os.listdir(full))), default=0)
+    files = [f"ID_{first + i}.png" for i in range(len(images))]
     for file, im in zip(files, images, strict=True):
         ui.ImageSaveHelper._convert_tensor_to_pil(im).save(os.path.join(full, file), pnginfo=meta, compress_level=4)
-    if os.path.isabs(folder):  # /view only serves output, input and temp
-        return ui.PreviewImage(images, cls=cls).as_dict()["images"]
-    return [{"filename": file, "subfolder": sub, "type": "output"} for file in files]
+    if os.path.isabs(folder):  # /view only serves output, input and temp: the face gets a temp copy, and the ID
+        return [{**e, "id": first + i} for i, e in enumerate(ui.PreviewImage(images, cls=cls).as_dict()["images"])]
+    return [{"filename": file, "subfolder": sub, "type": "output", "id": first + i} for i, file in enumerate(files)]
 
 
 def save_text(text, folder, prefix):
@@ -88,9 +99,6 @@ def save_text(text, folder, prefix):
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
     return path
-
-
-RESULT = re.compile(r"FACE_(\d+)_\.png")  # what save_images names Krea2 One's results; the number is the card's ID
 
 
 def results_dir(folder):
@@ -127,7 +135,7 @@ def result_info(path):
 async def _results(request):
     """The results in a SAVE folder, newest first: [{name, id, mtime}]."""
     path = results_dir(request.query.get("folder", ""))
-    found = sorted(((int(m[1]), n) for n in os.listdir(path) if (m := RESULT.fullmatch(n))), reverse=True) if path else []
+    found = sorted(((result_id(n), n) for n in os.listdir(path) if result_id(n)), reverse=True) if path else []
     return web.json_response([{"name": n, "id": i, "mtime": int(os.path.getmtime(os.path.join(path, n)))} for i, n in found])
 
 

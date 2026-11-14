@@ -129,9 +129,10 @@ class Show(io.ComfyNode):
 
     @classmethod
     def execute(cls, images, ru, en, save_to="", info="{}"):
-        saved = save_images(images, save_to, "FACE", cls, {**json.loads(info or "{}"), "en": en, "ru": ru})
+        meta = {**json.loads(info or "{}"), "en": en, "ru": ru}
+        saved = save_images(images, save_to, cls, meta)
         # not "images": that key makes the frontend add its own preview widget and break the layout
-        return io.NodeOutput(ui={"mn_images": saved, "ru": [ru], "en": [en]})
+        return io.NodeOutput(ui={"mn_images": saved, "ru": [ru], "en": [en], "mn_info": [meta]})
 
 
 class LLMText(io.ComfyNode):

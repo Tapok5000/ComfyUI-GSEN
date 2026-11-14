@@ -96,11 +96,14 @@ def test_save_images():
     with tempfile.TemporaryDirectory() as d:
         folder_paths.set_output_directory(os.path.join(d, "out"))
         folder_paths.set_temp_directory(os.path.join(d, "temp"))
-        saved = save_images(img, "MyNode", "FACE", None)
-        assert saved[1] == {"filename": "FACE_00002_.png", "subfolder": "MyNode", "type": "output"}
-        assert save_images(img, f' "{d}\\abs" ', "FACE", None)[0]["type"] == "temp"  # /view can't serve it: a temp copy
-        assert sorted(os.listdir(os.path.join(d, "abs"))) == ["FACE_00001_.png", "FACE_00002_.png"]
-        assert save_images(img, "", "FACE", None)[0]["type"] == "temp"
+        saved = save_images(img, "MyNode", None)
+        assert saved[1] == {"filename": "ID_2.png", "subfolder": "MyNode", "type": "output", "id": 2}  # named like its card
+        Image.new("RGB", (8, 8)).save(os.path.join(d, "out", "MyNode", "FACE_00007_.png"))  # one saved before 1.15.0
+        assert save_images(img, "MyNode", None)[0]["filename"] == "ID_8.png"  # the IDs go on after it: never twice
+        absolute = save_images(img, f' "{d}\\abs" ', None)[0]  # /view can't serve it: a temp copy, with the ID
+        assert absolute["type"] == "temp" and absolute["id"] == 1
+        assert sorted(os.listdir(os.path.join(d, "abs"))) == ["ID_1.png", "ID_2.png"]
+        assert save_images(img, "", None)[0]["type"] == "temp"
         assert os.listdir(os.path.join(d, "out")) == ["MyNode"]
 
 
@@ -261,21 +264,22 @@ def test_gallery():
     ask = lambda route, **q: asyncio.run(route(SimpleNamespace(query=q)))  # noqa: E731
     with tempfile.TemporaryDirectory() as d:
         folder_paths.set_output_directory(os.path.join(d, "out"))
-        save_images(img, "R", "FACE", cls)  # saved before 1.14.0: no "mynode" chunk
-        save_images(img, "R", "FACE", cls, {"seed": 9, "en": "the AI's prompt"})
+        save_images(img, "R", cls)  # saved before 1.14.0: no "mynode" chunk, and named the old way
+        os.rename(os.path.join(d, "out", "R", "ID_1.png"), os.path.join(d, "out", "R", "FACE_00001_.png"))
+        save_images(img, "R", cls, {"seed": 9, "en": "the AI's prompt"})
         os.makedirs(os.path.join(d, "x"))
         assert common.results_dir("R") and common.results_dir(os.path.join(d, "x"))  # in output, or a full path
         assert not common.results_dir("../x") and not common.results_dir("")  # a relative one can't leave output
         listed = json.loads(ask(common._results, folder="R").body)
-        assert [(r["name"], r["id"]) for r in listed] == [("FACE_00002_.png", 2), ("FACE_00001_.png", 1)]  # newest first
+        assert [(r["name"], r["id"]) for r in listed] == [("ID_2.png", 2), ("FACE_00001_.png", 1)]  # newest first, old names too
         old = json.loads(ask(common._result, folder="R", name="FACE_00001_.png", info="1").body)
-        new = json.loads(ask(common._result, folder="R", name="FACE_00002_.png", info="1").body)
+        new = json.loads(ask(common._result, folder="R", name="ID_2.png", info="1").body)
         # the old one gets its node's inputs from the workflow; its text was a link, so there is none
         assert old == {"width": 8, "height": 8, "seed": 7, "steps": 4, "sampler": "euler", "scheduler": "simple"}
         assert new == {"width": 8, "height": 8, "seed": 9, "en": "the AI's prompt"}
-        assert ask(common._result, folder="R", name="FACE_00002_.png", s="64").content_type == "image/webp"
-        assert ask(common._result, folder="R", name="../R/FACE_00002_.png").status == 404
-        assert ask(common._result, folder="..", name="FACE_00002_.png").status == 404
+        assert ask(common._result, folder="R", name="ID_2.png", s="64").content_type == "image/webp"
+        assert ask(common._result, folder="R", name="../R/ID_2.png").status == 404
+        assert ask(common._result, folder="..", name="ID_2.png").status == 404
         assert common.save_text("a prompt", "R", "LLM").endswith(os.path.join("R", "LLM_00001_.txt"))
         assert common.save_text("not saved", "", "LLM") is None
     (show,) = inputs_of(expand(seed=5), "MyNode_Show")
