@@ -188,10 +188,13 @@ def test_system_prompt():
         node.PROMPTS = Path(d)
         (node.PROMPTS / "short.txt").write_text("Be brief.", encoding="utf-8")
         (node.PROMPTS / "a_first.txt").write_text("First.", encoding="utf-8")
+        (node.PROMPTS / "img_to_text").mkdir()
+        (node.PROMPTS / "img_to_text" / "0_describe.txt").write_text("Describe.", encoding="utf-8")  # the other task's
         try:
             (own,) = inputs_of(expand(ai_prompt=True, system_file="short.txt"), "TextGenerateV2")
             (up,) = inputs_of(expand(ai_prompt=True, system_file="../short.txt"), "TextGenerateV2")  # the name only
             (first,) = inputs_of(expand(ai_prompt=True), "TextGenerateV2")  # none chosen: the first file
+            assert node._prompt_files(node.PROMPTS) == ["a_first.txt", "short.txt"]  # picture → prompt ones aren't listed
         finally:
             node.PROMPTS = real
     assert own["system_prompt"] == up["system_prompt"] == "Be brief." and first["system_prompt"] == "First."
@@ -297,23 +300,25 @@ def test_gallery():
 def test_llm_tab():
     nodes.NODE_CLASS_MAPPINGS["TextGenerateV2"] = None  # core 0.44+
     node = importlib.import_module("custom_nodes.ComfyUI-MyNode.face.node")
-    real = node.PROMPTS
+    real = node.IMG_TO_TEXT
     with tempfile.TemporaryDirectory() as d:
-        node.PROMPTS = Path(d)
-        (node.PROMPTS / "describe.txt").write_text("Describe.", encoding="utf-8")
+        node.IMG_TO_TEXT = Path(d)
+        (node.IMG_TO_TEXT / "describe.txt").write_text("Describe.", encoding="utf-8")
         try:
             graph = node.LLMPrompt.execute(image="b.png", llm_name="m", system_file="describe.txt", save_to="R").expand
+            *_, save, system = node.FaceProcessing.define_schema().inputs  # the LLM tab's own SAVE and System, appended
         finally:
-            node.PROMPTS = real
+            node.IMG_TO_TEXT = real
     (gen_id,) = [k for k, n in graph.items() if n["class_type"] == "TextGenerateV2"]
     gen = graph[gen_id]["inputs"]
-    assert gen["system_prompt"] == "Describe." and gen["prompt"] == ""  # the System prompt and the picture only
+    assert gen["system_prompt"] == "Describe." and gen["prompt"] == ""  # its own folder's System prompt and the picture only
     assert inputs_of(graph, "MyNode_LLMText") == [{"text": [gen_id, 0], "save_to": "R"}]
     assert inputs_of(graph, "LoadImage") == [{"image": "b.png"}] and inputs_of(graph, "CLIPLoader")[0]["clip_name"] == "m"
     assert math.isnan(node.LLMPrompt.fingerprint_inputs(image="b.png"))  # every Run expands anew: the text always comes back
-    last = node.FaceProcessing.define_schema().inputs[-1]  # the LLM's own SAVE, appended: saved workflows keep their values
-    assert (last.id, last.default, last.optional) == ("llm_save_to", "IMGtext", True)
-    expand(llm_save_to="X")  # the face's own Run takes it and leaves it be
+    assert (save.id, save.default, save.optional) == ("llm_save_to", "IMGtext", True)  # saved workflows keep their values
+    assert (system.id, system.options, system.default) == ("llm_system_file", ["describe.txt"], "describe.txt")
+    assert system.optional
+    expand(llm_save_to="X", llm_system_file="describe.txt")  # the face's own Run takes them and leaves them be
 
 
 if __name__ == "__main__":

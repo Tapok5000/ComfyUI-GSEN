@@ -22,7 +22,9 @@ from ..common import Expansion, input_images
 from . import crop_edit
 from .sizes import PRESETS, target_size
 
-PROMPTS = Path(__file__).parent / "prompts"  # the AI's system prompts, a .txt each, picked in Settings → System
+# system prompts, a .txt each, one folder per task: the photo's (Settings → System), picture → prompt (LLM → System)
+PROMPTS = Path(__file__).parent / "prompts"
+IMG_TO_TEXT = PROMPTS / "img_to_text"
 
 
 # The core nodes and inputs execute() builds its graph from. A ComfyUI update that renames one breaks Run, so
@@ -59,13 +61,13 @@ def core_problems():
     return problems
 
 
-def _prompt_files():
-    return sorted(p.name for p in PROMPTS.glob("*.txt"))
+def _prompt_files(folder):
+    return sorted(p.name for p in folder.glob("*.txt"))
 
 
-def _system_path(name):
-    """The chosen .txt (the name only: a prompt can't point outside prompts/); none chosen: the first one."""
-    return PROMPTS / Path(name or next(iter(_prompt_files()), "system.txt")).name
+def _system_path(name, folder):
+    """The chosen .txt of folder (the name only: a prompt can't point outside it); none chosen: the first one."""
+    return folder / Path(name or next(iter(_prompt_files(folder)), "system.txt")).name
 
 
 def _natural(name):
@@ -118,7 +120,7 @@ class FaceProcessing(io.ComfyNode):
     # input order = widgets_values order in saved workflows: append new inputs at the end, never reorder
     @classmethod
     def define_schema(cls):
-        prompts = _prompt_files()
+        prompts, to_text = _prompt_files(PROMPTS), _prompt_files(IMG_TO_TEXT)
         return io.Schema(
             node_id="MyNode_FaceProcessing",
             display_name="Krea2 One",
@@ -164,9 +166,11 @@ class FaceProcessing(io.ComfyNode):
                 io.String.Input("crop", default="", optional=True,
                                 tooltip="The preview's crop: JSON {image, angle, box, pad} in pixels, used only for that image."),
                 io.Combo.Input("system_file", options=prompts, default=next(iter(prompts), None), optional=True,
-                               tooltip="The AI's system prompt: a .txt from face/prompts (R lists new ones)."),
+                               tooltip="The AI's system prompt for the photo: a .txt from face/prompts (R lists new ones)."),
                 io.String.Input("llm_save_to", default="IMGtext", optional=True,
                                 tooltip="Where Settings → LLM keeps the prompts it writes, like save_to. Empty: not saved."),
+                io.Combo.Input("llm_system_file", options=to_text, default=next(iter(to_text), None), optional=True,
+                               tooltip="Settings → LLM's system prompt, picture → prompt: a .txt from face/prompts/img_to_text."),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -175,7 +179,7 @@ class FaceProcessing(io.ComfyNode):
     @classmethod
     def fingerprint_inputs(cls, image, system_file="", **_):
         # same name, new file -> rerun: the picture, and the system prompt the AI reads (edited in place)
-        system = _system_path(system_file)
+        system = _system_path(system_file, PROMPTS)
         return os.path.getmtime(folder_paths.get_annotated_filepath(image)), system.stat().st_mtime if system.exists() else 0
 
     @classmethod
@@ -186,7 +190,7 @@ class FaceProcessing(io.ComfyNode):
     def execute(cls, image, text, seed, steps, sampler_name, scheduler, resolution_source, aspect_ratio,
                 custom_width, custom_height, ref_boost, grounding_px, max_resolution,
                 unet_name, lora_name, clip_name, vae_name, llm_name, face_crop=True, ai_prompt=False, save_to="Krea2One",
-                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", **_):  # **_: llm_save_to
+                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", **_):  # **_: the LLM tab's
         spec = crop_edit.spec_of(crop, image) if manual_crop else None
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)
@@ -203,7 +207,7 @@ class FaceProcessing(io.ComfyNode):
         clip = g.node("CLIPLoader", clip_name=clip_name, type="krea2", device="default").out(0)
         vae = g.node("VAELoader", vae_name=vae_name).out(0)
         llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0) if ai_prompt else None
-        system = _system_path(system_file).read_text(encoding="utf-8") if ai_prompt else None
+        system = _system_path(system_file, PROMPTS).read_text(encoding="utf-8") if ai_prompt else None
         info = json.dumps({"seed": seed, "steps": steps, "sampler": sampler_name, "scheduler": scheduler})
         latent = g.node("EmptyLatentImage", width=width, height=height, batch_size=1).out(0)
 
@@ -235,8 +239,9 @@ class FaceProcessing(io.ComfyNode):
 
 
 class LLMPrompt(io.ComfyNode):
-    """Settings → LLM: the AI step alone. A picture and the System prompt in; the prompt the LLM writes is shown on
-    the node and saved as a .txt in SAVE (parts.LLMText). The face queues it on its own, outside the workflow."""
+    """Settings → LLM: the AI step alone. A picture and a picture → prompt system prompt (face/prompts/img_to_text) in;
+    the prompt the LLM writes is shown on the node and saved as a .txt in its SAVE (parts.LLMText). The face queues it
+    on its own, outside the workflow."""
 
     @classmethod
     def define_schema(cls):
@@ -259,6 +264,6 @@ class LLMPrompt(io.ComfyNode):
         g = GraphBuilder()
         picture = g.node("LoadImage", image=image).out(0)
         llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0)
-        text = _generate(g, llm, picture, "", _system_path(system_file).read_text(encoding="utf-8"))
+        text = _generate(g, llm, picture, "", _system_path(system_file, IMG_TO_TEXT).read_text(encoding="utf-8"))
         g.node("MyNode_LLMText", text=text, save_to=save_to)
         return Expansion(expand=g.finalize())

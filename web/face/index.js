@@ -96,6 +96,8 @@ function numberField(get, put, live, { min = -Infinity, max = Infinity, precisio
 function build(node) {
   const W = (n) => node.widgets?.find((w) => w.name === n)
   hideWidgets(node)
+  // the LLM tab's own: kept in the workflow, left out of the photo's Run, so its checks and cache never see them
+  for (const k of ["llm_save_to", "llm_system_file"]) if (W(k)) W(k).options.serialize = false
   const binds = [] // functions that copy widget values onto the face; refresh() runs them all
   const set = (n, v) => {
     const w = W(n)
@@ -527,8 +529,8 @@ function build(node) {
     said.textContent = info.en ?? ""
   }
 
-  // LLM: the AI step alone (MyNode_LLM): a picture, the same LLM and System as Settings, its own SAVE (llm_save_to);
-  // Run queues just that, and the prompt the LLM writes comes back here (setup(): LLM_RUNS)
+  // LLM: the AI step alone (MyNode_LLM): a picture, the same LLM as Settings, its own System (picture → prompt, from
+  // face/prompts/img_to_text) and SAVE; Run queues just that, and the prompt the LLM writes comes back here (setup(): LLM_RUNS)
   const lBox = el("div", "mn-lbox"), lImg = el("img"), lUp = el("div", "mn-upload mn-lup", ICON.upload + "Upload")
   const lOut = el("div", "mn-lout"), lFile = picker((name) => {
     node.setProperty("mn_llm_image", name) // saves with the workflow; the node's own image is untouched
@@ -539,7 +541,7 @@ function build(node) {
   lOut.dataset.scroll = ""
   lBox.append(lImg, ...corners())
   lUp.onclick = () => lFile.click()
-  panes.LLM.append(lBox, lUp, lFile, lOut, ...[["LLM", "llm_name", 611.5], ["System", "system_file", 655.1], ["SAVE", "llm_save_to", 698.6]]
+  panes.LLM.append(lBox, lUp, lFile, lOut, ...[["LLM", "llm_name", 611.5], ["System", "llm_system_file", 655.1], ["SAVE", "llm_save_to", 698.6]]
     .map(([label, name, top]) => row([label, name, top, 74.7, 282.8], "mn-srow")))
   binds.push(() => {
     const name = llmImage(), src = name ? view(baseOf(name), dirOf(name), "input") : ""
@@ -554,7 +556,7 @@ function build(node) {
     lOut.textContent = ""
     lOut.className = "mn-lout busy"
     const prompt = { mynode_llm: { class_type: "MyNode_LLM", inputs: { image, llm_name: W("llm_name")?.value ?? "",
-      system_file: W("system_file")?.value ?? "", save_to: String(W("llm_save_to")?.value ?? "") } } }
+      system_file: W("llm_system_file")?.value ?? "", save_to: String(W("llm_save_to")?.value ?? "") } } }
     const r = await api.fetchApi("/prompt", { method: "POST", body: JSON.stringify({ prompt, client_id: api.clientId ?? api.initialClientId }) })
     const d = await r.json().catch(() => ({}))
     if (r.ok) return LLM_RUNS.set(d.prompt_id, node)
@@ -780,9 +782,11 @@ app.registerExtension({
   loadedGraphNode(node) {
     if (node.comfyClass !== NODE) return
     while (node.outputs?.length) node.removeOutput(node.outputs.length - 1) // RU/Result sockets of the first version
-    const sys = node.widgets?.find((w) => w.name === "system_file")
+    const sys = node.widgets?.find((w) => w.name === "system_file"), lsys = node.widgets?.find((w) => w.name === "llm_system_file")
+    // until 1.17.0 the LLM tab shared System: a picture → prompt one found there is the LLM tab's choice
+    if (sys && lsys && !comboValues(sys).includes(sys.value) && comboValues(lsys).includes(sys.value)) lsys.value = sys.value
     // 1.9.0 saved "" or a file from anywhere, and a renamed prompt is gone: take the first one there is
-    if (sys && !comboValues(sys).includes(sys.value)) sys.value = comboValues(sys)[0] ?? ""
+    for (const w of [sys, lsys]) if (w && !comboValues(w).includes(w.value)) w.value = comboValues(w)[0] ?? ""
     relink(node)
     node.setSize([...SIZE])
     node._mn?.refresh()
