@@ -16,8 +16,10 @@ const ROWS = [
   ["seed", "seed", 400.26, 468.17, 199.89], ["steps", "steps", 478.23, 468.74, 140],
   ["sampler", "sampler_name", 520.09, 470.14, 200], ["scheduler", "scheduler", 565.46, 470.14, 200],
 ]
-// under seed, ComfyUI's own control_after_generate: [label, value, left, width]; LIST goes on to the next seed
-const SEED_MODES = [["FIX", "fixed", 468.19, 66.06], ["RANDOM", "randomize", 536.39, 98.41], ["LIST", "increment", 636.94, 66.06]]
+// under seed: [label, control_after_generate value, left, width]. FIX keeps the seed, RANDOM rolls one after each Run;
+// LIST is the seeds this node ran with (as AusBoss's Seed keeps them), one picked goes back in and is pinned (FIX)
+const SEED_MODES = [["FIX", "fixed", 468.19, 66.06], ["RANDOM", "randomize", 536.39, 98.41], ["LIST", null, 636.94, 66.06]]
+const SEED_KEEP = 8 // newest first, no repeats
 const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
   ["LLM", "llm_name", 281.4], ["System", "system_file", 325, 25.9, 282.8],
@@ -363,11 +365,24 @@ function build(node) {
     set("aspect_ratio", v !== "custom" ? "custom" : presets().includes(preset) ? preset : presets()[0])
   }
   binds.push(() => { mid.classList.toggle("preset", W("aspect_ratio")?.value !== "custom") })
+  // the seed each Run really used (RANDOM has moved the box on by then), kept with the workflow
+  const seeds = () => (Array.isArray(node.properties?.mn_seeds) ? node.properties.mn_seeds : [])
   const seedModes = SEED_MODES.map(([label, value, left, width]) => {
     const b = txt("div", "mn-seedm", label)
     Object.assign(b.style, { left: left + "px", width: width + "px" })
-    b.onclick = () => { set("control_after_generate", value) }
-    binds.push(() => { b.classList.toggle("on", W("control_after_generate")?.value === value) })
+    if (value) {
+      b.onclick = () => { set("control_after_generate", value) }
+      binds.push(() => { b.classList.toggle("on", W("control_after_generate")?.value === value) })
+    } else {
+      b.title = "Seeds this node ran with"
+      b.onclick = (e) => {
+        if (!seeds().length) return toast("No seeds yet: each Run adds the one it used.")
+        menu(e, node, seeds().map(String), (s) => {
+          set("control_after_generate", "fixed")
+          set("seed", Number(s))
+        })
+      }
+    }
     return b
   })
   mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")), ...seedModes)
@@ -810,6 +825,8 @@ function build(node) {
       showShot(shots.length - 1)
       const src = shots[shots.length - 1].src, info = out.mn_info?.[0] ?? { en: out.en?.[0] }
       made.unshift({ id: im.mn_id, thumb: src, src, info: async () => info }) // Settings → Gallery → Generated
+      const ran = Number(info.seed)
+      if (info.seed != null && Number.isFinite(ran)) node.setProperty("mn_seeds", [ran, ...seeds().filter((s) => s !== ran)].slice(0, SEED_KEEP))
       if (setP.classList.contains("open") && tab === "Gallery" && det.hidden) loadGallery()
     },
     llm: (text, ruText = "") => {
