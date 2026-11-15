@@ -12,4 +12,4 @@ git clone https://github.com/Tapok5000/ComfyUI-GSEN
 - Generations IMG — `assets/prompts`
 - Analysis IMG LLM — `assets/prompts/img_to_text`
 
-ComfyUI 0.43.2 или новее.
+от ComfyUI 0.43.2 
