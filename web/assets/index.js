@@ -17,9 +17,9 @@ const ROWS = [
   ["sampler", "sampler_name", 520.09, 470.14, 200], ["scheduler", "scheduler", 565.46, 470.14, 200],
 ]
 // under seed: [label, control_after_generate value, left, width]. FIX keeps the seed, RANDOM rolls one after each Run;
-// LIST is the seeds this node ran with (as AusBoss's Seed keeps them), one picked goes back in and is pinned (FIX)
+// LIST is the seeds kept with + beside seed (MyNode.svg), one picked goes back in and is pinned (FIX)
 const SEED_MODES = [["FIX", "fixed", 468.19, 66.06], ["RANDOM", "randomize", 536.39, 98.41], ["LIST", null, 636.94, 66.06]]
-const SEED_KEEP = 8 // newest first, no repeats
+const SEED_KEEP = 20 // newest first, no repeats
 const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
   ["LLM", "llm_name", 281.4], ["System", "system_file", 325, 25.9, 282.8],
@@ -46,6 +46,8 @@ const ICON = {
   off: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m12.799,11.967v3.447q0,0.468 -0.281,0.791 -0.281,0.333 -0.697,0.437 -0.416,0.114 -0.843,-0.083l-6.468,-2.874h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h2.635l-1.625,-1.625q-0.260,-0.260 -0.260,-0.625 0,-0.375 0.260,-0.635 0.260,-0.260 0.625,-0.260 0.375,0 0.635,0.260l14.885,14.874q0.260,0.270 0.260,0.645 0,0.364 -0.260,0.624 -0.260,0.260 -0.635,0.260 -0.364,0 -0.625,-0.260zm-1.5,-1.5 -5.281,-5.281v7.520l5.281,2.343zm3.729,-2.020q0,-0.937 -0.656,-1.604 -0.645,-0.666 -1.572,-0.687v-4.864q0,-0.468 -0.385,-0.75 -0.385,-0.281 -0.916,-0.333 -0.520,-0.062 -0.937,0.135l-3.364,1.572 1.135,1.135 2.854,-1.343h0.01q0.021,-0.010 0.083,-0.010 0,0 0,0 0.01,0 0.021,0v4.322l3.468,3.468q0.260,-0.489 0.260,-1.041z"/></svg>`,
   // MyNode.svg's ✅ and ⬇️ (emoji there, white in its fonts), outlined: Settings' model rows
   ok: `<svg viewBox="14.182 20.422 11.636 11.636" width="11.64" height="11.64" fill="currentColor"><path d="m18.5,28.391 .266,.266q.109,.109 .266,.109 .156,0 .266-.109l4.245-4.25q.109-.109 .109-.26 0-.156-.109-.271-.109-.109-.266-.109-.156,0-.266,.109l-3.979,3.984-2.026-2.026q-.109-.115-.266-.115-.156,0-.266,.115-.109,.109-.109,.266 0,.151 .109,.26l2.026,2.031zM16.245,20.609q-.516,0-.943,.255-.427,.25-.682,.677-.25,.427-.25,.943v7.51q0,.516 .25,.943 .255,.427 .682,.677 .427,.255 .943,.255h7.51q.516,0 .943-.255 .427-.25 .677-.677 .255-.427 .255-.943v-7.51q0-.516-.255-.943-.25-.427-.677-.677-.427-.255-.943-.255zm-1.125,1.875q0-.464 .328-.792 .333-.333 .797-.333h7.51q.469,0 .797,.333 .328,.328 .328,.792v7.51q0,.464-.328,.792-.328,.333-.797,.333h-7.51q-.464,0-.797-.333-.328-.328-.328-.792zm-.938,0v7.51q0,.568 .276,1.036 .281,.469 .75,.745 .469,.281 1.036,.281h7.51q.568,0 1.036-.281 .469-.276 .745-.745 .281-.469 .281-1.036v-7.51q0-.568-.281-1.036-.276-.469-.745-.745-.469-.281-1.036-.281h-7.51q-.568,0-1.036,.281-.469,.276-.75,.745-.276,.469-.276,1.036zm.375,0q0-.464 .229-.849 .229-.385 .609-.609 .385-.229 .849-.229h7.51q.469,0 .849,.229 .385,.224 .609,.609 .229,.385 .229,.849v7.51q0,.464-.229,.849-.224,.385-.609,.609-.38,.229-.849,.229h-7.51q-.464,0-.849-.229-.38-.224-.609-.609-.229-.385-.229-.849zm1.688-1.313q-.359,0-.661,.177-.297,.177-.474,.479-.177,.297-.177,.656v7.51q0,.359 .177,.656 .177,.302 .474,.479 .302,.177 .661,.177h7.51q.365,0 .661-.177 .297-.177 .474-.479 .177-.297 .177-.656v-7.51q0-.359-.177-.656-.177-.302-.474-.479-.297-.177-.661-.177zm0,.375h7.51q.391,0 .661,.276 .276,.276 .276,.661v7.51q0,.385-.276,.661-.271,.276-.661,.276h-7.51q-.385,0-.661-.276-.276-.276-.276-.661v-7.51q0-.385 .276-.661 .276-.276 .661-.276zm.094,4.948 1.896,1.896v0l.13,.13 .266,.266q.167,.167 .401,.167 .234,0 .396-.167l4.25-4.245q.161-.167 .161-.396 0-.234-.161-.401-.167-.167-.401-.167-.234,0-.396,.167l-3.849,3.849-1.896-1.896q-.161-.167-.396-.167-.234,0-.401,.167-.161,.167-.161,.401 0,.229 .161,.396zm2.823,1.495 3.984-3.979q.052-.057 .13-.057 .078,0 .135,.057 .052,.052 .052,.13 0,.078-.052,.135l-4.25,4.245q-.052,.057-.13,.057-.078,0-.135-.057L18.766,28.391v0l-.135-.135-2.026-2.026q-.052-.057-.052-.13 0-.078 .052-.135 .057-.057 .135-.057 .078,0 .13,.057l2.026,2.026 .135,.135z"/></svg>`,
+  // MyNode.svg's + beside seed: a lime disc with the + cut out, over its dark shadow
+  keep: `<svg viewBox="1889.840 -315.641 32.146 30.899" width="29.02" height="27.89"><circle cx="1907.020" cy="-299.707" r="14.965" fill="#161a0a"/><path d="m1905.289-315.641a15.449,15.449 0 0 0-15.449,15.449 15.449,15.449 0 0 0 15.449,15.449 15.449,15.449 0 0 0 15.449-15.449 15.449,15.449 0 0 0-15.449-15.449zm0,7.569c.25,0 .459,.017 .625,.05 .167,.022 .296,.061 .391,.117 .107,.045 .184,.107 .232,.186 .048,.067 .072,.144 .072,.234v6.118h5.87c.095,0 .177,.022 .248,.067 .084,.045 .156,.117 .216,.218 .071,.101 .117,.23 .141,.387 .036,.146 .055,.319 .055,.52 0,.213-.019,.398-.055,.554-.035,.146-.082,.27-.141,.371-.06,.101-.133,.173-.216,.218-.084,.045-.171,.067-.266,.067h-5.851v6.118c0,.09-.025,.167-.072,.234-.047,.056-.125,.106-.232,.151-.095,.045-.225,.085-.391,.119-.167,.022-.375,.032-.625,.032-.238,0-.447-.01-.625-.032-.167-.034-.302-.074-.409-.119-.095-.045-.166-.095-.214-.151-.047-.067-.072-.144-.072-.234v-6.118h-5.851c-.107,0-.201-.022-.284-.067-.071-.045-.138-.117-.198-.218-.06-.101-.106-.225-.141-.371-.036-.157-.055-.342-.055-.554 0-.202 .019-.375 .055-.52 .035-.157 .082-.286 .141-.387 .06-.101 .126-.173 .198-.218 .084-.045 .171-.067 .266-.067h5.87v-6.118c0-.09 .025-.167 .072-.234 .048-.079 .118-.141 .214-.186 .107-.056 .243-.095 .409-.117 .178-.034 .387-.05 .625-.05z" fill="#c7f400"/></svg>`,
   down: `<svg viewBox="92.962 18.262 14.075 14.075" width="14.08" height="14.08" fill="currentColor"><path d="m99.063,21.543v4.577q0,.117-.117,.117h-1.439q-.208,0-.339,.143-.124,.137-.13,.332-.006,.189 .143,.332l2.493,2.402q.137,.13 .326,.13 .189,0 .326-.13l2.493-2.402q.15-.143 .143-.332 0-.195-.13-.332-.124-.143-.339-.143h-1.439q-.117,0-.117-.117V21.543q0-.189-.137-.326-.137-.143-.332-.143h-.937q-.195,0-.332,.143-.137,.137-.137,.326zM95.306,18.262H104.694q.645,0 1.178,.319 .534,.312 .846,.846 .319,.534 .319,1.178v9.388q0,.645-.319,1.178-.312,.534-.846,.846-.534,.319-1.178,.319h-9.388q-.645,0-1.178-.319-.534-.312-.853-.846-.312-.534-.312-1.178v-9.388q0-.645 .312-1.178 .319-.534 .853-.846 .534-.319 1.178-.319zm-1.406,2.344v9.388q0,.579 .41,.99 .417,.417 .996,.417H104.694q.586,0 .996-.417 .41-.41 .41-.99v-9.388q0-.579-.41-.99-.41-.417-.996-.417h-9.388q-.579,0-.996,.417-.41,.41-.41,.99z"/></svg>`,
 }
 // GSEN in MyNode.svg's Sci-Fi font, outlined (158.29 x 29.46): the Settings header's logo, the boxes' watermark, the
@@ -101,6 +103,15 @@ function modelValue(sv, color, value, files) {
   }
 }
 
+// a value wider than its place between a pill's arrows takes a smaller font, down to 10 px (a random seed has up to 16
+// digits, a scheduler sgm_uniform 11 letters: whole there), and past that ends in "…" (face.css): nothing leaves its pill
+function fitVal(e) {
+  e.style.fontSize = ""
+  if (e.scrollWidth <= e.clientWidth) return // a value that fits has scrollWidth = clientWidth, not its own width
+  const room = e.clientWidth - 7, need = e.scrollWidth - 6 // 6: the value's padding at its sides; 1 to spare for rounding
+  e.style.fontSize = `${Math.max(10, (18 * room) / need)}px`
+}
+
 // ◀ number ▶; put() keeps a value, live() takes it while typing, so Ctrl+Enter right away runs it
 function numberField(get, put, live, { min = -Infinity, max = Infinity, precision = 0, step = 1 }) {
   const l = el("div", "mn-tri l"), inp = el("input", "mn-val"), r = el("div", "mn-tri r")
@@ -134,6 +145,7 @@ function build(node) {
   // the LLM tab's own: kept in the workflow, left out of the photo's Run, so its checks and cache never see them
   for (const k of ["llm_save_to", "llm_system_file"]) if (W(k)) W(k).options.serialize = false
   const binds = [] // functions that copy widget values onto the face; refresh() runs them all
+  const fits = [] // the pills' values: fitted after all binds (a preset shows its pill, hides W and H) and once laid out
   const set = (n, v) => {
     const w = W(n)
     if (!w || v === undefined) return
@@ -264,7 +276,8 @@ function build(node) {
       l.onclick = () => { step(-1) }
       rr.onclick = () => { step(1) }
       val.onclick = (e) => { menu(e, node, comboValues(w), (x) => set(name, x)) }
-      binds.push(() => { val.textContent = w.value ?? "" })
+      binds.push(() => { val.textContent = val.title = w.value ?? "" })
+      fits.push(val)
       v.append(l, val, rr)
     } else if (typeof w.value === "string") {
       const sv = el("div", "sv"), inp = el("input", "mn-sval")
@@ -281,6 +294,7 @@ function build(node) {
       const { min, max, precision, step2: step } = w.options
       const f = numberField(() => w.value, (x) => set(name, x), (x) => { w.value = x }, { min, max, precision, step })
       binds.push(() => { if (document.activeElement !== f.inp) f.show() })
+      fits.push(f.inp)
       v.append(...f.nodes)
     }
     r.append(v)
@@ -364,7 +378,7 @@ function build(node) {
     set("aspect_ratio", v !== "custom" ? "custom" : presets().includes(preset) ? preset : presets()[0])
   }
   binds.push(() => { mid.classList.toggle("preset", W("aspect_ratio")?.value !== "custom") })
-  // the seed each Run really used (RANDOM has moved the box on by then), kept with the workflow
+  // the seeds kept with + (LIST), saved with the workflow
   const seeds = () => (Array.isArray(node.properties?.mn_seeds) ? node.properties.mn_seeds : [])
   const seedModes = SEED_MODES.map(([label, value, left, width]) => {
     const b = txt("div", "mn-seedm", label)
@@ -373,9 +387,9 @@ function build(node) {
       b.onclick = () => { set("control_after_generate", value) }
       binds.push(() => { b.classList.toggle("on", W("control_after_generate")?.value === value) })
     } else {
-      b.title = "Seeds this node ran with"
+      b.title = "Seeds kept with +"
       b.onclick = (e) => {
-        if (!seeds().length) return toast("No seeds yet: each Run adds the one it used.")
+        if (!seeds().length) return toast("LIST is empty: + keeps the seed in the box.")
         menu(e, node, seeds().map(String), (s) => {
           set("control_after_generate", "fixed")
           set("seed", Number(s))
@@ -384,7 +398,16 @@ function build(node) {
     }
     return b
   })
-  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")), ...seedModes)
+  // + beside seed (MyNode.svg): the seed in the box goes into LIST
+  const keep = el("div", "mn-seedadd", ICON.keep)
+  keep.title = "Keep this seed in LIST"
+  keep.onclick = () => {
+    const s = Number(W("seed")?.value)
+    if (!Number.isFinite(s)) return
+    node.setProperty("mn_seeds", [s, ...seeds().filter((x) => x !== s)].slice(0, SEED_KEEP))
+    toast(`Seed ${s} is in LIST.`)
+  }
+  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")), ...seedModes, keep)
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
@@ -688,7 +711,11 @@ function build(node) {
     const info = await r.info()
     if (opened !== r) return // another card was opened meanwhile
     par.replaceChildren(...[["seed", info.seed], ["step", info.steps], ["sampler", info.sampler], ["scheduler", info.scheduler]]
-      .flatMap(([k, v]) => [txt("span", "k", k), txt("span", "v", String(v ?? "—"))]))
+      .flatMap(([k, v]) => {
+        const s = txt("span", "v", String(v ?? "—"))
+        s.title = s.textContent // a long sampler's name ends in …
+        return [txt("span", "k", k), s]
+      }))
     card = info
     paintLang()
   }
@@ -784,6 +811,9 @@ function build(node) {
   root.append(texture("mn-back"), head, left, mid, right, setP, gal) // the panels' backgrounds, texture on them
 
   canvasControls(node, root, head)
+  const laidOut = new ResizeObserver(() => fits.forEach(fitVal)) // the face gets its size when it lands on the canvas
+  laidOut.observe(root)
+  off.signal.addEventListener("abort", () => laidOut.disconnect())
   root.addEventListener("pointerdown", (e) => {
     if (gal.classList.contains("open") && !gal.contains(e.target)) gal.classList.remove("open")
   }, true)
@@ -796,6 +826,7 @@ function build(node) {
 
   const refresh = () => {
     binds.forEach((f) => f())
+    fits.forEach(fitVal)
     if (document.activeElement !== prompt) prompt.value = loaded().trim() ? loaded() : W("text")?.value ?? ""
     const name = W("image")?.value ?? "", list = comboValues(W("image"))
     pName.textContent = baseOf(name)
@@ -842,8 +873,6 @@ function build(node) {
       showShot(shots.length - 1)
       const src = shots[shots.length - 1].src, info = out.mn_info?.[0] ?? { en: out.en?.[0] }
       made.unshift({ id: im.mn_id, thumb: src, src, info: async () => info }) // Settings → Gallery → Generated
-      const ran = Number(info.seed)
-      if (info.seed != null && Number.isFinite(ran)) node.setProperty("mn_seeds", [ran, ...seeds().filter((s) => s !== ran)].slice(0, SEED_KEEP))
       if (setP.classList.contains("open") && tab === "Gallery" && det.hidden) loadGallery()
     },
     llm: (text, ruText = "") => {
