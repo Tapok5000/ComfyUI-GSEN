@@ -32,7 +32,7 @@ let closePick = null // one pick list at a time
  * any other (samplers, presets, seeds) keeps its order, without icons. It opens on the top folder; current is lit,
  * and so are the folders on its way.
  */
-export function menu(e, node, values, pick, { title = "", current } = {}) {
+export function menu(e, values, pick, { title = "", current } = {}) {
   closePick?.()
   const files = values.length > 0 && values.every((v) => /\.\w{1,12}$/.test(v))
   const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare
@@ -42,7 +42,7 @@ export function menu(e, node, values, pick, { title = "", current } = {}) {
   find.placeholder = "Search"
   find.spellcheck = false
   list.setAttribute("role", "listbox")
-  box.append(txt("div", "mn-menu-h", [node.title, title].filter(Boolean).join(" · ")), find, list)
+  box.append(txt("div", "mn-menu-h", title), find, list)
   const inside = (p, path) => p.length > path.length && path.every((x, i) => p[i] === x)
   let at = [], rows = [], act = -1
   let x0 = e.clientX - 10, y0 = e.clientY - 10 // where it opened; a longer folder only lifts it
