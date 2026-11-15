@@ -16,7 +16,7 @@ from . import crop_edit, faces, krea2_edit
 class FaceCrop(io.ComfyNode):
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_FaceCrop", category="GSEN", is_dev_only=True,
+        return io.Schema(node_id="MyNode_FaceCrop", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Image.Input("image")], outputs=[io.Image.Output()])
 
     @classmethod
@@ -27,7 +27,7 @@ class FaceCrop(io.ComfyNode):
 class CropRotatePad(io.ComfyNode):
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_CropRotatePad", category="GSEN", is_dev_only=True,
+        return io.Schema(node_id="MyNode_CropRotatePad", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Image.Input("image"), io.String.Input("crop")], outputs=[io.Image.Output()])
 
     @classmethod
@@ -38,7 +38,7 @@ class CropRotatePad(io.ComfyNode):
 class Krea2Patch(io.ComfyNode):
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_Krea2Patch", category="GSEN", is_dev_only=True,
+        return io.Schema(node_id="MyNode_Krea2Patch", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Model.Input("model"), io.Vae.Input("vae"), io.Image.Input("image"),
                                  io.Latent.Input("target"), io.Float.Input("ref_boost", default=1.0, min=0.0, max=1000.0)],
                          outputs=[io.Model.Output()])
@@ -51,7 +51,7 @@ class Krea2Patch(io.ComfyNode):
 class Krea2Encode(io.ComfyNode):
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_Krea2Encode", category="GSEN", is_dev_only=True,
+        return io.Schema(node_id="MyNode_Krea2Encode", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Clip.Input("clip"), io.Image.Input("image"), io.String.Input("prompt", multiline=True),
                                  io.Int.Input("grounding_px", default=768, min=0, max=4096)],
                          outputs=[io.Conditioning.Output()])
@@ -69,7 +69,7 @@ class Translate(io.ComfyNode):
 
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_Translate", category="GSEN", is_dev_only=True,
+        return io.Schema(node_id="MyNode_Translate", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.String.Input("text", multiline=True)], outputs=[io.String.Output()])
 
     @classmethod
@@ -99,7 +99,7 @@ class Decode(io.ComfyNode):
 
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_Decode", category="GSEN", is_dev_only=True,
+        return io.Schema(node_id="MyNode_Decode", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Latent.Input("samples"), io.Vae.Input("vae")], outputs=[io.Image.Output()])
 
     @classmethod
@@ -121,7 +121,7 @@ class Show(io.ComfyNode):
 
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_Show", category="GSEN", is_output_node=True, is_dev_only=True,
+        return io.Schema(node_id="MyNode_Show", category="🟩 GSEN", is_output_node=True, is_dev_only=True,
                          inputs=[io.Image.Input("images"), io.String.Input("ru", force_input=True),
                                  io.String.Input("en", force_input=True), io.String.Input("save_to", default=""),
                                  io.String.Input("info", default="{}")],
@@ -140,7 +140,7 @@ class LLMText(io.ComfyNode):
 
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_LLMText", category="GSEN", is_output_node=True, is_dev_only=True,
+        return io.Schema(node_id="MyNode_LLMText", category="🟩 GSEN", is_output_node=True, is_dev_only=True,
                          inputs=[io.String.Input("text", force_input=True), io.String.Input("save_to", default="")],
                          outputs=[])
 

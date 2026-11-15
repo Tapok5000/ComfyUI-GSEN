@@ -282,9 +282,10 @@ function build(node) {
     W("text").value = prompt.value
     W("text").callback?.(prompt.value)
   }
-  const lp = txt("div", "mn-cap", "PROMPT"), lr = txt("div", "mn-cap mn-lang", "RU")
-  Object.assign(lp.style, { left: "29.9px", top: "23.9px" })
-  Object.assign(lr.style, { left: "28.7px", top: "217.8px" })
+  // small labels over the boxes, as before 1.18.0 (the faint PROMT / RU inside them in MyNode.svg are only a picture)
+  const lp = txt("div", "mn-lbl", "PROMPT"), lr = txt("div", "mn-lbl mn-lang", "RU")
+  Object.assign(lp.style, { left: "22.6px", top: "2px" })
+  Object.assign(lr.style, { left: "21.3px", top: "195.6px" })
   // the box shows the RU translation; a click on its label switches to EN, the prompt the sampler got
   let shot = { RU: "", EN: "" }
   lr.title = "RU / EN"
@@ -315,7 +316,7 @@ function build(node) {
   }
   binds.push(() => {
     const on = !!loaded().trim(), n = countPrompts(loaded())
-    lp.textContent = on ? `TXT: ${W("prompt_file")?.value || "prompts"} · ${n} prompt${n === 1 ? "" : "s"}` : "PROMPT"
+    lp.textContent = on ? `${W("prompt_file")?.value || "prompts"} · ${n} prompt${n === 1 ? "" : "s"}` : "PROMPT"
     lp.classList.toggle("on", on)
     lt.textContent = on ? "CLOSE TXT" : "LOAD TXT"
     prompt.readOnly = on

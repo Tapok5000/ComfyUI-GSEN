@@ -124,8 +124,8 @@ class FaceProcessing(io.ComfyNode):
         return io.Schema(
             node_id="MyNode_FaceProcessing",
             display_name="Krea2 One",
-            search_aliases=["FACE Processing"],  # its name before 1.4.1
-            category="GSEN",
+            search_aliases=["FACE Processing", "GSEN"],  # its name before 1.4.1; the search box looks at no category
+            category="🟩 GSEN",
             description="Face crop + AI prompt + Krea2 identity edit + RU/EN in one node.",
             is_output_node=True,
             inputs=[
@@ -245,7 +245,7 @@ class LLMPrompt(io.ComfyNode):
 
     @classmethod
     def define_schema(cls):
-        return io.Schema(node_id="MyNode_LLM", category="GSEN", is_output_node=True, is_dev_only=True, enable_expand=True,
+        return io.Schema(node_id="MyNode_LLM", category="🟩 GSEN", is_output_node=True, is_dev_only=True, enable_expand=True,
                          inputs=[io.String.Input("image"), io.String.Input("llm_name"),
                                  io.String.Input("system_file", default=""), io.String.Input("save_to", default="")],
                          outputs=[])
