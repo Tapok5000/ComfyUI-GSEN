@@ -5,12 +5,16 @@ Run from the ComfyUI folder:
     ..\\python_embeded\\python.exe custom_nodes\\ComfyUI-GSEN\\tests\\test_face.py
 """
 import asyncio
+import hashlib
+import http.server
 import importlib
 import json
 import math
 import os
 import sys
 import tempfile
+import threading
+import time
 import zipfile
 from datetime import date
 from io import BytesIO
@@ -357,6 +361,69 @@ def test_llm_tab():
     expand(llm_save_to="X", llm_system_file="describe.txt")  # the face's own Run takes them and leaves them be
 
 
+def test_models():
+    models = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.models")
+    body = os.urandom(3 << 20)  # three rounds of the download loop
+    want = models.Model("VAE", "vae", "w.safetensors", len(body), hashlib.sha256(body).hexdigest(),
+                        (("dead/x", "c", "w"), ("fake/x", "c", "w"), ("good/x", "c", "w")))
+
+    class Hub(http.server.BaseHTTPRequestHandler):  # Hugging Face, here
+        def do_GET(self):
+            if self.path.startswith("/dead/"):
+                self.send_error(404)
+                return
+            data = body if self.path == "/good/x/resolve/c/w" else body[:-1] + b"!"  # fake: the right size, other bytes
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def log_message(self, *args):
+            pass
+
+    hub = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Hub)
+    threading.Thread(target=hub.serve_forever, daemon=True).start()
+    real = models.HF, models.MODELS, folder_paths.folder_names_and_paths["vae"]
+    ask = lambda route, **q: asyncio.run(route(SimpleNamespace(query=q)))  # noqa: E731
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            named, mine = os.path.join(d, "vae"), os.path.join(d, "mine")
+            folder_paths.folder_names_and_paths["vae"] = ([mine, named], {".safetensors"})
+            folder_paths.filename_list_cache.clear()
+            models.HF, models.MODELS = f"http://127.0.0.1:{hub.server_port}", (want,)
+            assert models.target("vae") == named  # no files anywhere: the folder named as the kind
+            os.makedirs(os.path.join(mine, "sub"))
+            Path(mine, "sub", "other.safetensors").write_bytes(b"")
+            assert models.target("vae") == mine  # beside the others, extra_model_paths.yaml's or not
+            assert models.status() == [{"key": "VAE", "file": "w.safetensors", "size": len(body), "name": None, "got": None}]
+            Path(mine, "sub", "🔴 W.safetensors").write_bytes(b"")  # emoji and another case: the same file to its owner
+            assert models.status()[0]["name"].endswith("🔴 W.safetensors") and ask(models._download, key="VAE").status == 200
+            assert not models.JOBS  # it is here: nothing to download
+            os.remove(Path(mine, "sub", "🔴 W.safetensors"))
+            folder_paths.filename_list_cache.clear()
+            assert ask(models._download, key="../w").status == 404  # only a listed model, never a link from outside
+            ask(models._download, key="VAE")
+            while "VAE" in models.JOBS:  # it downloads in a thread of its own
+                time.sleep(0.05)
+            assert SENT[-1] == ("mynode.models", {"key": "VAE", "done": True, "error": "", "folder": mine})
+            assert any(event == "mynode.models" and "got" in data for event, data in SENT)  # the bar moved on the way
+            assert Path(mine, "w.safetensors").read_bytes() == body and models.status()[0]["name"] == "w.safetensors"
+            sent = len(SENT)
+            ask(models._download, key="VAE")  # here already: no second download
+            assert len(SENT) == sent and not models.JOBS
+            # no source has the right bytes: nothing stays behind, and the face hears why
+            models.MODELS = (want._replace(key="LLM", file="x.safetensors", sources=want.sources[:2]),)
+            models.JOBS["LLM"] = {"got": 0, "sent": 0}
+            models.download(models.MODELS[0])
+            error = SENT[-1][1]["error"]
+            assert "dead/x: HTTP Error 404" in error and f"fake/x: {len(body)} bytes that are not x.safetensors" in error
+            assert sorted(os.listdir(mine)) == ["sub", "w.safetensors"] and not models.JOBS
+    finally:
+        hub.shutdown()
+        models.HF, models.MODELS, folder_paths.folder_names_and_paths["vae"] = real
+        folder_paths.filename_list_cache.clear()
+
+
 if __name__ == "__main__":
     test_forward_matches_core()
     test_target_size()
@@ -374,4 +441,5 @@ if __name__ == "__main__":
     test_sounds()
     test_gallery()
     test_llm_tab()
+    test_models()
     print("ok")
