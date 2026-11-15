@@ -23,3 +23,5 @@ Krea2 One → ↗ Settings → **Update**  Потом перезапустить
 - промт с фото (LLM → System) — `assets/prompts/img_to_text`
 
 Звуки конца прогона (Settings → Sound) — `assets/Sound`, туда можно положить свои.
+
+Settings → Save → **zip** — одним архивом всё, что нода сохранила (фото в SAVE) и что написала вкладка LLM (промты в её SAVE).

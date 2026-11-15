@@ -457,7 +457,7 @@ function build(node) {
 
   // Settings: a panel over the middle with tabs, as in MyNode.svg; its header also holds Update and the LLM tab's Run
   const setP = el("div", "mn-set"), shead = el("div", "mn-shead"), det = el("div", "mn-det")
-  const upB = txt("div", "mn-up", "Update"), lRun = txt("div", "mn-run mn-lrun", "Run")
+  const upB = txt("div", "mn-up", "Update"), ver = el("div", "mn-ver"), lRun = txt("div", "mn-run mn-lrun", "Run")
   const panes = { Settings: el("div", "mn-pane"), Gallery: el("div", "mn-pane"), LLM: el("div", "mn-pane") }
   panes.Settings.dataset.scroll = "" // scrolls once added LoRAs push the rows past the bottom
   let tab = "Settings"
@@ -471,7 +471,7 @@ function build(node) {
     tabs.forEach((b) => b.classList.toggle("on", b.textContent === t))
     for (const [k, p] of Object.entries(panes)) p.hidden = k !== t
     lRun.hidden = t !== "LLM"
-    logo.hidden = upB.hidden = t !== "Settings" // MyNode.svg has them on the Settings board only; on LLM, Run sits there
+    logo.hidden = upB.hidden = ver.hidden = t !== "Settings" // MyNode.svg has them on the Settings board only; on LLM, Run
     det.hidden = true
     if (t === "Gallery") loadGallery()
     if (t === "Settings") fetchModels() // fresh each time: files put into the model folders by hand count too
@@ -479,13 +479,31 @@ function build(node) {
     if (setP.classList.contains("open")) (panes[t].querySelector("[data-scroll]") ?? panes[t]).focus({ preventScroll: true })
   }
   const logo = el("div", "mn-logo", `<svg viewBox="0 0 158.293 29.4603" preserveAspectRatio="none" fill="currentColor"><path d="${GSEN}"/></svg>`)
-  shead.append(...tabs, logo, lRun, upB)
+  shead.append(...tabs, logo, lRun, upB, ver)
   const sRow = Object.fromEntries(SETTINGS.map((s) => [s[1], row(s, "mn-srow")]))
 
-  // Update: this pack against the newest on GitHub (update.py); a click checks again and gets the newer one
+  // zip, in Save's pill: what this node saved and what the LLM tab wrote, the two SAVE folders as one download (common.py)
+  const zipB = txt("div", "mn-zip", "zip")
+  zipB.title = "SAVE and the LLM tab's SAVE as one .zip"
+  zipB.onclick = async () => {
+    const q = `save=${encodeURIComponent(W("save_to")?.value ?? "")}&llm=${encodeURIComponent(W("llm_save_to")?.value ?? "")}`
+    const r = await api.fetchApi(`/mynode/zip?${q}&check=1`).then((x) => x.json()).catch(() => null)
+    if (!r) return toast("No answer from ComfyUI.", "error")
+    if (!r.files) return toast("Nothing saved yet in SAVE or the LLM tab's SAVE.", "warn")
+    toast(`Packing ${r.files} files, ${gb(r.bytes)}: the download starts once they are in.`)
+    const a = el("a")
+    a.href = api.apiURL(`/mynode/zip?${q}`)
+    a.download = ""
+    a.click()
+  }
+  sRow.save_to.append(zipB)
+
+  // Update: this pack against the newest on GitHub (update.py); a click checks again and gets the newer one. Beside it
+  // MyNode.svg's "v 0.0.0": the installed version, or the newer one a click brings
   const paintUp = (s) => {
-    upB.textContent = s?.available ? `Update ${s.latest}` : "Update"
-    upB.title = updateText(s)
+    upB.textContent = "Update"
+    upB.title = ver.title = updateText(s)
+    ver.textContent = s?.available ? `→ ${s.latest}` : s?.version ? `v ${s.version}` : ""
   }
   ;(updateInfo ?? checkUpdate()).then(paintUp)
   upB.onclick = async () => {
@@ -912,7 +930,7 @@ const modelEvents = new EventTarget()
 const modelsChanged = () => modelEvents.dispatchEvent(new Event("paint"))
 const fetchModels = () => api.fetchApi("/mynode/models").then((r) => r.json())
   .then((list) => { models = list; modelsChanged() }).catch(() => {})
-const gb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.round(n / 1e6)} MB`)
+const gb = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${Math.round(n / 1e6)} MB` : `${Math.ceil(n / 1e3)} KB`)
 const asked = new Map() // key -> the Krea2 One whose ⬇️ asked for it: it takes the file once it is in
 
 // ⬇️: the server downloads it; "mynode.models" (setup) brings the bar and the end

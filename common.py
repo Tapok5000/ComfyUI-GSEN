@@ -1,10 +1,13 @@
 """Pack-wide pieces, shared by every node: the image galleries' and sounds' HTTP routes, result saving, the expansion output."""
 import asyncio
+import contextlib
 import functools
 import html
 import json
 import os
 import re
+import uuid
+import zipfile
 from datetime import date
 from io import BytesIO
 
@@ -204,6 +207,60 @@ async def _result(request):
         data = await asyncio.get_running_loop().run_in_executor(None, _thumb, path, os.path.getmtime(path), size)
         return web.Response(body=data, content_type="image/webp", headers={"Cache-Control": "max-age=31536000"})
     return web.FileResponse(path)
+
+
+# the LLM tab's result in its SAVE (save_llm): 2026-11-15/001/001_LLM.png, .txt and .html
+LLM_FILE = re.compile(r"\d{4}-\d{2}-\d{2}/(\d{3,})/\1_LLM\.(?:png|txt|html)")
+
+
+def saved_files(save, llm):
+    """What Krea2 One saved in SAVE and what its LLM tab wrote in its own SAVE: [(path, name in the zip)], each under its
+    folder's name. Only those files: a zip of whatever folder a request names would hand over anything in it."""
+    out = {}
+    if path := results_dir(save):
+        for _, name in results(path):
+            out[os.path.join(path, name)] = f"{os.path.basename(path)}/{name}"
+    if path := results_dir(llm):
+        for root, _, names in os.walk(path):
+            for n in names:
+                rel = os.path.relpath(os.path.join(root, n), path).replace("\\", "/")
+                if LLM_FILE.fullmatch(rel):
+                    out[os.path.join(root, n)] = f"{os.path.basename(path)}/{rel}"
+    return sorted(out.items(), key=lambda f: f[1])
+
+
+def pack(files, path):
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as z:  # the PNGs are compressed already
+        for full, name in files:
+            z.write(full, name)
+
+
+@PromptServer.instance.routes.get("/mynode/zip")
+async def _zip(request):
+    """Settings → Save → zip: saved_files as one .zip download. check=1: only how many files and bytes, so the face can say
+    so first. Packed into ComfyUI's temp folder, then sent with its length (the browser shows how far), then deleted."""
+    q = request.query
+    files = await asyncio.to_thread(saved_files, q.get("save", ""), q.get("llm", ""))
+    if q.get("check"):
+        return web.json_response({"files": len(files), "bytes": sum(os.path.getsize(f) for f, _ in files)})
+    if not files:
+        return web.Response(status=404)
+    tmp = os.path.join(folder_paths.get_temp_directory(), f"gsen_{uuid.uuid4().hex}.zip")
+    os.makedirs(os.path.dirname(tmp), exist_ok=True)
+    try:
+        await asyncio.to_thread(pack, files, tmp)
+        resp = web.StreamResponse(headers={"Content-Type": "application/zip",
+                                           "Content-Disposition": f'attachment; filename="GSEN_{date.today()}.zip"'})
+        resp.content_length = os.path.getsize(tmp)
+        await resp.prepare(request)
+        with open(tmp, "rb") as f:
+            while chunk := await asyncio.to_thread(f.read, 1 << 20):
+                await resp.write(chunk)
+        await resp.write_eof()
+        return resp
+    finally:
+        with contextlib.suppress(OSError):
+            os.remove(tmp)
 
 
 class Expansion(io.NodeOutput):

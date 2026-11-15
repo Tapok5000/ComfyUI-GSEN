@@ -11,6 +11,7 @@ import importlib
 import json
 import math
 import os
+import re
 import sys
 import tempfile
 import threading
@@ -425,6 +426,36 @@ def test_models():
         folder_paths.filename_list_cache.clear()
 
 
+def test_zip():
+    ask = lambda route, **q: asyncio.run(route(SimpleNamespace(query=q)))  # noqa: E731
+    real = folder_paths.get_output_directory()
+    with tempfile.TemporaryDirectory() as d:
+        folder_paths.set_output_directory(os.path.join(d, "out"))
+        made = {"Krea2One": ["2026-11-15/ID_1.png", "2026-11-15/ID_2.png", "ID_7.png", "2026-11-15/notes.txt", "secret.txt"],
+                "IMGtext": ["2026-11-15/001/001_LLM.png", "2026-11-15/001/001_LLM.txt", "2026-11-15/001/001_LLM.html",
+                            "2026-11-15/001/other.txt", "2026-11-15/002/001_LLM.txt"]}
+        for folder, names in made.items():
+            for name in names:
+                Path(d, "out", folder, name).parent.mkdir(parents=True, exist_ok=True)
+                Path(d, "out", folder, name).write_bytes(b"xy")
+        try:
+            files = common.saved_files("Krea2One", "IMGtext")
+            want = [f"IMGtext/2026-11-15/001/001_LLM.{ext}" for ext in ("html", "png", "txt")] + [
+                "Krea2One/2026-11-15/ID_1.png", "Krea2One/2026-11-15/ID_2.png", "Krea2One/ID_7.png"]
+            assert [n for _, n in files] == want  # only what GSEN made: the notes and the stray files stay out
+            assert common.saved_files("..", "../..") == []  # a relative SAVE stays inside output
+            assert json.loads(ask(common._zip, save="Krea2One", llm="IMGtext", check="1").text) == {"files": 6, "bytes": 12}
+            assert ask(common._zip, save="", llm="").status == 404
+            common.pack(files, os.path.join(d, "a.zip"))
+            with zipfile.ZipFile(os.path.join(d, "a.zip")) as z:
+                assert sorted(z.namelist()) == want and z.read("Krea2One/ID_7.png") == b"xy"
+        finally:
+            folder_paths.set_output_directory(real)
+    pack = importlib.import_module("custom_nodes.ComfyUI-GSEN")
+    lines = [re.sub(r"\033\[[\d;]*m", "", line) for line in pack.banner("1.0", 3, 80).split("\n")]
+    assert [line for line in lines if line and set(line) == {"═"}] == ["═" * 80] * 2  # as wide as the console; GSEN has ═ too
+
+
 if __name__ == "__main__":
     test_forward_matches_core()
     test_target_size()
@@ -443,4 +474,5 @@ if __name__ == "__main__":
     test_gallery()
     test_llm_tab()
     test_models()
+    test_zip()
     print("ok")
