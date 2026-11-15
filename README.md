@@ -20,8 +20,6 @@ Krea2 One → ↗ Settings → **Update**  Потом перезапустить
 
 Системные промты для LLM, своя папка на задачу:
 - Generations IMG — `assets/prompts`
-- Analysis IMG LLM → System — `assets/prompts/img_to_text`
+- Analysis IMG LLM — `assets/prompts/img_to_text`
 
-Звуки конца прогона (Settings → Sound) — `assets/Sound`, туда можно положить свои.
-
-Settings → Save → **zip** — одним архивом всё, что нода сохранила (фото в SAVE) и что написала вкладка LLM (промты в её SAVE).
+Settings → Save → **zip** — скачать все через ZIP.
