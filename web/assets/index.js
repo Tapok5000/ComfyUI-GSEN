@@ -262,7 +262,7 @@ function build(node) {
     } else if (w.type === "combo" && cls === "mn-srow") {
       const sv = el("div", "sv")
       r.classList.add("combo")
-      r.onclick = (e) => { menu(e, node, comboValues(w), (x) => set(name, x)) }
+      r.onclick = (e) => { menu(e, node, comboValues(w), (x) => set(name, x), { title: label, current: w.value }) }
       binds.push(KIND[name] ? modelValue(sv, KIND[name], () => w.value, () => comboValues(w))
         : () => { sv.textContent = sv.title = w.value ?? "" })
       r.append(sv)
@@ -275,7 +275,7 @@ function build(node) {
       }
       l.onclick = () => { step(-1) }
       rr.onclick = () => { step(1) }
-      val.onclick = (e) => { menu(e, node, comboValues(w), (x) => set(name, x)) }
+      val.onclick = (e) => { menu(e, node, comboValues(w), (x) => set(name, x), { title: label, current: w.value }) }
       binds.push(() => { val.textContent = val.title = w.value ?? "" })
       fits.push(val)
       v.append(l, val, rr)
@@ -393,7 +393,7 @@ function build(node) {
         menu(e, node, seeds().map(String), (s) => {
           set("control_after_generate", "fixed")
           set("seed", Number(s))
-        })
+        }, { title: "LIST", current: W("seed")?.value })
       }
     }
     return b
@@ -578,7 +578,7 @@ function build(node) {
   add.title = "Add LoRA"
   add.onclick = (e) => {
     e.stopPropagation() // the row under it opens lora_name's own menu
-    menu(e, node, loraFiles(), (f) => putLoras([...loras(), [f, 1]]))
+    menu(e, node, loraFiles(), (f) => putLoras([...loras(), [f, 1]]), { title: "LoRa" })
   }
   sRow.lora_name?.append(add)
   let shown = null // the "loras" value the rows were drawn from
@@ -586,7 +586,9 @@ function build(node) {
     const r = el("div", "mn-srow mn-lora"), v = el("div", "v"), x = el("div", "mn-x", ICON.cross), sv = el("div", "sv")
     r.style.top = LORA_TOP + GAP * (i + 1) + "px"
     modelValue(sv, KIND.lora_name, () => list[i][0], loraFiles)()
-    sv.onclick = (e) => { menu(e, node, loraFiles(), (f) => { list[i][0] = f; putLoras(list) }) }
+    sv.onclick = (e) => {
+      menu(e, node, loraFiles(), (f) => { list[i][0] = f; putLoras(list) }, { title: `LoRa ${i + 2}`, current: list[i][0] })
+    }
     x.title = "Remove LoRA"
     x.onclick = () => { list.splice(i, 1); putLoras(list) }
     const f = numberField(() => list[i][1], (s) => { list[i][1] = s; putLoras(list) },
@@ -627,7 +629,7 @@ function build(node) {
       node.setProperty("mn_sound", f)
       paintSound()
       play(f) // a name says little: picking one plays it
-    })
+    }, { title: "Sound", current: soundName() })
   }
   binds.push(paintSound)
   fetchSounds().then(paintSound)

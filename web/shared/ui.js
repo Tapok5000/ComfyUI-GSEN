@@ -18,15 +18,117 @@ export const txt = (tag, cls, text) => {
 /** A combo widget's values, whether the frontend keeps them as a list or a function. */
 export const comboValues = (w) => (typeof w?.options?.values === "function" ? w.options.values() : w?.options?.values) ?? []
 
-/** ComfyUI's own dark combo menu (the one every combo widget opens), with its filter box. */
-export function menu(e, node, values, pick) {
-  // the filter add-on reads active_canvas.current_node to preselect the current value
-  LiteGraph.LGraphCanvas.active_canvas ??= app.canvas
-  app.canvas.current_node = node
-  return new LiteGraph.ContextMenu(values, {
-    event: e, className: "dark", scale: Math.max(1, app.canvas.ds.scale),
-    callback: (v) => pick(typeof v === "string" ? v : v?.content ?? v?.value),
-  })
+// the pick list's icons: a folder, a file, back up
+const PICK = {
+  dir: `<svg viewBox="0 0 20 20" width="18" height="18"><path fill="#f2c14e" d="M2 5.5C2 4.7 2.7 4 3.5 4h4.1l1.7 1.9h7.2c.8 0 1.5.7 1.5 1.5v7.1c0 .8-.7 1.5-1.5 1.5h-13C2.7 16 2 15.3 2 14.5z"/></svg>`,
+  file: `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="#b5b5b5" stroke-width="1.3"><path d="M5 2.7h6.4L15 6.3v11H5z"/><path d="M11.3 2.7v3.7H15M7.6 10h4.8M7.6 12.8h4.8"/></svg>`,
+  back: `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="#b5b5b5" stroke-width="1.6"><path d="M12 4.5 6.5 10l5.5 5.5"/></svg>`,
+}
+let closePick = null // one pick list at a time
+
+/**
+ * The face's pick list, laid out like a model picker: a search box, then the folder's subfolders (with how many files
+ * each holds) and its files; a subfolder opens in place, the row on top goes back up. A list of files sorts by name;
+ * any other (samplers, presets, seeds) keeps its order, without icons. It opens on the top folder; current is lit,
+ * and so are the folders on its way.
+ */
+export function menu(e, node, values, pick, { title = "", current } = {}) {
+  closePick?.()
+  const files = values.length > 0 && values.every((v) => /\.\w{1,12}$/.test(v))
+  const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare
+  const items = values.map((v) => ({ v: String(v), p: files ? String(v).split(/[\\/]/) : [String(v)] }))
+  const cur = current == null ? null : String(current), onPath = files && cur ? cur.split(/[\\/]/) : []
+  const box = el("div", "mn-menu"), find = el("input", "mn-menu-f"), list = el("div", "mn-menu-l")
+  find.placeholder = "Search"
+  find.spellcheck = false
+  list.setAttribute("role", "listbox")
+  box.append(txt("div", "mn-menu-h", [node.title, title].filter(Boolean).join(" · ")), find, list)
+  const inside = (p, path) => p.length > path.length && path.every((x, i) => p[i] === x)
+  let at = [], rows = [], act = -1
+  let x0 = e.clientX - 10, y0 = e.clientY - 10 // where it opened; a longer folder only lifts it
+  const mark = (i, scroll = true) => {
+    rows[act]?.classList.remove("act")
+    act = Math.max(-1, Math.min(i, rows.length - 1))
+    rows[act]?.classList.add("act")
+    if (scroll) rows[act]?.scrollIntoView({ block: "nearest" })
+  }
+  const row = (cls, icon, name, run, count) => {
+    const r = el("div", `mn-menu-r ${cls}`, files ? icon : null)
+    r.setAttribute("role", "option")
+    r.append(typeof name === "string" ? txt("span", "n", name) : name)
+    if (count != null) r.append(txt("span", "c", String(count)))
+    r.onclick = run
+    return r
+  }
+  const go = (path) => () => {
+    at = path
+    render()
+  }
+  const render = () => {
+    const q = find.value.toLowerCase().split(/\s+/).filter(Boolean)
+    rows = []
+    if (q.length) {
+      const hits = items.filter(({ v }) => q.every((t) => v.toLowerCase().includes(t)))
+      if (files) hits.sort((a, b) => byName(a.v, b.v))
+      for (const { v, p } of hits) {
+        const name = el("span", "n")
+        if (p.length > 1) name.append(txt("span", "d", `${p.slice(0, -1).join(" › ")} › `))
+        name.append(p.at(-1))
+        rows.push(row(v === cur ? "cur" : "", PICK.file, name, () => choose(v)))
+      }
+    } else {
+      const dirs = new Map(), here = []
+      for (const it of items.filter(({ p }) => inside(p, at))) {
+        if (it.p.length > at.length + 1) dirs.set(it.p[at.length], (dirs.get(it.p[at.length]) ?? 0) + 1)
+        else here.push(it)
+      }
+      if (at.length) rows.push(row("back", PICK.back, at.join(" › "), go(at.slice(0, -1))))
+      const lit = onPath.length > at.length + 1 && inside(onPath, at) ? onPath[at.length] : null
+      for (const [d, n] of [...dirs].sort(([a], [b]) => byName(a, b))) {
+        rows.push(row(d === lit ? "dir cur" : "dir", PICK.dir, d, go([...at, d]), n))
+      }
+      if (files) here.sort((a, b) => byName(a.p.at(-1), b.p.at(-1)))
+      for (const { v, p } of here) rows.push(row(v === cur ? "cur" : "", PICK.file, p.at(-1), () => choose(v)))
+    }
+    list.replaceChildren(...(rows.length ? rows : [txt("div", "mn-menu-none", "Nothing found")]))
+    list.scrollTop = 0
+    act = -1
+    mark(q.length ? 0 : rows.findIndex((r) => r.classList.contains("cur") && !r.classList.contains("dir")))
+    x0 = Math.max(8, Math.min(x0, innerWidth - box.offsetWidth - 8))
+    y0 = Math.max(8, Math.min(y0, innerHeight - box.offsetHeight - 8))
+    Object.assign(box.style, { left: `${x0}px`, top: `${y0}px` })
+  }
+  const outside = (ev) => { if (!box.contains(ev.target)) close() }
+  const close = () => {
+    box.remove()
+    document.removeEventListener("pointerdown", outside, true)
+    removeEventListener("resize", close)
+    if (closePick === close) closePick = null
+  }
+  const choose = (v) => {
+    close()
+    pick(v)
+  }
+  find.oninput = render
+  find.onkeydown = (ev) => {
+    ev.stopPropagation() // the face closes Settings on Escape, and ComfyUI has keys of its own
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault()
+      mark(act + (ev.key === "ArrowDown" ? 1 : -1))
+    } else if (ev.key === "Enter") rows[act]?.click()
+    else if (ev.key === "Escape") close()
+  }
+  list.onmousedown = (ev) => { ev.preventDefault() } // the search box keeps the focus: the keys go on working
+  list.onpointermove = (ev) => {
+    const i = rows.indexOf(ev.target.closest?.(".mn-menu-r"))
+    if (i >= 0 && i !== act) mark(i, false)
+  }
+  document.addEventListener("pointerdown", outside, true)
+  addEventListener("resize", close)
+  closePick = close
+  document.body.append(box)
+  render()
+  find.focus({ preventScroll: true })
 }
 
 /** Take the widgets off the node; they still save with the workflow and go into the prompt. */

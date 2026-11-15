@@ -284,3 +284,20 @@ div.mn-val:hover{color:#fff}
 .mn-gitem.on{background:rgba(197,242,0,.2)}
 .mn-gitem img{flex:none;width:91px;height:79px;object-fit:cover;border-radius:6px;background:#111}
 .mn-gitem span{margin:0 12px 0 20px;font-size:13.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* the pick list (shared/ui.js menu), laid out like a model picker; it lives in <body>, outside .mn */
+.mn-menu{position:fixed;z-index:10000;display:flex;flex-direction:column;width:384px;max-height:min(470px,calc(100vh - 16px));box-sizing:border-box;padding:8px 6px 6px;background:#202124;border:1px solid #3c3d41;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.55);color:#e3e3e3;font:13.5px/1.25 system-ui,"Segoe UI",Arial,sans-serif}
+.mn-menu-h{flex:none;padding:1px 6px 8px;color:#c4c4c4;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn-menu-f{flex:none;margin:0 2px 6px;padding:6px 9px;box-sizing:border-box;background:#151618;border:1px solid #4a4b50;border-radius:6px;outline:none;color:#e3e3e3;font:inherit}
+.mn-menu-f:focus{border-color:#6c6d73}
+.mn-menu-f::placeholder{color:#8b8b8b}
+.mn-menu-l{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#56575c transparent}
+.mn-menu-r{display:flex;align-items:center;gap:10px;min-height:30px;box-sizing:border-box;padding:5px 8px;border-radius:6px;cursor:pointer}
+.mn-menu-r>svg{flex:none}
+.mn-menu-r.act{background:#2f3136}
+.mn-menu-r>.n{flex:1;min-width:0;word-break:break-all}
+.mn-menu-r>.c{padding-right:4px;color:#9d9d9d}
+.mn-menu-r .d{color:#8d8d8d}
+.mn-menu-r.back{color:#bdbdbd}
+.mn-menu-r.cur>.n{color:#c7f400}
+.mn-menu-none{padding:8px;color:#8d8d8d}
