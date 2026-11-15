@@ -24,7 +24,6 @@ const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
   ["LLM", "llm_name", 281.4], ["System", "system_file", 325, 25.9, 282.8],
   ["Save", "save_to", 413.74, 27.3, 282.8], ["Sound", "sound", 470.77, 27.3, 282.8], // no widget: node properties
-  ["max_resolution", "max_resolution", 527.8, 27.3, 282.8], // not in MyNode.svg: under Sound, in the same step
 ]
 // Krea2 One's models (assets/models.py), the block beside Save and Sound: [key, widget, top] px from MyNode.svg
 const MODEL_ROWS = [["MODEL", "unet_name", 375.62], ["LORA", "lora_name", 402.42], ["CLIP", "clip_name", 429.53],
@@ -733,7 +732,7 @@ function build(node) {
     toast(`LLM: ${why.join("; ") || d.error?.message || r.statusText}`, "error", 8000)
   }
 
-  setP.append(el("div", "mn-tex mn-stex"), shead, ...Object.values(panes), det)
+  setP.append(texture("mn-stex"), shead, ...Object.values(panes), det)
   showTab(tab)
   openB.onclick = () => { if (setP.classList.toggle("open")) showTab(tab) } // ↗ sits right of the panel: it also closes it
 
@@ -782,7 +781,7 @@ function build(node) {
     gIn.focus()
   }
 
-  root.append(el("div", "mn-tex mn-back"), head, left, mid, right, setP, gal) // the panels' backgrounds, texture on them
+  root.append(texture("mn-back"), head, left, mid, right, setP, gal) // the panels' backgrounds, texture on them
 
   canvasControls(node, root, head)
   root.addEventListener("pointerdown", (e) => {
@@ -871,6 +870,18 @@ function build(node) {
 }
 
 const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "GSEN", detail, life })
+
+// MyNode.svg's GSEN texture, running up-left along its words, one word (80 px) every 8 s. A Web Animation on the page's
+// clock, not a CSS one: a CSS animation starts over whenever the face is re-attached or hidden for a moment (the canvas
+// and other packs can do that), and one ComfyUI with many packs showed it standing still
+function texture(cls) {
+  const box = el("div", `mn-tex ${cls}`), run = el("i")
+  box.append(run)
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    run.animate([{ transform: "none" }, { transform: "translate(-80px,-80px)" }], { duration: 8000, iterations: Infinity }).startTime = 0
+  }
+  return box
+}
 
 // a hidden file input for pictures: the chosen file goes to ComfyUI's input/, put() gets its name there
 function picker(put) {

@@ -4,12 +4,10 @@
 .mn [data-scroll]:focus{outline:none}
 .mn svg{display:block}
 
-/* MyNode.svg's GSEN texture runs: up-left along its words, one word (80 px) every 8 s, round and round. It lies on the
-   panels' backgrounds (.mn-back) and on the Settings board (.mn-stex), under everything on them */
+/* MyNode.svg's GSEN texture on the panels' backgrounds (.mn-back) and on the Settings board (.mn-stex), under everything
+   on them; its <i> runs up-left (index.js: drift) and reaches 80 px past the box's end, one word of the texture */
 .mn-tex{position:absolute;overflow:hidden;pointer-events:none}
-.mn-tex::before{content:"";position:absolute;left:0;top:0;right:-80px;bottom:-80px;background:var(--mn-tile);animation:mn-drift 8s linear infinite}
-@keyframes mn-drift{to{transform:translate(-80px,-80px)}}
-@media (prefers-reduced-motion:reduce){.mn-tex::before{animation:none}}
+.mn-tex>i{position:absolute;left:0;top:0;right:-80px;bottom:-80px;background:var(--mn-tile)}
 .mn-back{left:0;top:44px;right:0;bottom:0;background:linear-gradient(#303134 -30.6px,#202124 730.6px) 526.33px 0/755px 100% no-repeat,linear-gradient(#070a10,#303722) 1281.33px 0/609.24px 100% no-repeat,#303a24}
 .mn-stex{left:6.32px;top:60.48px;right:.89px;bottom:1.13px}
 
