@@ -35,6 +35,8 @@ const ICON = {
   search: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#777" stroke-width="2.6" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg>`,
   plus: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M11 6v10M6 11h10"/></svg>`,
   cross: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m7 7 8 8m0-8-8 8"/></svg>`,
+  // MyNode.svg's 🔍 (a glyph there, mirrored), outlined: the Gallery's Filter Images...
+  find: `<svg viewBox="0 0 14.5 14.54" width="14.5" height="14.54" fill="currentColor"><path transform="scale(-1 1)" d="m-12.938,5.744q0,-0.869 0.325,-1.622 0.325,-0.760 0.898,-1.332 0.579,-0.572 1.332,-0.898 0.760,-0.325 1.622,-0.325 0.861,0 1.615,0.325 0.760,0.325 1.332,0.898 0.579,0.572 0.905,1.332 0.325,0.753 0.325,1.622 0,0.861 -0.325,1.622 -0.325,0.753 -0.905,1.332 -0.572,0.572 -1.332,0.898 -0.753,0.318 -1.615,0.318 -0.861,0 -1.622,-0.318 -0.753,-0.325 -1.332,-0.898 -0.572,-0.579 -0.898,-1.332 -0.325,-0.760 -0.325,-1.622zm6.445,-2.230q-0.21,-0.376 -0.564,-0.521 -0.354,-0.152 -0.630,0.01 -0.282,0.166 -0.333,0.550 -0.043,0.376 0.173,0.746 0.217,0.376 0.564,0.528 0.354,0.144 0.637,-0.014 0.282,-0.159 0.326,-0.536 0.043,-0.383 -0.173,-0.760zm-8.010,2.230q0,-1.187 0.441,-2.230 0.449,-1.042 1.238,-1.832 0.789,-0.789 1.832,-1.231 1.042,-0.449 2.230,-0.449 1.187,0 2.230,0.449 1.042,0.441 1.832,1.231 0.789,0.789 1.231,1.832 0.449,1.042 0.449,2.230 0,0.912 -0.275,1.745 -0.268,0.825 -0.746,1.520 0.470,-0.101 0.948,0.029 0.485,0.130 0.854,0.499l1.658,1.658q0.383,0.383 0.507,0.890 0.130,0.499 0,0.999 -0.123,0.499 -0.507,0.883 -0.383,0.376 -0.883,0.507 -0.499,0.130 -0.999,0 -0.499,-0.130 -0.883,-0.507l-1.658,-1.665q-0.376,-0.369 -0.507,-0.854 -0.130,-0.485 -0.022,-0.963 -0.688,0.470 -1.513,0.738 -0.818,0.260 -1.716,0.260 -1.187,0 -2.230,-0.449 -1.042,-0.449 -1.832,-1.238 -0.789,-0.789 -1.238,-1.825 -0.441,-1.042 -0.441,-2.230zm10.443,0q0,-0.977 -0.369,-1.825 -0.362,-0.854 -1.013,-1.499 -0.644,-0.644 -1.499,-1.006 -0.847,-0.369 -1.817,-0.369 -0.970,0 -1.825,0.369 -0.854,0.362 -1.499,1.006 -0.644,0.644 -1.014,1.499 -0.362,0.847 -0.362,1.825 0,0.970 0.362,1.825 0.369,0.847 1.014,1.499 0.644,0.644 1.499,1.006 0.854,0.362 1.825,0.362 0.970,0 1.817,-0.362 0.854,-0.362 1.499,-1.006 0.651,-0.651 1.013,-1.499 0.369,-0.854 0.369,-1.825z"/></svg>`,
   // MyNode.svg's 🔊 and 🔇 (font glyphs there), outlined: one box, the speaker in the same place in both
   on: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m4.508,13.687h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h3.156v0.010l6.041,-2.833q0.416,-0.197 0.937,-0.135 0.531,0.052 0.916,0.333 0.385,0.281 0.385,0.75v4.864q0.927,0.020 1.572,0.687 0.656,0.666 0.656,1.604 0,0.927 -0.656,1.593 -0.645,0.666 -1.572,0.697v4.677q0,0.468 -0.281,0.791 -0.281,0.333 -0.698,0.437 -0.416,0.114 -0.843,-0.083zm6.791,-11.989q-0.01,0 -0.021,0 0,0 0,0 -0.052,0 -0.083,0l-0.01,0.010 -5.166,2.427v8.572l5.281,2.343zm5.312,3.031q1.291,1.427 1.354,3.364 0.073,2.270 -1.531,3.874 -0.083,0.072 -0.156,0.145 -0.239,0.218 -0.531,0.197 -0.291,-0.020 -0.510,-0.218 -0.208,-0.208 -0.208,-0.531 0,-0.333 0.229,-0.552 0.562,-0.520 0.885,-1.229 0.322,-0.708 0.322,-1.531 0,-0.812 -0.322,-1.520 -0.323,-0.718 -0.885,-1.229 -0.229,-0.218 -0.229,-0.531v-0.020q0,-0.333 0.208,-0.531 0.218,-0.208 0.510,-0.218 0.291,-0.020 0.531,0.197 0.166,0.145 0.333,0.333zm-0.458,-2.322q0.854,0.489 1.541,1.218 0.875,0.927 1.343,2.114 0.479,1.177 0.489,2.437 0.01,1.375 -0.5,2.635 -0.510,1.25 -1.479,2.218 -0.635,0.635 -1.395,1.072 -0.375,0.218 -0.375,0.656 0,0.427 0.375,0.645 0.375,0.218 0.75,0 1.239,-0.718 2.166,-1.802 0.927,-1.093 1.437,-2.458 0.520,-1.364 0.520,-2.895 0,-1.520 -0.520,-2.885 -0.510,-1.364 -1.437,-2.458 -0.927,-1.093 -2.166,-1.802 -0.375,-0.218 -0.75,0 -0.375,0.208 -0.375,0.645 0,0.427 0.375,0.656z"/></svg>`,
   off: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m12.799,11.967v3.447q0,0.468 -0.281,0.791 -0.281,0.333 -0.697,0.437 -0.416,0.114 -0.843,-0.083l-6.468,-2.874h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h2.635l-1.625,-1.625q-0.260,-0.260 -0.260,-0.625 0,-0.375 0.260,-0.635 0.260,-0.260 0.625,-0.260 0.375,0 0.635,0.260l14.885,14.874q0.260,0.270 0.260,0.645 0,0.364 -0.260,0.624 -0.260,0.260 -0.635,0.260 -0.364,0 -0.625,-0.260zm-1.5,-1.5 -5.281,-5.281v7.520l5.281,2.343zm3.729,-2.020q0,-0.937 -0.656,-1.604 -0.645,-0.666 -1.572,-0.687v-4.864q0,-0.468 -0.385,-0.75 -0.385,-0.281 -0.916,-0.333 -0.520,-0.062 -0.937,0.135l-3.364,1.572 1.135,1.135 2.854,-1.343h0.01q0.021,-0.010 0.083,-0.010 0,0 0,0 0.01,0 0.021,0v4.322l3.468,3.468q0.260,-0.489 0.260,-1.041z"/></svg>`,
@@ -427,7 +429,7 @@ function build(node) {
     tabs.forEach((b) => b.classList.toggle("on", b.textContent === t))
     for (const [k, p] of Object.entries(panes)) p.hidden = k !== t
     lRun.hidden = t !== "LLM"
-    logo.hidden = t !== "Settings" // MyNode.svg has it on the Settings board only; on LLM, Run sits there
+    logo.hidden = upB.hidden = t !== "Settings" // MyNode.svg has them on the Settings board only; on LLM, Run sits there
     det.hidden = true
     if (t === "Gallery") loadGallery()
     // the tab's scroll area takes the focus, so the wheel scrolls it in Nodes 2.0 too
@@ -536,17 +538,19 @@ function build(node) {
     return b
   })
   subBar.append(...subs)
+  // Filter Images...: the open sub-tab's cards whose ID number has what is typed (Egor: by ID only)
+  const find = el("div", "mn-gfind", ICON.find), findIn = el("input")
+  findIn.placeholder = "Filter Images..."
+  findIn.spellcheck = false
+  find.append(findIn)
   grid.dataset.scroll = "" // the cards scroll on their own, under the bar
-  panes.Gallery.append(subBar, grid)
+  panes.Gallery.append(subBar, find, grid)
   const saved = (r) => ({ id: r.id, thumb: api.apiURL(resultRoute(r, "&s=320")), src: api.apiURL(resultRoute(r)),
     info: () => api.fetchApi(resultRoute(r, "&info=1")).then((x) => x.json()).catch(() => ({})) })
-  // shortcut: every card at once (thumbnails load lazily); page the list if a SAVE folder grows past a few thousand
-  const loadGallery = async () => {
-    const want = sub
-    subs.forEach((b) => b.classList.toggle("on", b.textContent === want))
-    const list = want === "Generated" ? made
-      : (await api.fetchApi(`/mynode/results?folder=${encodeURIComponent(folder())}`).then((r) => r.json()).catch(() => [])).map(saved)
-    if (want !== sub) return // switched while the list was on its way
+  let items = [] // the open sub-tab's results, before the filter
+  const renderGrid = () => {
+    const q = findIn.value.trim().toLowerCase().replace(/^id_?/, "")
+    const list = q ? items.filter((r) => String(r.id ?? "").includes(q)) : items
     grid.replaceChildren(...list.map((r) => {
       const c = el("div", "mn-rescard"), box = el("div", "mn-resimg"), im = el("img")
       im.loading = "lazy"
@@ -559,9 +563,20 @@ function build(node) {
       return c
     }))
     if (!list.length) {
-      grid.append(txt("div", "mn-resnone", want === "Generated" ? "Nothing made since the page opened"
+      grid.append(txt("div", "mn-resnone", q ? `No ID with ${q}` : sub === "Generated" ? "Nothing made since the page opened"
         : folder().trim() ? `No results in ${folder()} yet` : "SAVE is empty: results aren't kept"))
     }
+  }
+  findIn.oninput = () => { renderGrid() }
+  // shortcut: every card at once (thumbnails load lazily); page the list if a SAVE folder grows past a few thousand
+  const loadGallery = async () => {
+    const want = sub
+    subs.forEach((b) => b.classList.toggle("on", b.textContent === want))
+    const list = want === "Generated" ? made
+      : (await api.fetchApi(`/mynode/results?folder=${encodeURIComponent(folder())}`).then((r) => r.json()).catch(() => [])).map(saved)
+    if (want !== sub) return // switched while the list was on its way
+    items = list
+    renderGrid()
   }
   const big = el("div", "mn-resbig"), bBox = el("div", "mn-resimg"), bImg = el("img"), bSize = el("div", "mn-ressize")
   const bId = el("div", "mn-resid"), par = el("div", "mn-respar"), said = el("div", "mn-resprompt")

@@ -149,6 +149,11 @@ div.mn-val:hover{color:#fff}
 .mn-subtab:first-child{left:1.9px;width:117.76px;padding-right:24.9px;clip-path:polygon(0 0,100% 0,78.4% 100%,0 100%)}
 .mn-subtab:last-child{left:94.26px;width:86.75px;clip-path:polygon(29.3% 0,100% 0,70.7% 100%,0 100%)}
 .mn-subtab.on{background:linear-gradient(rgba(199,244,0,.85) 50%,#a5c803 50%);color:rgba(22,26,10,.85)}
+/* Filter Images...: a half-dark slanted field with lime edges, right after the Generated / Last bar */
+.mn-gfind{position:absolute;left:156.8px;top:54.9px;width:160.3px;height:27.8px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160.32 27.83' preserveAspectRatio='none'%3E%3Cpath d='M25.9 0H160.32L134.91 27.83H.5Z' fill-opacity='.5'/%3E%3Cpath d='M25.4 0h.5L.5 27.83H0ZM159.81 0h.5l-25.4 27.83h-.5Z' fill='%2387a13e' fill-opacity='.85'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat}
+.mn-gfind>svg{position:absolute;left:23.6px;top:5.4px;color:#777;opacity:.5}
+.mn-gfind>input{position:absolute;left:43px;top:0;width:86px;height:100%;margin:0;padding:0;background:none;border:none;outline:none;color:#d0d0d0;font:12px Arial,Helvetica,sans-serif;user-select:text;-webkit-user-select:text}
+.mn-gfind>input::placeholder{color:#777;opacity:.5}
 .mn-rescard,.mn-resbig{position:relative;background:rgba(0,0,0,.5);cursor:pointer}
 .mn-rescard{height:205.6px;--tri:180.8px;--cs:7.4px;--cw:.8px;--cl:19.4px;--ct:8.5px;--cr:18.8px;--cb:29.7px}
 .mn-rescard::before,.mn-resbig::before{content:"";position:absolute;left:0;top:0;width:100%;height:var(--tri);background:rgba(162,162,162,.1);clip-path:polygon(100% 0,100% 100%,0 100%)}
@@ -173,8 +178,8 @@ div.mn-val:hover{color:#fff}
 .mn-respar>.v{padding:0 2.3px;color:#9fc003;user-select:text;-webkit-user-select:text}
 .mn-resprompt,.mn-lout{position:absolute;background:#000;padding:10px;font-size:14px;line-height:1.35;color:#d0d0d0;white-space:pre-wrap;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#454545 #2c2c2c;user-select:text;-webkit-user-select:text}
 .mn-resprompt{left:461.4px;top:22.9px;width:282.8px;height:633.1px}
-:is(.mn-resprompt,.mn-lout):empty::before{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18.67px}
-.mn-resprompt:empty::before{content:"Prompt"} /* the LLM tab's box in MyNode.svg is blank until it writes */
+/* both prompt boxes are blank in MyNode.svg; the LLM tab's says what is going on */
+.mn-lout:empty::before{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18.67px}
 .mn-lout.none:empty::before{content:"no prompt"}
 .mn-lout.busy:empty::before{content:"writing…";color:#9fc003}
 .mn-lbox{position:absolute;left:14.4px;top:71.9px;width:424.4px;height:468.4px;background:#000;--cs:13px;--cw:1.4px;--cl:6.9px;--ct:6.1px;--cr:7.4px;--cb:9px}
