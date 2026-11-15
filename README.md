@@ -6,8 +6,7 @@
 git clone https://github.com/Tapok5000/ComfyUI-GSEN
 ```
 
-Или скачать [zip](https://github.com/Tapok5000/ComfyUI-GSEN/archive/refs/heads/main.zip) и распаковать в `custom_nodes/ComfyUI-GSEN`. Потом перезапустить ComfyUI.
-
+Или скачать [zip](https://github.com/Tapok5000/ComfyUI-GSEN/archive/refs/heads/main.zip)
 ComfyUI 0.43.2 или новее.
 
 ## Модели
