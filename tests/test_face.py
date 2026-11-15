@@ -100,14 +100,14 @@ def test_save_images():
         folder_paths.set_temp_directory(os.path.join(d, "temp"))
         saved = save_images(img, "MyNode", None)
         # in today's folder, named like its card
-        assert saved[1] == {"filename": "ID_2.png", "subfolder": os.path.join("MyNode", DAY), "type": "output", "id": 2}
+        assert saved[1] == {"filename": "ID_2.png", "subfolder": os.path.join("MyNode", DAY), "type": "output", "mn_id": 2}
         Image.new("RGB", (8, 8)).save(os.path.join(d, "out", "MyNode", "FACE_00007_.png"))  # one saved before 1.15.0
         assert save_images(img, "MyNode", None)[0]["filename"] == "ID_8.png"  # the IDs go on after it: never twice
         os.makedirs(os.path.join(d, "out", "MyNode", "2026-01-01"))
         Image.new("RGB", (8, 8)).save(os.path.join(d, "out", "MyNode", "2026-01-01", "ID_20.png"))  # another day's
         assert save_images(img, "MyNode", None)[0]["filename"] == "ID_21.png"
         absolute = save_images(img, f' "{d}/abs/" ', None)[0]  # /view can't serve it: a temp copy, with the ID
-        assert absolute["type"] == "temp" and absolute["id"] == 1
+        assert absolute["type"] == "temp" and absolute["mn_id"] == 1
         assert sorted(os.listdir(os.path.join(d, "abs", DAY))) == ["ID_1.png", "ID_2.png"]
         assert save_images(img, "", None)[0]["type"] == "temp"
         assert os.listdir(os.path.join(d, "out")) == ["MyNode"]

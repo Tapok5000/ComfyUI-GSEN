@@ -53,7 +53,7 @@
 .mn-lang:hover{color:var(--lime)}
 .mn-box{position:absolute;width:721.9px;height:138.5px;margin:0;padding:8px 10px;background:var(--mn-mark) 276.1px 54.8px/158.4px 29.5px no-repeat #222326;border:none;outline:none;resize:none;color:#d0d0d0;font:14px/1.35 Arial,Helvetica,sans-serif;overflow:auto;white-space:pre-wrap;user-select:text;-webkit-user-select:text;scrollbar-color:#454545 #2c2c2c}
 .mn-lbl.on{color:var(--lime)}
-.mn-ltxt{position:absolute;left:660.3px;top:164.9px;width:74.4px;height:32.2px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:12.1px;line-height:32.2px;text-align:center;text-indent:1.9px;white-space:nowrap;cursor:pointer}
+.mn-ltxt{position:absolute;left:660.3px;top:164.9px;width:74.4px;height:32.2px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:11.7px;line-height:32.2px;text-align:center;text-indent:1.9px;white-space:nowrap;cursor:pointer}
 .mn-ltxt:hover{background-color:#262d12}
 .mn-ltxt:active{background-color:#0b0d05}
 .mn-snd{position:absolute;left:622.9px;top:172.5px;width:21.03px;height:16.69px;color:#d0d0d0;cursor:pointer}
@@ -72,6 +72,7 @@
 .mn-row.c,.mn-srow.c{height:32px;line-height:29.4px}
 .mn-row.c>.k{left:14px}
 .mn-row[data-w=resolution_source]>.k,.mn-row.mn-mode>.k{left:10px}
+.mn-row[data-w=ai_prompt]>.k{left:16.6px}
 .mn-srow.c>.k,.mn-srow[data-w=llm_name]>.k{left:11px;font-size:21.33px}
 .mn-srow[data-w=update]>.k{left:17px}
 .mn-srow.c .mn-sval{text-align:center}
@@ -156,7 +157,7 @@ div.mn-val:hover{color:#fff}
 .mn-resimg>img:not([src]){visibility:hidden}
 .mn-rescard>.mn-resimg{left:23.1px;top:13.2px;width:137.5px;height:159px}
 .mn-rescard>.mn-resimg::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 48.6%,rgba(31,31,31,.45))}
-.mn-resid{position:absolute;left:0;right:0;text-align:center;color:#b2d51e;white-space:nowrap}
+.mn-resid{position:absolute;left:0;right:0;text-align:center;color:#b2d51e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mn-rescard>.mn-resid{top:183.3px;height:22.3px;font-size:13.33px;line-height:22.3px}
 .mn-rescard:hover>.mn-resid{background:#bfe702;color:#000}
 .mn-resnone{grid-column:1/-1;padding-top:40px;text-align:center;font-size:18.67px;color:#9fc003}

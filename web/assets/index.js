@@ -9,20 +9,20 @@ const SIZE = [1890.6, 745]
 
 // [label, widget, top, left, width] px from MyNode.svg; a row with a left is one of its short pills
 const ROWS = [
-  ["Resize", "resolution_source", 369.6, 62, 147.7], ["ref_boost", "ref_boost", 369.6, 222.9, 218.4],
-  ["grounding_px", "grounding_px", 369.6, 447, 247.7], ["W", "custom_width", 432.2, 376, 147.7],
-  ["H", "custom_height", 432.2, 542.4, 147.7],
-  ["", "aspect_ratio", 432.2, 262.2, 427.8], // a preset's pill, in W and H's place (not in MyNode.svg)
+  ["LLM", "ai_prompt", 369.9, 62, 147.7], ["ref_boost", "ref_boost", 369.6, 222.9, 218.4],
+  ["grounding_px", "grounding_px", 369.6, 448.1, 247.7], ["Resize", "resolution_source", 432.3, 62, 147.7],
+  ["W", "custom_width", 432.3, 385, 147.7], ["H", "custom_height", 432.3, 548.2, 147.7],
+  ["", "aspect_ratio", 432.3, 385, 310.9], // a preset's pill, in W and H's place (not in MyNode.svg)
   ["seed", "seed", 488.9], ["steps", "steps", 527.9], ["sampler", "sampler_name", 579.5], ["scheduler", "scheduler", 617.1],
 ]
 const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
-  ["LLM", "llm_name", 281.4], ["LLM", "ai_prompt", 331.8, 25.9, 147.7], ["System", "system_file", 375.5, 25.9, 282.8],
-  ["Crop", "manual_crop", 444.3, 25.9, 147.7], ["FaceCrop", "face_crop", 445.5, 181.5, 194.1],
-  ["SAVE", "save_to", 517.6, 25.9, 282.8], ["Sound", "sound", 590, 25.9, 282.8], // no widget: node properties
+  ["LLM", "llm_name", 281.4], ["System", "system_file", 325, 25.9, 282.8],
+  ["Crop", "manual_crop", 403.3, 27.3, 147.7], ["FaceCrop", "face_crop", 404.4, 182.9, 194.1],
+  ["SAVE", "save_to", 484.1, 27.3, 282.8], ["Sound", "sound", 548.6, 27.3, 282.8], // no widget: node properties
   // not in MyNode.svg: kept in its free right column
-  ["max_resolution", "max_resolution", 444.3, 451.4, 282.8],
-  ["seed mode", "control_after_generate", 517.6, 451.4, 282.8], // ComfyUI's own seed control: fixed / randomize / …
+  ["max_resolution", "max_resolution", 403.3, 451.4, 282.8],
+  ["seed mode", "control_after_generate", 484.1, 451.4, 282.8], // ComfyUI's own seed control: fixed / randomize / …
 ]
 // a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (assets/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
@@ -324,7 +324,7 @@ function build(node) {
   // custom / preset: aspect_ratio "custom" is W × H; a preset shows its own pill in their place
   const presets = () => comboValues(W("aspect_ratio")).filter((p) => p !== "custom")
   let preset = null // the one custom goes back to
-  const mode = row(["", "", 432.2, 62, 147.7], "mn-row tog mn-mode")
+  const mode = row(["", "", 432.3, 222.9, 147.7], "mn-row tog mn-mode")
   mode.firstChild.append(txt("span", "cu", "custom /"), " ", txt("span", "pr", "preset"))
   mode.onclick = () => {
     const v = W("aspect_ratio")?.value
@@ -723,7 +723,7 @@ function build(node) {
         a: pImg.getAttribute("src") }) // each result keeps the input it was made from
       showShot(shots.length - 1)
       const src = shots[shots.length - 1].src, info = out.mn_info?.[0] ?? { en: out.en?.[0] }
-      made.unshift({ id: im.id, thumb: src, src, info: async () => info }) // Settings → Gallery → Generated
+      made.unshift({ id: im.mn_id, thumb: src, src, info: async () => info }) // Settings → Gallery → Generated
       if (setP.classList.contains("open") && tab === "Gallery" && det.hidden) loadGallery()
     },
     llm: (text) => {

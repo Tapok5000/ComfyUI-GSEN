@@ -118,9 +118,10 @@ def save_images(images, folder, cls, info=None):
     files = [f"ID_{first + i}.png" for i in range(len(images))]
     for file, im in zip(files, images, strict=True):
         ui.ImageSaveHelper._convert_tensor_to_pil(im).save(os.path.join(full, file), pnginfo=meta, compress_level=4)
+    # mn_id, not id: newer core registers each output entry as an asset and writes its UUID into "id"
     if os.path.isabs(folder):  # /view only serves output, input and temp: the face gets a temp copy, and the ID
-        return [{**e, "id": first + i} for i, e in enumerate(ui.PreviewImage(images, cls=cls).as_dict()["images"])]
-    return [{"filename": file, "subfolder": sub, "type": "output", "id": first + i} for i, file in enumerate(files)]
+        return [{**e, "mn_id": first + i} for i, e in enumerate(ui.PreviewImage(images, cls=cls).as_dict()["images"])]
+    return [{"filename": file, "subfolder": sub, "type": "output", "mn_id": first + i} for i, file in enumerate(files)]
 
 
 def save_text(text, folder, prefix):
