@@ -49,13 +49,21 @@
 
 .mn-mid{position:absolute;left:519.9px;top:44px;width:762px;bottom:0;background:var(--mn-tile) 0 0/100% 100% no-repeat,linear-gradient(#303134 -31.8px,#202124 732.3px)}
 .mn-lbl{position:absolute;left:19px;font-size:11px;line-height:12px}
-/* the click area over the RU box's faint word: RU / EN */
-.mn-lang{position:absolute;z-index:1;left:25.7px;top:216.9px;width:36px;height:22px;cursor:pointer}
 .mn-box{position:absolute;width:721.9px;height:138.5px;margin:0;padding:8px 10px;background:var(--mn-cap,none) 0 0 no-repeat,var(--mn-mark) 276.1px 54.8px/158.4px 29.5px no-repeat #222326;border:none;outline:none;resize:none;color:#d0d0d0;font:14px/1.35 Arial,Helvetica,sans-serif;overflow:auto;white-space:pre-wrap;user-select:text;-webkit-user-select:text;scrollbar-color:#454545 #2c2c2c}
 .mn-lbl.on{color:var(--lime)}
-.mn-ltxt{position:absolute;left:660.3px;top:164.9px;width:74.4px;height:32.2px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:11.7px;line-height:32.2px;text-align:center;text-indent:1.9px;white-space:nowrap;cursor:pointer}
+.mn-ltxt{position:absolute;left:660.3px;top:164.9px;width:74.4px;height:32.2px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:10.8px;line-height:32.2px;text-align:center;text-indent:1.9px;white-space:nowrap;cursor:pointer}
 .mn-ltxt:hover{background-color:#262d12}
 .mn-ltxt:active{background-color:#0b0d05}
+/* EN / RU, a button like LOAD TXT; its lit half is the language the prompt views show */
+.mn-enru{position:absolute;z-index:1;width:74.4px;height:32.2px;padding-left:5.7px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:17.3px;line-height:33.4px;white-space:nowrap;overflow:hidden;cursor:pointer}
+.mn-enru::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:50%;background:rgba(135,161,62,.1);border-radius:0 6.3px 6.3px 0/0 6.8px 6.8px 0}
+.mn-enru.en::after{left:0;border-radius:6.3px 0 0 6.3px/6.8px 0 0 6.8px}
+.mn-enru:hover{background-color:#262d12}
+.mn-enru.m{left:24.8px;top:169.4px}
+.mn-enru.g{left:463px;top:26.8px}
+.mn-enru.l{left:452.9px;top:77.1px}
+/* a picture dragged over a place that takes it */
+.mn-drop{outline:2px dashed var(--lime);outline-offset:-4px}
 .mn-snd{position:absolute;left:622.9px;top:172.5px;width:21.03px;height:16.69px;color:#d0d0d0;cursor:pointer}
 .mn-snd:hover{color:#fff}
 .mn-txt{left:auto;right:20px;color:var(--lime);cursor:pointer}
@@ -177,7 +185,7 @@ div.mn-val:hover{color:#fff}
 .mn-respar>span{justify-self:start;padding:0 5.5px;background:rgba(0,0,0,.79);color:#bae103;white-space:nowrap}
 .mn-respar>.v{padding:0 2.3px;color:#9fc003;user-select:text;-webkit-user-select:text}
 .mn-resprompt,.mn-lout{position:absolute;background:#000;padding:10px;font-size:14px;line-height:1.35;color:#d0d0d0;white-space:pre-wrap;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#454545 #2c2c2c;user-select:text;-webkit-user-select:text}
-.mn-resprompt{left:461.4px;top:22.9px;width:282.8px;height:633.1px}
+.mn-resprompt{left:461.4px;top:66.3px;width:282.8px;height:589.7px}
 /* both prompt boxes are blank in MyNode.svg; the LLM tab's says what is going on */
 .mn-lout:empty::before{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:18.67px}
 .mn-lout.none:empty::before{content:"no prompt"}
@@ -187,7 +195,7 @@ div.mn-val:hover{color:#fff}
 .mn-lbox>img:not([src]){visibility:hidden}
 .mn-lup{left:14.4px;top:549.3px;width:424.4px;height:40.1px;border-radius:10.8px/10.6px;border-width:.93px;font-size:23.5px;line-height:38.2px}
 .mn-lup svg{left:147.9px;top:10px;width:17.6px;height:17.6px}
-.mn-lout{left:446.6px;top:71.9px;width:304.1px;height:620px}
+.mn-lout{left:446.8px;top:115.3px;width:304.1px;height:591.2px}
 .mn-srow{left:27px;width:707px}
 .mn-srow.combo{cursor:pointer}
 .mn-srow>.sv{position:absolute;left:282px;right:-1.3px;top:-1.3px;bottom:-1.3px;padding:0 13px 0 18px;border:1.3px solid #66676a;border-radius:16px;background:linear-gradient(90deg,rgba(135,161,62,.3),rgba(40,41,44,.6) 45%,#1f1f1f);font-size:15.5px;line-height:27.4px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

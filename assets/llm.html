@@ -8,30 +8,30 @@
 /* a prompt written from a picture, laid out like MyNode.svg's 1920 x 1080 page; the page scales to the window */
 html,body{margin:0;height:100%;overflow:hidden;background:#2a2a2a}
 .page{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;font-family:Arial,Helvetica,sans-serif}
-.page i{position:absolute;box-sizing:border-box;border:0 solid #b2d51e}
-.c{width:50px;height:50px}
-.c.tl{left:0;top:0;border-width:5.38px 0 0 5.38px}
-.c.tr{right:0;top:0;border-width:5.38px 5.38px 0 0}
-.c.bl{left:0;bottom:0;border-width:0 0 5.38px 5.38px}
-.c.br{right:0;bottom:0;border-width:0 5.38px 5.38px 0}
 .frame{position:absolute;left:368.4px;top:96.5px;width:581px;height:848.7px;background:#000}
 .frame img{position:absolute;left:44.9px;top:44.9px;width:491.2px;height:758.9px;object-fit:contain}
-.f{width:17.8px;height:17.8px}
-.f.tl{left:9.4px;top:16.1px;border-width:1.91px 0 0 1.91px}
-.f.tr{right:10.2px;top:16.1px;border-width:1.91px 1.91px 0 0}
-.f.bl{left:9.4px;bottom:17.2px;border-width:0 0 1.91px 1.91px}
-.f.br{right:10.2px;bottom:17.2px;border-width:0 1.91px 1.91px 0}
-.text{position:absolute;left:1026.2px;top:125px;width:525px;max-height:820px;overflow-y:auto;color:#d0d0d0;font-size:22.3px;line-height:27.92px;white-space:pre-wrap;overflow-wrap:break-word;scrollbar-width:thin;scrollbar-color:#454545 #2a2a2a}
+.frame i{position:absolute;box-sizing:border-box;width:17.8px;height:17.8px;border:0 solid #b2d51e}
+.frame .tl{left:9.4px;top:16.1px;border-width:1.91px 0 0 1.91px}
+.frame .tr{right:10.2px;top:16.1px;border-width:1.91px 1.91px 0 0}
+.frame .bl{left:9.4px;bottom:17.2px;border-width:0 0 1.91px 1.91px}
+.frame .br{right:10.2px;bottom:17.2px;border-width:0 1.91px 1.91px 0}
+/* EN / RU: its lit half is the language shown */
+.enru{position:absolute;left:1029.7px;top:101.7px;box-sizing:border-box;width:74.4px;height:32.2px;padding-left:5.7px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:17.3px;line-height:33.4px;white-space:nowrap;overflow:hidden;cursor:pointer;user-select:none}
+.enru::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:50%;background:rgba(135,161,62,.1);border-radius:0 6.3px 6.3px 0/0 6.8px 6.8px 0}
+.page.en .enru::after{left:0;border-radius:6.3px 0 0 6.3px/6.8px 0 0 6.8px}
+.text{position:absolute;left:1026.2px;top:147.4px;width:525px;max-height:797.8px;overflow-y:auto;color:#d0d0d0;font-size:22.3px;line-height:27.92px;white-space:pre-wrap;overflow-wrap:break-word;scrollbar-width:thin;scrollbar-color:#454545 #2a2a2a}
+.page.en .ru,.page:not(.en) .en{display:none}
 </style>
 </head>
 <body>
 <div class="page">
-<i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
-<div class="frame"><img src="{{name}}.png" alt=""><i class="f tl"></i><i class="f tr"></i><i class="f bl"></i><i class="f br"></i></div>
-<div class="text">{{text}}</div>
+<div class="frame"><img src="{{name}}.png" alt=""><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+<div class="enru" title="EN / RU">EN RU</div>
+<div class="text en">{{en}}</div>
+<div class="text ru">{{ru}}</div>
 </div>
 <script>
-const page = document.querySelector(".page")
+const page = document.querySelector(".page"), sw = document.querySelector(".enru")
 const fit = () => {
   const k = Math.min(innerWidth / 1920, innerHeight / 1080)
   page.style.transform = `scale(${k})`
@@ -40,6 +40,9 @@ const fit = () => {
 }
 addEventListener("resize", fit)
 fit()
+// RU first, as on the node; EN when there is no translation. A click on a half shows that language
+page.classList.toggle("en", !document.querySelector(".text.ru").textContent.trim())
+sw.onclick = (e) => page.classList.toggle("en", e.offsetX < sw.offsetWidth / 2)
 </script>
 </body>
 </html>

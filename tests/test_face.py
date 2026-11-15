@@ -315,15 +315,16 @@ def test_gallery():
         assert ask(common._result, folder="R", name=f"{DAY}/ID_2.png", s="64").content_type == "image/webp"
         assert ask(common._result, folder="R", name=f"../R/{DAY}/ID_2.png").status == 404
         assert ask(common._result, folder="..", name=f"{DAY}/ID_2.png").status == 404
-        first = common.save_llm(" a <red> & blue prompt\n", img, "R")  # a folder of its own: picture, text, page
+        first = common.save_llm(" a <red> & blue prompt\n", "красный", img, "R")  # a folder of its own: picture, text, page
         assert first.endswith(os.path.join("R", DAY, "001"))
         assert sorted(os.listdir(first)) == ["001_LLM.html", "001_LLM.png", "001_LLM.txt"]
         page = Path(first, "001_LLM.html").read_text(encoding="utf-8")
-        assert '<div class="text">a &lt;red&gt; &amp; blue prompt</div>' in page and 'src="001_LLM.png"' in page
+        assert '<div class="text en">a &lt;red&gt; &amp; blue prompt</div>' in page and 'src="001_LLM.png"' in page
+        assert '<div class="text ru">красный</div>' in page  # the page's EN / RU switch shows one of them
         assert Path(first, "001_LLM.txt").read_text(encoding="utf-8") == " a <red> & blue prompt\n"
-        assert common.save_llm("again", img, "R").endswith("002")
-        assert common.save_llm("not saved", img, "") is None
-        assert common.save_llm(" \n", img, "R") is None  # the LLM wrote nothing: the face says "no prompt", nothing saved
+        assert common.save_llm("again", "", img, "R").endswith("002")
+        assert common.save_llm("not saved", "", img, "") is None
+        assert common.save_llm(" \n", "", img, "R") is None  # the LLM wrote nothing: the face says "no prompt", nothing saved
     (show,) = inputs_of(expand(seed=5), "MyNode_Show")
     assert json.loads(show["info"]) == {"seed": 5, "steps": 8, "sampler": "euler", "scheduler": "simple"}
 
@@ -344,7 +345,10 @@ def test_llm_tab():
     gen = graph[gen_id]["inputs"]
     assert gen["system_prompt"] == "Describe." and gen["prompt"] == ""  # its own folder's System prompt and the picture only
     (load_id,) = [k for k, n in graph.items() if n["class_type"] == "LoadImage"]
-    assert inputs_of(graph, "MyNode_LLMText") == [{"text": [gen_id, 0], "image": [load_id, 0], "save_to": "R"}]  # kept with it
+    (ru_id,) = [k for k, n in graph.items() if n["class_type"] == "MyNode_Translate"]
+    assert inputs_of(graph, "MyNode_Translate") == [{"text": [gen_id, 0]}]  # the LLM tab shows it in RU too
+    llm_text = {"text": [gen_id, 0], "ru": [ru_id, 0], "image": [load_id, 0], "save_to": "R"}
+    assert inputs_of(graph, "MyNode_LLMText") == [llm_text]  # kept with its picture
     assert inputs_of(graph, "LoadImage") == [{"image": "b.png"}] and inputs_of(graph, "CLIPLoader")[0]["clip_name"] == "m"
     assert math.isnan(node.LLMPrompt.fingerprint_inputs(image="b.png"))  # every Run expands anew: the text always comes back
     assert (save.id, save.default, save.optional) == ("llm_save_to", "IMGtext", True)  # saved workflows keep their values

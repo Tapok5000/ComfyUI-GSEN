@@ -264,5 +264,5 @@ class LLMPrompt(io.ComfyNode):
         picture = g.node("LoadImage", image=image).out(0)
         llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0)
         text = _generate(g, llm, picture, "", _system_path(system_file, IMG_TO_TEXT).read_text(encoding="utf-8"))
-        g.node("MyNode_LLMText", text=text, image=picture, save_to=save_to)
+        g.node("MyNode_LLMText", text=text, ru=g.node("MyNode_Translate", text=text).out(0), image=picture, save_to=save_to)
         return Expansion(expand=g.finalize())

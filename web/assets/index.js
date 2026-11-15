@@ -155,11 +155,13 @@ function build(node) {
   const left = el("div", "mn-left")
   const pick = el("div", "mn-pick"), pName = el("div", "mn-pname"), pIdx = el("div", "mn-pidx")
   pick.append(pName, pIdx, el("div", "mn-pbtn"))
-  const up = el("div", "mn-upload", ICON.upload + "Upload"), file = picker((name) => {
+  const putImage = (name) => {
     const list = W("image").options.values
     if (Array.isArray(list) && !list.includes(name)) list.push(name), list.sort()
     set("image", name)
-  })
+  }
+  const up = el("div", "mn-upload", ICON.upload + "Upload"), file = picker(putImage)
+  dropTo(left, putImage)
   const prev = el("div", "mn-prev"), pDims = el("div", "mn-pdims"), pBox = el("div", "mn-pbox"), pWrap = el("div", "mn-pwrap")
   const pImg = el("img"), crop = el("div", "mn-crop"), la = el("div", "mn-arrow l"), ra = el("div", "mn-arrow r")
   pImg.draggable = false
@@ -290,21 +292,33 @@ function build(node) {
   }
   // PROMT and RU are the boxes' background, faint under their text like MyNode.svg draws them; a loaded .txt says its
   // name and count in small lime over the prompt box
-  const lp = el("div", "mn-lbl on"), lr = el("div", "mn-lang")
+  const lp = el("div", "mn-lbl on")
   Object.assign(lp.style, { left: "22.6px", top: "2px" })
   prompt.style.setProperty("--mn-cap", CAPS.PROMT)
-  // the box shows the RU translation; a click on its word switches to EN, the prompt the sampler got
-  let shot = { RU: "", EN: "" }, lang = "RU"
+  // EN / RU: a switch over each prompt view (the RU box, a gallery card, the LLM tab), one choice for all of them, kept
+  // with the workflow; RU first, as MyNode.svg lights it. A view without its RU shows the EN
+  let shot = { RU: "", EN: "" }, card = null, llmText = { EN: "", RU: "" }
+  const lang = () => node.properties?.mn_lang ?? "RU"
+  const switches = []
+  const enru = (cls) => {
+    const b = txt("div", `mn-enru ${cls}`, "EN RU")
+    b.title = "EN / RU"
+    b.onclick = (e) => {
+      node.setProperty("mn_lang", e.offsetX < b.offsetWidth / 2 ? "EN" : "RU")
+      paintLang()
+    }
+    switches.push(b)
+    return b
+  }
   const paintLang = () => {
-    ru.style.setProperty("--mn-cap", CAPS[lang])
-    ru.textContent = shot[lang]
+    const l = lang()
+    for (const b of switches) b.classList.toggle("en", l === "EN")
+    ru.style.setProperty("--mn-cap", CAPS[l])
+    ru.textContent = shot[l]
+    if (card) said.textContent = card[l.toLowerCase()] || card.en || ""
+    if (!lOut.classList.contains("busy")) lOut.textContent = llmText[l] || llmText.EN
   }
-  paintLang()
-  lr.title = "RU / EN"
-  lr.onclick = () => {
-    lang = lang === "RU" ? "EN" : "RU"
-    paintLang()
-  }
+  binds.push(paintLang)
   // LOAD TXT keeps the file's text in the hidden "prompts" widget; while it is there, Run makes an image per
   // prompt and the box shows them read-only. CLOSE TXT goes back to the box's own prompt.
   const lt = txt("div", "mn-ltxt"), txtIn = el("input"), snd = el("div", "mn-snd")
@@ -343,7 +357,7 @@ function build(node) {
     set("aspect_ratio", v !== "custom" ? "custom" : presets().includes(preset) ? preset : presets()[0])
   }
   binds.push(() => { mid.classList.toggle("preset", W("aspect_ratio")?.value !== "custom") })
-  mid.append(lp, lt, txtIn, prompt, lr, ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")))
+  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")))
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
@@ -584,12 +598,13 @@ function build(node) {
   said.dataset.scroll = ""
   bBox.append(bImg, bSize)
   big.append(bBox, ...corners(), bId)
-  det.append(big, par, said)
+  det.append(big, par, enru("g"), said)
   det.onclick = (e) => { if (e.target === det) det.hidden = true } // the dark around the card: back to the cards
   bImg.onload = () => { bSize.textContent = `${bImg.naturalWidth}x${bImg.naturalHeight}` }
   let opened = null
   const openResult = async (r) => {
     opened = r
+    card = null
     det.hidden = false
     bSize.textContent = said.textContent = ""
     bImg.src = r.src
@@ -599,22 +614,26 @@ function build(node) {
     if (opened !== r) return // another card was opened meanwhile
     par.replaceChildren(...[["seed", info.seed], ["step", info.steps], ["sampler", info.sampler], ["scheduler", info.scheduler]]
       .flatMap(([k, v]) => [txt("span", "k", k), txt("span", "v", String(v ?? "—"))]))
-    said.textContent = info.en ?? ""
+    card = info
+    paintLang()
   }
 
   // LLM: the AI step alone (MyNode_LLM): a picture, the same LLM as Settings, its own System (picture → prompt, from
   // assets/prompts/img_to_text) and SAVE; Run queues just that, and the prompt the LLM writes comes back here (setup(): LLM_RUNS)
   const lBox = el("div", "mn-lbox"), lImg = el("img"), lUp = el("div", "mn-upload mn-lup", ICON.upload + "Upload")
-  const lOut = el("div", "mn-lout"), lFile = picker((name) => {
+  const putLlm = (name) => {
     node.setProperty("mn_llm_image", name) // saves with the workflow; the node's own image is untouched
     refresh()
-  })
+  }
+  const lOut = el("div", "mn-lout"), lFile = picker(putLlm)
   const llmImage = () => node.properties?.mn_llm_image || W("image")?.value || "" // none uploaded: the node's input
   lImg.draggable = false
   lOut.dataset.scroll = ""
   lBox.append(lImg, ...corners())
   lUp.onclick = () => lFile.click()
-  panes.LLM.append(lBox, lUp, lFile, lOut, ...[["LLM", "llm_name", 611.5], ["System", "llm_system_file", 655.1], ["SAVE", "llm_save_to", 698.6]]
+  dropTo(lBox, putLlm)
+  dropTo(lUp, putLlm)
+  panes.LLM.append(lBox, lUp, lFile, enru("l"), lOut, ...[["LLM", "llm_name", 611.5], ["System", "llm_system_file", 655.1], ["SAVE", "llm_save_to", 698.6]]
     .map(([label, name, top]) => row([label, name, top, 74.7, 282.8], "mn-srow")))
   binds.push(() => {
     const name = llmImage(), src = name ? view(baseOf(name), dirOf(name), "input") : ""
@@ -750,9 +769,10 @@ function build(node) {
       made.unshift({ id: im.mn_id, thumb: src, src, info: async () => info }) // Settings → Gallery → Generated
       if (setP.classList.contains("open") && tab === "Gallery" && det.hidden) loadGallery()
     },
-    llm: (text) => {
-      lOut.textContent = text.trim() ? text : ""
-      lOut.className = lOut.textContent ? "mn-lout" : "mn-lout none" // ran, wrote nothing: "no prompt" (not run yet: "Prompt")
+    llm: (text, ruText = "") => {
+      llmText = { EN: text.trim() ? text : "", RU: ruText.trim() ? ruText : "" }
+      lOut.className = llmText.EN ? "mn-lout" : "mn-lout none" // ran, wrote nothing: "no prompt"
+      paintLang()
     },
     ding: () => { if (!muted() && soundName()) play(soundName()) },
   }
@@ -779,18 +799,41 @@ function picker(put) {
   inp.type = "file"
   inp.accept = "image/*"
   inp.hidden = true
-  inp.onchange = async () => {
+  inp.onchange = () => {
     const f = inp.files[0]
     inp.value = ""
-    if (!f) return
-    const body = new FormData()
-    body.append("image", f)
-    const r = await api.fetchApi("/upload/image", { method: "POST", body })
-    if (r.status !== 200) return toast(`Upload: ${r.statusText}`, "error", 3000)
-    const d = await r.json()
-    put(d.subfolder ? `${d.subfolder}/${d.name}` : d.name)
+    if (f) upload(f, put)
   }
   return inp
+}
+
+async function upload(f, put) {
+  const body = new FormData()
+  body.append("image", f)
+  const r = await api.fetchApi("/upload/image", { method: "POST", body })
+  if (r.status !== 200) return toast(`Upload: ${r.statusText}`, "error", 3000)
+  const d = await r.json()
+  put(d.subfolder ? `${d.subfolder}/${d.name}` : d.name)
+}
+
+// a picture dragged in from the file manager goes in as Upload takes it; left to the canvas it would open the
+// PNG's workflow or make a LoadImage node
+function dropTo(zone, put) {
+  zone.addEventListener("dragover", (e) => {
+    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === "file")) return
+    e.preventDefault()
+    e.stopPropagation()
+    zone.classList.add("mn-drop")
+  })
+  zone.addEventListener("dragleave", (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove("mn-drop") })
+  zone.addEventListener("drop", (e) => {
+    zone.classList.remove("mn-drop")
+    const f = [...(e.dataTransfer?.files ?? [])].find((x) => x.type.startsWith("image/"))
+    if (!f) return
+    e.preventDefault()
+    e.stopPropagation()
+    upload(f, put)
+  })
 }
 
 const LLM_RUNS = new Map() // prompt id of a Settings → LLM run -> its node; the run isn't part of the graph
@@ -904,7 +947,7 @@ app.registerExtension({
     api.addEventListener("executed", ({ detail }) => {
       const n = ours(detail.display_node ?? detail.node), l = detail.output?.mn_llm && LLM_RUNS.get(detail.prompt_id)
       n?._mn.show(detail.output, detail.prompt_id)
-      l?._mn.llm(detail.output.mn_llm[0])
+      l?._mn.llm(detail.output.mn_llm[0], detail.output.mn_llm_ru?.[0])
       if (n || l) DONE.set(detail.prompt_id, n || l)
     })
     api.addEventListener("execution_success", ({ detail }) => DONE.get(detail?.prompt_id)?._mn.ding())

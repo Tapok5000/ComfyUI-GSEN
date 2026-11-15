@@ -128,9 +128,10 @@ def save_images(images, folder, cls, info=None):
 LLM_PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "llm.html")
 
 
-def save_llm(text, image, folder):
+def save_llm(text, ru, image, folder):
     """A prompt written from a picture (Settings → LLM), in a folder of its own in SAVE/<day>/: 001/001_LLM.png (the
-    picture), .txt (the prompt) and .html (both, laid out like MyNode.svg's page). No folder or no text: not saved."""
+    picture), .txt (the prompt) and .html (the picture and the prompt, EN / RU, laid out like MyNode.svg's page). No
+    folder or no text: not saved."""
     folder = folder.strip().strip('"')
     if not folder or not text.strip():
         return None
@@ -141,7 +142,9 @@ def save_llm(text, image, folder):
     os.makedirs(out)
     ui.ImageSaveHelper._convert_tensor_to_pil(image[0]).save(os.path.join(out, name + ".png"), compress_level=4)
     with open(LLM_PAGE, encoding="utf-8") as f:
-        page = f.read().replace("{{name}}", name).replace("{{text}}", html.escape(text.strip()))
+        page = f.read()
+    for key, value in (("{{name}}", name), ("{{en}}", html.escape(text.strip())), ("{{ru}}", html.escape(ru.strip()))):
+        page = page.replace(key, value)
     for ext, body in ((".txt", text), (".html", page)):
         with open(os.path.join(out, name + ext), "w", encoding="utf-8") as f:
             f.write(body)
