@@ -55,7 +55,7 @@
 .mn-ltxt:hover{background-color:#262d12}
 .mn-ltxt:active{background-color:#0b0d05}
 /* EN / RU, a button like LOAD TXT; its lit half is the language the prompt views show */
-.mn-enru{position:absolute;z-index:1;width:74.4px;height:32.2px;padding-left:5.7px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:17.3px;line-height:33.4px;white-space:nowrap;overflow:hidden;cursor:pointer}
+.mn-enru{position:absolute;width:74.4px;height:32.2px;padding-left:5.7px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:17.3px;line-height:33.4px;white-space:nowrap;overflow:hidden;cursor:pointer}
 .mn-enru::after{content:"";position:absolute;top:0;bottom:0;left:50%;width:50%;background:rgba(135,161,62,.1);border-radius:0 6.3px 6.3px 0/0 6.8px 6.8px 0}
 .mn-enru.en::after{left:0;border-radius:6.3px 0 0 6.3px/6.8px 0 0 6.8px}
 .mn-enru:hover{background-color:#262d12}
