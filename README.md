@@ -20,6 +20,4 @@ Krea2 One → ↗ Settings → **Update**  Потом перезапустить
 - Generations IMG — `assets/prompts`
 - Analysis IMG LLM — `assets/prompts/img_to_text`
 
-Settings → Save → **zip** — скачать все через ZIP.
-
 ComfyUI 0.43.2 или новее.
