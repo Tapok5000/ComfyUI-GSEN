@@ -8,14 +8,6 @@ git clone https://github.com/Tapok5000/ComfyUI-GSEN
 
 Или скачать [zip](https://github.com/Tapok5000/ComfyUI-GSEN/archive/refs/heads/main.zip)
 
-## Модели
-
-Krea2 One → ↗ Settings, справа от Save и Sound: ✅ модель есть в папках моделей ComfyUI; нет — ⬇️ скачивает её с Hugging Face в ту папку этого типа, где уже лежат остальные, и сверяет sha256.
-
-## Обновление
-
-Krea2 One → ↗ Settings → **Update**  Потом перезапустить ComfyUI и нажать Ctrl+F5.
-
 Системные промты для LLM, своя папка на задачу:
 - Generations IMG — `assets/prompts`
 - Analysis IMG LLM — `assets/prompts/img_to_text`
