@@ -853,6 +853,19 @@ app.registerExtension({
       }
     })
 
+    // the browser tab's icon: a lime square, AusBoss's teal one's shape, with a dark dot while a prompt runs. ComfyUI's
+    // progress frames and AusBoss set it on their own events, so whatever they put there is swapped back at once
+    let busy = false
+    const ICONS = [false, true].map((dot) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 64 64"><rect x="4" y="4" width="56" height="56" rx="14" fill="#c7f400"/>${dot ? '<circle cx="46" cy="18" r="10" fill="#161a0a"/>' : ""}</svg>`)}`)
+    const keepIcon = () => {
+      for (const l of document.querySelectorAll("link[rel~='icon']")) if (l.getAttribute("href") !== ICONS[+busy]) l.setAttribute("href", ICONS[+busy])
+    }
+    new MutationObserver(keepIcon).observe(document.head, { subtree: true, childList: true, attributes: true, attributeFilter: ["href"] })
+    api.addEventListener("execution_start", () => { busy = true; keepIcon() })
+    for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) api.addEventListener(ev, () => { busy = false; keepIcon() })
+    keepIcon()
+
     let running = null
     const stop = () => { running?._mn.stop(); running = null }
     api.addEventListener("executing", ({ detail }) => {
