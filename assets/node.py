@@ -126,7 +126,6 @@ class FaceProcessing(io.ComfyNode):
             display_name="Krea2 One (GSEN)",  # GSEN in the name: the search box ranks by names, not by category or aliases
             search_aliases=["FACE Processing"],  # its name before 1.4.1
             category="🟩 GSEN",
-            description="Face crop + AI prompt + Krea2 identity edit + RU/EN in one node.",
             is_output_node=True,
             inputs=[
                 io.Combo.Input("image", options=input_images()),

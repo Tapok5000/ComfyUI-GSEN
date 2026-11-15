@@ -49,6 +49,10 @@ const MARK = svgUrl('viewBox="0 0 158.293 29.4603" preserveAspectRatio="none"', 
 const TILE = svgUrl("", `<defs><pattern id="g" width="190.031" height="76.629" patternUnits="userSpaceOnUse"
   patternTransform="matrix(.423226 .423631 -.423374 .423483 -264.622 802.567)"><path d="${GSEN}"/></pattern></defs>
   <rect width="100%" height="100%" fill="url(#g)" opacity=".05"/>`)
+// a box's faint word in its top left, as MyNode.svg has it: Arial 20, white at 5%; face.css takes it as --mn-cap
+const capUrl = (word) => svgUrl('width="120" height="40"',
+  `<text x="8.9" y="25.7" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#fff" fill-opacity=".05">${word}</text>`)
+const CAPS = { PROMT: capUrl("PROMT"), RU: capUrl("RU"), EN: capUrl("EN") }
 
 // Settings → Sound: the files in assets/Sound (common.py), played when a Run is done
 let sounds = []
@@ -282,16 +286,22 @@ function build(node) {
     W("text").value = prompt.value
     W("text").callback?.(prompt.value)
   }
-  // small labels over the boxes, as before 1.18.0 (the faint PROMT / RU inside them in MyNode.svg are only a picture)
-  const lp = txt("div", "mn-lbl", "PROMPT"), lr = txt("div", "mn-lbl mn-lang", "RU")
+  // PROMT and RU are the boxes' background, faint under their text like MyNode.svg draws them; a loaded .txt says its
+  // name and count in small lime over the prompt box
+  const lp = el("div", "mn-lbl on"), lr = el("div", "mn-lang")
   Object.assign(lp.style, { left: "22.6px", top: "2px" })
-  Object.assign(lr.style, { left: "21.3px", top: "195.6px" })
-  // the box shows the RU translation; a click on its label switches to EN, the prompt the sampler got
-  let shot = { RU: "", EN: "" }
+  prompt.style.setProperty("--mn-cap", CAPS.PROMT)
+  // the box shows the RU translation; a click on its word switches to EN, the prompt the sampler got
+  let shot = { RU: "", EN: "" }, lang = "RU"
+  const paintLang = () => {
+    ru.style.setProperty("--mn-cap", CAPS[lang])
+    ru.textContent = shot[lang]
+  }
+  paintLang()
   lr.title = "RU / EN"
   lr.onclick = () => {
-    lr.textContent = lr.textContent === "RU" ? "EN" : "RU"
-    ru.textContent = shot[lr.textContent]
+    lang = lang === "RU" ? "EN" : "RU"
+    paintLang()
   }
   // LOAD TXT keeps the file's text in the hidden "prompts" widget; while it is there, Run makes an image per
   // prompt and the box shows them read-only. CLOSE TXT goes back to the box's own prompt.
@@ -316,8 +326,7 @@ function build(node) {
   }
   binds.push(() => {
     const on = !!loaded().trim(), n = countPrompts(loaded())
-    lp.textContent = on ? `${W("prompt_file")?.value || "prompts"} · ${n} prompt${n === 1 ? "" : "s"}` : "PROMPT"
-    lp.classList.toggle("on", on)
+    lp.textContent = on ? `${W("prompt_file")?.value || "prompts"} · ${n} prompt${n === 1 ? "" : "s"}` : ""
     lt.textContent = on ? "CLOSE TXT" : "LOAD TXT"
     prompt.readOnly = on
   })
@@ -395,7 +404,7 @@ function build(node) {
     shot = shots[at]
     rImg.src = shot.src
     setA(shot.a)
-    ru.textContent = shot[lr.textContent]
+    paintLang()
     rNum.textContent = `${at + 1}/${shots.length}`
     frame.classList.toggle("many", shots.length > 1)
   }
