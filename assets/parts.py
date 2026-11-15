@@ -10,18 +10,7 @@ import torch.nn.functional as F
 from comfy_api.latest import io
 
 from ..common import save_images, save_llm
-from . import crop_edit, faces, krea2_edit
-
-
-class FaceCrop(io.ComfyNode):
-    @classmethod
-    def define_schema(cls):
-        return io.Schema(node_id="MyNode_FaceCrop", category="🟩 GSEN", is_dev_only=True,
-                         inputs=[io.Image.Input("image")], outputs=[io.Image.Output()])
-
-    @classmethod
-    def execute(cls, image):
-        return io.NodeOutput(faces.crop_face(image))
+from . import crop_edit, krea2_edit
 
 
 class CropRotatePad(io.ComfyNode):

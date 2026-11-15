@@ -1,4 +1,4 @@
-"""Self-check of FACE: Krea2 edit math, face crop, output size, result saving, LoRAs, a prompts .txt. CPU only, no models.
+"""Self-check of FACE: Krea2 edit math, the reference, output size, result saving, LoRAs, a prompts .txt. CPU only, no models.
 
 Run from the ComfyUI folder:
     cd E:\\ComfyUI_2026\\ComfyUI
@@ -41,7 +41,6 @@ from comfy.ldm.krea2.model import SingleStreamDiT  # noqa: E402
 SENT = []
 sys.modules["server"] = SimpleNamespace(PromptServer=SimpleNamespace(instance=SimpleNamespace(
     routes=web.RouteTableDef(), send_sync=lambda event, data, sid=None: SENT.append((event, data)))))
-import faces  # noqa: E402
 import krea2_edit  # noqa: E402
 import nodes  # noqa: E402
 import common  # noqa: E402
@@ -91,10 +90,11 @@ def test_fit_geometry():
     assert krea2_edit.fit_geometry(1500, 1000, 1536, 1024) == (0, 0, 1500, 1000, 1536, 1024)  # same aspect: fills
 
 
-def test_face_crop():
-    assert faces.crop_box(100, 100, 200, 220, 1000, 1000) == (73, 90, 227, 244)  # x2 area, 1:1, a bit lower
-    assert faces.crop_box(0, 0, 100, 120, 1000, 1000)[:2] == (0, 0)  # clamped at the image edge
-    assert faces.crop_face(torch.zeros(1, 64, 96, 3)).shape == (1, 864, 1280, 3)  # no face: the scaled input
+def test_whole_reference():
+    graph = expand(grounding_px=512, face_crop=True)  # a workflow saved before 1.22.0 still carries both
+    (enc,) = inputs_of(graph, "MyNode_Krea2Encode")
+    load = next(k for k, n in graph.items() if n["class_type"] == "LoadImage")
+    assert enc["grounding_px"] == 1024 and enc["image"][0] == load  # fixed grounding, the whole input as the reference
 
 
 def test_save_images():
@@ -178,7 +178,7 @@ def test_manual_crop():
     assert torch.allclose(out[0, :, 0], torch.full((46, 3), 128 / 255))  # the padding is gray
     tilted = {**spec, "angle": 10.0, "box": None, "pad": [0, 0, 0, 0]}
     assert crop_edit.apply(img, tilted).shape[1:3] == crop_edit.size(80, 50, tilted)[::-1]  # size() = what PIL makes
-    graph = expand(manual_crop=True, crop=raw, face_crop=False)
+    graph = expand(manual_crop=True, crop=raw)
     turn = next(k for k, n in graph.items() if n["class_type"] == "MyNode_CropRotatePad")
     assert inputs_of(graph, "MyNode_Krea2Patch")[0]["image"][0] == turn  # the reference is the cropped input
     assert not inputs_of(expand(manual_crop=False, crop=raw), "MyNode_CropRotatePad")
@@ -397,6 +397,7 @@ def test_models():
             assert models.target("vae") == mine  # beside the others, extra_model_paths.yaml's or not
             assert models.status() == [{"key": "VAE", "file": "w.safetensors", "size": len(body), "name": None, "got": None}]
             Path(mine, "sub", "🔴 W.safetensors").write_bytes(b"")  # emoji and another case: the same file to its owner
+            folder_paths.filename_list_cache.clear()  # the folder's time can stay the same within one timer tick
             assert models.status()[0]["name"].endswith("🔴 W.safetensors") and ask(models._download, key="VAE").status == 200
             assert not models.JOBS  # it is here: nothing to download
             os.remove(Path(mine, "sub", "🔴 W.safetensors"))
@@ -428,7 +429,7 @@ if __name__ == "__main__":
     test_forward_matches_core()
     test_target_size()
     test_fit_geometry()
-    test_face_crop()
+    test_whole_reference()
     test_save_images()
     test_extra_loras()
     test_old_core_llm()

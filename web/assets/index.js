@@ -7,26 +7,26 @@ import { cropEditor } from "./crop.js"
 const NODE = "MyNode_FaceProcessing"
 const SIZE = [1890.6, 745]
 
-// [label, widget, top, left, width] px from MyNode.svg; a row with a left is one of its short pills
+// [label, widget, top, left, width] px from MyNode.svg: the middle's two columns of pills under the prompt boxes
 const ROWS = [
-  ["LLM", "ai_prompt", 369.9, 62, 147.7], ["ref_boost", "ref_boost", 369.6, 222.9, 218.4],
-  ["grounding_px", "grounding_px", 369.6, 448.1, 247.7], ["Resize", "resolution_source", 432.3, 62, 147.7],
-  ["W", "custom_width", 432.3, 385, 147.7], ["H", "custom_height", 432.3, 548.2, 147.7],
-  ["", "aspect_ratio", 432.3, 385, 310.9], // a preset's pill, in W and H's place (not in MyNode.svg)
-  ["seed", "seed", 488.9], ["steps", "steps", 527.9], ["sampler", "sampler_name", 579.5], ["scheduler", "scheduler", 617.1],
+  ["LLM", "ai_prompt", 400.24, 52.35, 145], ["Ref boost", "ref_boost", 400.24, 209.59, 200],
+  ["Resize", "resolution_source", 454.93, 52.35, 145], ["Crop", "manual_crop", 454.93, 209.59, 145],
+  ["W", "custom_width", 565.46, 52.35, 145], ["H", "custom_height", 565.46, 209.59, 145],
+  ["", "aspect_ratio", 565.46, 52.35, 302.24], // a preset's pill, in W and H's place (not in MyNode.svg)
+  ["seed", "seed", 400.26, 468.17, 199.89], ["steps", "steps", 478.23, 468.74, 140],
+  ["sampler", "sampler_name", 520.09, 470.14, 200], ["scheduler", "scheduler", 565.46, 470.14, 200],
 ]
+// under seed, ComfyUI's own control_after_generate: [label, value, left, width]; LIST goes on to the next seed
+const SEED_MODES = [["FIX", "fixed", 468.19, 66.06], ["RANDOM", "randomize", 536.39, 98.41], ["LIST", "increment", 636.94, 66.06]]
 const SETTINGS = [
   ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
   ["LLM", "llm_name", 281.4], ["System", "system_file", 325, 25.9, 282.8],
-  ["Crop", "manual_crop", 403.3, 27.3, 147.7], ["FaceCrop", "face_crop", 404.4, 182.9, 194.1],
-  ["SAVE", "save_to", 484.1, 27.3, 282.8], ["Sound", "sound", 548.6, 27.3, 282.8], // no widget: node properties
-  // not in MyNode.svg: kept in its free right column
-  ["max_resolution", "max_resolution", 403.3, 451.4, 282.8],
-  ["seed mode", "control_after_generate", 484.1, 451.4, 282.8], // ComfyUI's own seed control: fixed / randomize / …
+  ["Save", "save_to", 413.74, 27.3, 282.8], ["Sound", "sound", 470.77, 27.3, 282.8], // no widget: node properties
+  ["max_resolution", "max_resolution", 527.8, 27.3, 282.8], // not in MyNode.svg: under Sound, in the same step
 ]
-// Krea2 One's models (assets/models.py), the block under the right column: [key, widget, top] px from MyNode.svg
-const MODEL_ROWS = [["MODEL", "unet_name", 580.2], ["LORA", "lora_name", 607.01], ["CLIP", "clip_name", 634.11],
-  ["VAE", "vae_name", 664.11], ["LLM", "llm_name", 692.82]]
+// Krea2 One's models (assets/models.py), the block beside Save and Sound: [key, widget, top] px from MyNode.svg
+const MODEL_ROWS = [["MODEL", "unet_name", 375.62], ["LORA", "lora_name", 402.42], ["CLIP", "clip_name", 429.53],
+  ["VAE", "vae_name", 459.52], ["LLM", "llm_name", 488.23]]
 // a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (assets/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
 const countPrompts = (t) => t.split(DASHES.test(t) ? DASHES : /\n\s*\n/).filter((p) => p.trim()).length
@@ -43,21 +43,20 @@ const ICON = {
   // MyNode.svg's 🔊 and 🔇 (font glyphs there), outlined: one box, the speaker in the same place in both
   on: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m4.508,13.687h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h3.156v0.010l6.041,-2.833q0.416,-0.197 0.937,-0.135 0.531,0.052 0.916,0.333 0.385,0.281 0.385,0.75v4.864q0.927,0.020 1.572,0.687 0.656,0.666 0.656,1.604 0,0.927 -0.656,1.593 -0.645,0.666 -1.572,0.697v4.677q0,0.468 -0.281,0.791 -0.281,0.333 -0.698,0.437 -0.416,0.114 -0.843,-0.083zm6.791,-11.989q-0.01,0 -0.021,0 0,0 0,0 -0.052,0 -0.083,0l-0.01,0.010 -5.166,2.427v8.572l5.281,2.343zm5.312,3.031q1.291,1.427 1.354,3.364 0.073,2.270 -1.531,3.874 -0.083,0.072 -0.156,0.145 -0.239,0.218 -0.531,0.197 -0.291,-0.020 -0.510,-0.218 -0.208,-0.208 -0.208,-0.531 0,-0.333 0.229,-0.552 0.562,-0.520 0.885,-1.229 0.322,-0.708 0.322,-1.531 0,-0.812 -0.322,-1.520 -0.323,-0.718 -0.885,-1.229 -0.229,-0.218 -0.229,-0.531v-0.020q0,-0.333 0.208,-0.531 0.218,-0.208 0.510,-0.218 0.291,-0.020 0.531,0.197 0.166,0.145 0.333,0.333zm-0.458,-2.322q0.854,0.489 1.541,1.218 0.875,0.927 1.343,2.114 0.479,1.177 0.489,2.437 0.01,1.375 -0.5,2.635 -0.510,1.25 -1.479,2.218 -0.635,0.635 -1.395,1.072 -0.375,0.218 -0.375,0.656 0,0.427 0.375,0.645 0.375,0.218 0.75,0 1.239,-0.718 2.166,-1.802 0.927,-1.093 1.437,-2.458 0.520,-1.364 0.520,-2.895 0,-1.520 -0.520,-2.885 -0.510,-1.364 -1.437,-2.458 -0.927,-1.093 -2.166,-1.802 -0.375,-0.218 -0.75,0 -0.375,0.208 -0.375,0.645 0,0.427 0.375,0.656z"/></svg>`,
   off: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m12.799,11.967v3.447q0,0.468 -0.281,0.791 -0.281,0.333 -0.697,0.437 -0.416,0.114 -0.843,-0.083l-6.468,-2.874h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h2.635l-1.625,-1.625q-0.260,-0.260 -0.260,-0.625 0,-0.375 0.260,-0.635 0.260,-0.260 0.625,-0.260 0.375,0 0.635,0.260l14.885,14.874q0.260,0.270 0.260,0.645 0,0.364 -0.260,0.624 -0.260,0.260 -0.635,0.260 -0.364,0 -0.625,-0.260zm-1.5,-1.5 -5.281,-5.281v7.520l5.281,2.343zm3.729,-2.020q0,-0.937 -0.656,-1.604 -0.645,-0.666 -1.572,-0.687v-4.864q0,-0.468 -0.385,-0.75 -0.385,-0.281 -0.916,-0.333 -0.520,-0.062 -0.937,0.135l-3.364,1.572 1.135,1.135 2.854,-1.343h0.01q0.021,-0.010 0.083,-0.010 0,0 0,0 0.01,0 0.021,0v4.322l3.468,3.468q0.260,-0.489 0.260,-1.041z"/></svg>`,
-  // MyNode.svg's ✅ and ⬇️ (emoji there, white in its fonts) and ⛔ in ✅'s font, outlined: Settings' model rows
+  // MyNode.svg's ✅ and ⬇️ (emoji there, white in its fonts), outlined: Settings' model rows
   ok: `<svg viewBox="14.182 20.422 11.636 11.636" width="11.64" height="11.64" fill="currentColor"><path d="m18.5,28.391 .266,.266q.109,.109 .266,.109 .156,0 .266-.109l4.245-4.25q.109-.109 .109-.26 0-.156-.109-.271-.109-.109-.266-.109-.156,0-.266,.109l-3.979,3.984-2.026-2.026q-.109-.115-.266-.115-.156,0-.266,.115-.109,.109-.109,.266 0,.151 .109,.26l2.026,2.031zM16.245,20.609q-.516,0-.943,.255-.427,.25-.682,.677-.25,.427-.25,.943v7.51q0,.516 .25,.943 .255,.427 .682,.677 .427,.255 .943,.255h7.51q.516,0 .943-.255 .427-.25 .677-.677 .255-.427 .255-.943v-7.51q0-.516-.255-.943-.25-.427-.677-.677-.427-.255-.943-.255zm-1.125,1.875q0-.464 .328-.792 .333-.333 .797-.333h7.51q.469,0 .797,.333 .328,.328 .328,.792v7.51q0,.464-.328,.792-.328,.333-.797,.333h-7.51q-.464,0-.797-.333-.328-.328-.328-.792zm-.938,0v7.51q0,.568 .276,1.036 .281,.469 .75,.745 .469,.281 1.036,.281h7.51q.568,0 1.036-.281 .469-.276 .745-.745 .281-.469 .281-1.036v-7.51q0-.568-.281-1.036-.276-.469-.745-.745-.469-.281-1.036-.281h-7.51q-.568,0-1.036,.281-.469,.276-.75,.745-.276,.469-.276,1.036zm.375,0q0-.464 .229-.849 .229-.385 .609-.609 .385-.229 .849-.229h7.51q.469,0 .849,.229 .385,.224 .609,.609 .229,.385 .229,.849v7.51q0,.464-.229,.849-.224,.385-.609,.609-.38,.229-.849,.229h-7.51q-.464,0-.849-.229-.38-.224-.609-.609-.229-.385-.229-.849zm1.688-1.313q-.359,0-.661,.177-.297,.177-.474,.479-.177,.297-.177,.656v7.51q0,.359 .177,.656 .177,.302 .474,.479 .302,.177 .661,.177h7.51q.365,0 .661-.177 .297-.177 .474-.479 .177-.297 .177-.656v-7.51q0-.359-.177-.656-.177-.302-.474-.479-.297-.177-.661-.177zm0,.375h7.51q.391,0 .661,.276 .276,.276 .276,.661v7.51q0,.385-.276,.661-.271,.276-.661,.276h-7.51q-.385,0-.661-.276-.276-.276-.276-.661v-7.51q0-.385 .276-.661 .276-.276 .661-.276zm.094,4.948 1.896,1.896v0l.13,.13 .266,.266q.167,.167 .401,.167 .234,0 .396-.167l4.25-4.245q.161-.167 .161-.396 0-.234-.161-.401-.167-.167-.401-.167-.234,0-.396,.167l-3.849,3.849-1.896-1.896q-.161-.167-.396-.167-.234,0-.401,.167-.161,.167-.161,.401 0,.229 .161,.396zm2.823,1.495 3.984-3.979q.052-.057 .13-.057 .078,0 .135,.057 .052,.052 .052,.13 0,.078-.052,.135l-4.25,4.245q-.052,.057-.13,.057-.078,0-.135-.057L18.766,28.391v0l-.135-.135-2.026-2.026q-.052-.057-.052-.13 0-.078 .052-.135 .057-.057 .135-.057 .078,0 .13,.057l2.026,2.026 .135,.135z"/></svg>`,
-  no: `<svg viewBox="54.745 20.984 10.511 10.511" width="10.51" height="10.51" fill="currentColor"><path d="m60,31.495q-1.089,0-2.042-.411-.953-.406-1.677-1.125-.719-.724-1.13-1.677-.406-.953-.406-2.042 0-1.089 .406-2.042 .411-.953 1.13-1.672 .724-.724 1.677-1.13Q58.911,20.984 60,20.984q1.089,0 2.042,.411 .953,.406 1.672,1.13 .724,.719 1.13,1.672 .411,.953 .411,2.042 0,1.089-.411,2.042-.406,.953-1.13,1.677-.719,.719-1.672,1.125Q61.089,31.495 60,31.495Zm-3.375-6.005q-.156,0-.271,.109-.109,.109-.109,.266v.75q0,.156 .109,.266 .115,.109 .271,.109h6.755q.156,0 .266-.109 .109-.109 .109-.266V25.865q0-.156-.109-.266-.109-.109-.266-.109z"/></svg>`,
   down: `<svg viewBox="92.962 18.262 14.075 14.075" width="14.08" height="14.08" fill="currentColor"><path d="m99.063,21.543v4.577q0,.117-.117,.117h-1.439q-.208,0-.339,.143-.124,.137-.13,.332-.006,.189 .143,.332l2.493,2.402q.137,.13 .326,.13 .189,0 .326-.13l2.493-2.402q.15-.143 .143-.332 0-.195-.13-.332-.124-.143-.339-.143h-1.439q-.117,0-.117-.117V21.543q0-.189-.137-.326-.137-.143-.332-.143h-.937q-.195,0-.332,.143-.137,.137-.137,.326zM95.306,18.262H104.694q.645,0 1.178,.319 .534,.312 .846,.846 .319,.534 .319,1.178v9.388q0,.645-.319,1.178-.312,.534-.846,.846-.534,.319-1.178,.319h-9.388q-.645,0-1.178-.319-.534-.312-.853-.846-.312-.534-.312-1.178v-9.388q0-.645 .312-1.178 .319-.534 .853-.846 .534-.319 1.178-.319zm-1.406,2.344v9.388q0,.579 .41,.99 .417,.417 .996,.417H104.694q.586,0 .996-.417 .41-.41 .41-.99v-9.388q0-.579-.41-.99-.41-.417-.996-.417h-9.388q-.579,0-.996,.417-.41,.41-.41,.99z"/></svg>`,
 }
 // GSEN in MyNode.svg's Sci-Fi font, outlined (158.29 x 29.46): the Settings header's logo, the boxes' watermark, the
 // middle's background tiles
 const GSEN = "m34.766,19.738q0,1.835 -0.566,3.455 -0.566,1.600 -1.620,2.811 -1.034,1.190 -2.518,1.893 -1.464,0.683 -3.162,0.683h-18.078q-1.581,0 -3.689,-1.112 -2.108,-1.112 -3.631,-2.947 -1.503,-1.835 -1.503,-3.846v-12.611q0,-1.542 1.190,-3.299 1.190,-1.776 3.104,-2.967 1.932,-1.210 3.943,-1.210h25.653v6.559h-21.065q-1.190,0 -2.245,0.585 -1.054,0.566 -1.698,1.464 -0.644,0.898 -0.644,1.835v6.188q0,1.444 0.644,2.537 0.644,1.073 1.757,1.659 1.112,0.566 2.518,0.566h10.737q1.112,0 1.893,-0.566 0.800,-0.585 0.800,-1.581 0,-0.995 -0.663,-1.503 -0.663,-0.507 -1.425,-0.507h-7.906v-6.559h9.995q0.136,0.019 1.542,0.312 1.405,0.292 2.909,1.151 1.522,0.839 2.616,2.577 1.112,1.718 1.112,4.431zm39.514,4.529q0,1.757 -1.034,3.045 -1.015,1.269 -2.869,1.269h-32.388v-6.872h25.985q0.683,0 1.444,-0.488 0.761,-0.507 0.761,-1.522 0,-0.546 -0.331,-1.034 -0.312,-0.488 -0.956,-0.780 -0.644,-0.292 -1.405,-0.292h-19.659q-1.405,0 -2.518,-0.702 -1.093,-0.722 -1.698,-1.659 -0.585,-0.956 -0.585,-1.561v-9.078q0,-1.171 1.288,-2.577 1.308,-1.425 3.358,-1.425h29.089v6.637h-24.013q-0.741,0 -1.190,0.624 -0.449,0.624 -0.449,1.308 0,0.624 0.605,1.327 0.624,0.702 1.757,0.702h19.698q2.616,0 3.865,1.347 1.249,1.347 1.249,3.533zm41.506,-10.913q0,1.874 -0.995,3.162 -0.995,1.268 -3.318,1.268l-25.555,-0.039v1.366q0,1.054 0.800,1.971 0.82,0.898 1.757,0.898h26.883v6.598h-28.386q-2.830,0 -4.900,-1.483 -2.069,-1.503 -3.143,-3.494 -1.073,-1.991 -1.073,-3.260v-12.143q0,-1.405 0.761,-2.772 0.781,-1.386 2.05,-2.498 1.269,-1.112 2.655,-1.737 1.405,-0.644 2.596,-0.644h23.193q0.995,0 2.225,0.624 1.229,0.605 2.225,1.522 0.995,0.917 1.600,1.952 0.624,1.034 0.624,1.952zm-7.867,-4.119q0,-0.878 -0.741,-1.425 -0.741,-0.546 -1.659,-0.546l-16.789,-0.039q-1.073,0 -1.952,0.937 -0.859,0.937 -0.859,2.030v1.151h21.963zm50.369,13.236q0,1.210 -0.761,2.869 -0.741,1.639 -2.440,2.889 -1.679,1.229 -4.275,1.229 -2.674,0 -3.963,-0.741 -1.288,-0.722 -2.752,-2.694l-13.588,-16.399q-0.644,-0.859 -1.034,-1.093 -0.371,-0.253 -0.937,-0.253 -0.371,0 -0.761,0.292 -0.390,0.273 -0.390,0.780v19.191h-7.926v-22.275q0,-0.585 0.370,-1.581 0.390,-1.015 1.269,-2.088 0.878,-1.093 2.323,-1.835 1.464,-0.761 3.514,-0.761 2.596,0 4.060,0.878 1.483,0.859 2.381,1.874l13.685,16.106q0.644,0.878 1.093,1.132 0.449,0.234 1.054,0.234 0.702,0 0.859,-0.409 0.175,-0.429 0.175,-1.190v-18.039h8.043z"
 const svgUrl = (attrs, body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${body}</svg>`)}")`
-// face.css takes them as --mn-mark (the boxes' watermark, white at 3%) and --mn-tile: black GSENs at 5%, turned 45°,
-// where MyNode.svg's pattern5 falls on the middle panel
+// face.css takes them as --mn-mark (the boxes' watermark, white at 3%) and --mn-tile: MyNode.svg's texture, black GSENs
+// at 10% turned 45°, on a 320 px square that tiles itself (a word every 80 px along its line, the lines 0.8% closer than
+// the mockup's so that 320 repeats exactly), so the texture can run (face.css: mn-drift)
 const MARK = svgUrl('viewBox="0 0 158.293 29.4603" preserveAspectRatio="none"', `<path d="${GSEN}" fill="#fff" fill-opacity=".03"/>`)
-const TILE = svgUrl("", `<defs><pattern id="g" width="190.031" height="76.629" patternUnits="userSpaceOnUse"
-  patternTransform="matrix(.423226 .423631 -.423374 .423483 -264.622 802.567)"><path d="${GSEN}"/></pattern></defs>
-  <rect width="100%" height="100%" fill="url(#g)" opacity=".05"/>`)
+const TILE = svgUrl('width="320" height="320"', `<defs><pattern id="g" width="190.031" height="76.0124" patternUnits="userSpaceOnUse"
+  patternTransform="rotate(45) scale(.595362)"><path d="${GSEN}"/></pattern></defs><rect width="320" height="320" fill="url(#g)" opacity=".1"/>`)
 // a box's faint word in its top left, as MyNode.svg has it: Arial 20, white at 5%; face.css takes it as --mn-cap
 const capUrl = (word) => svgUrl('width="120" height="40"',
   `<text x="8.9" y="25.7" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#fff" fill-opacity=".05">${word}</text>`)
@@ -291,8 +290,8 @@ function build(node) {
   const prompt = el("textarea", "mn-box"), ru = el("div", "mn-box")
   prompt.dataset.scroll = ru.dataset.scroll = ""
   prompt.spellcheck = false
-  Object.assign(prompt.style, { left: "21px", top: "15.3px" }) // the two boxes don't line up in MyNode.svg either
-  Object.assign(ru.style, { left: "19.7px", top: "208.9px" })
+  Object.assign(prompt.style, { left: "18.89px", top: "27.64px" }) // the two boxes don't line up in MyNode.svg either
+  Object.assign(ru.style, { left: "17.59px", top: "227.24px" })
   prompt.oninput = () => {
     W("text").value = prompt.value
     W("text").callback?.(prompt.value)
@@ -300,7 +299,7 @@ function build(node) {
   // PROMT and RU are the boxes' background, faint under their text like MyNode.svg draws them; a loaded .txt says its
   // name and count in small lime over the prompt box
   const lp = el("div", "mn-lbl on")
-  Object.assign(lp.style, { left: "22.6px", top: "2px" })
+  Object.assign(lp.style, { left: "20.49px", top: "14.34px" })
   prompt.style.setProperty("--mn-cap", CAPS.PROMT)
   // EN / RU: a switch over each prompt view (the RU box, a gallery card, the LLM tab), one choice for all of them, kept
   // with the workflow; RU first, as MyNode.svg lights it. A view without its RU shows the EN
@@ -308,7 +307,7 @@ function build(node) {
   const lang = () => node.properties?.mn_lang ?? "RU"
   const switches = []
   const enru = (cls) => {
-    const b = txt("div", `mn-enru ${cls}`, "EN RU")
+    const b = txt("div", `mn-enru ${cls}`, "EN  RU")
     b.title = "EN / RU"
     b.onclick = (e) => {
       node.setProperty("mn_lang", e.offsetX < b.offsetWidth / 2 ? "EN" : "RU")
@@ -356,7 +355,7 @@ function build(node) {
   // custom / preset: aspect_ratio "custom" is W × H; a preset shows its own pill in their place
   const presets = () => comboValues(W("aspect_ratio")).filter((p) => p !== "custom")
   let preset = null // the one custom goes back to
-  const mode = row(["", "", 432.3, 222.9, 147.7], "mn-row tog mn-mode")
+  const mode = row(["", "", 510.54, 52.35, 147.65], "mn-row tog mn-mode")
   mode.firstChild.append(txt("span", "cu", "custom /"), " ", txt("span", "pr", "preset"))
   mode.onclick = () => {
     const v = W("aspect_ratio")?.value
@@ -364,7 +363,14 @@ function build(node) {
     set("aspect_ratio", v !== "custom" ? "custom" : presets().includes(preset) ? preset : presets()[0])
   }
   binds.push(() => { mid.classList.toggle("preset", W("aspect_ratio")?.value !== "custom") })
-  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")))
+  const seedModes = SEED_MODES.map(([label, value, left, width]) => {
+    const b = txt("div", "mn-seedm", label)
+    Object.assign(b.style, { left: left + "px", width: width + "px" })
+    b.onclick = () => { set("control_after_generate", value) }
+    binds.push(() => { b.classList.toggle("on", W("control_after_generate")?.value === value) })
+    return b
+  })
+  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")), ...seedModes)
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
@@ -479,17 +485,17 @@ function build(node) {
     toast(r.ok ? `GSEN ${r.version} is in. Restart ComfyUI, then Ctrl+F5.` : r.error ?? r.log, r.ok ? "success" : "error", 15000)
   }
 
-  // Krea2 One's models, under the right column: ✅ in this ComfyUI's model folders, ⛔ not, ⬇️ downloads it (models.py)
+  // Krea2 One's models, beside Save and Sound: ✅ in this ComfyUI's model folders; a missing one's square is ⬇️, which
+  // downloads it (models.py)
   const mRows = MODEL_ROWS.map(([key, , top]) => {
-    const r = el("div", "mn-mrow"), name = el("div", "n"), mark = el("div", "i"), dl = el("div", "mn-dl", ICON.down)
+    const r = el("div", "mn-mrow"), name = el("div", "n"), mark = el("div", "i")
     r.style.top = top + "px"
-    dl.title = "Download"
-    dl.onclick = () => { download(node, key) }
-    r.append(txt("div", "k", key), name, mark, dl)
-    return { key, top, r, name, mark, dl }
+    mark.onclick = () => { if (r.classList.contains("missing") && !r.classList.contains("busy")) download(node, key) }
+    r.append(txt("div", "k", key), name, mark)
+    return { key, top, r, name, mark }
   })
   const paintModels = () => {
-    for (const { key, r, name, mark, dl } of mRows) {
+    for (const { key, r, name, mark } of mRows) {
       const m = models.find((x) => x.key === key)
       r.hidden = !m // until Settings has asked the server
       if (!m) continue
@@ -499,9 +505,9 @@ function build(node) {
       r.style.setProperty("--p", p + "%")
       name.textContent = plain(baseName(m.name ?? m.file)).replace(/\.[^.]+$/, "")
       r.title = m.name ?? (busy ? `${p}% of ${gb(m.size)}` : `Not in this ComfyUI's models. ⬇️ downloads it: ${gb(m.size)}`)
+      mark.title = m.name || busy ? "" : "Download"
       if (busy) mark.textContent = p + "%"
-      else mark.innerHTML = m.name ? ICON.ok : ICON.no
-      dl.hidden = !!m.name || busy
+      else mark.innerHTML = m.name ? ICON.ok : ICON.down
     }
   }
   modelEvents.addEventListener("paint", paintModels, { signal: off.signal })
@@ -694,7 +700,7 @@ function build(node) {
     toast(`LLM: ${why.join("; ") || d.error?.message || r.statusText}`, "error", 8000)
   }
 
-  setP.append(shead, ...Object.values(panes), det)
+  setP.append(el("div", "mn-tex mn-stex"), shead, ...Object.values(panes), det)
   showTab(tab)
   openB.onclick = () => { if (setP.classList.toggle("open")) showTab(tab) } // ↗ sits right of the panel: it also closes it
 
@@ -743,7 +749,7 @@ function build(node) {
     gIn.focus()
   }
 
-  root.append(head, left, mid, right, setP, gal)
+  root.append(el("div", "mn-tex mn-back"), head, left, mid, right, setP, gal) // the panels' backgrounds, texture on them
 
   canvasControls(node, root, head)
   root.addEventListener("pointerdown", (e) => {

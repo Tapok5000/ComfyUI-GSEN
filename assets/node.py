@@ -140,7 +140,8 @@ class FaceProcessing(io.ComfyNode):
                 io.Int.Input("custom_width", default=1024, min=16, max=16384, step=8),
                 io.Int.Input("custom_height", default=1536, min=16, max=16384, step=8),
                 io.Float.Input("ref_boost", default=2.0, min=0.0, max=1000.0, step=0.01),
-                io.Int.Input("grounding_px", default=1024, min=0, max=4096, step=64),
+                io.Int.Input("grounding_px", default=1024, min=0, max=4096, step=64,
+                             tooltip="Not used since 1.22.0, always 1024; kept so saved workflows load."),
                 io.Int.Input("max_resolution", default=0, min=0, max=16384, step=8),
                 _files("unet_name", "diffusion_models", "krea2_turbo"),
                 _files("lora_name", "loras", "krea2_identity_edit"),
@@ -148,7 +149,7 @@ class FaceProcessing(io.ComfyNode):
                 _files("vae_name", "vae", "Wan2.1_VAE_upscale2x_imageonly"),
                 _files("llm_name", "text_encoders", "qwen3VLInstruct4bHeretic"),
                 io.Boolean.Input("face_crop", default=True, optional=True, label_on="on", label_off="off",
-                                 tooltip="Cut the face out of the input for the LLM and the edit reference."),
+                                 tooltip="Not used since 1.22.0 (Face Crop is gone); kept so saved workflows load."),
                 io.Boolean.Input("ai_prompt", default=False, optional=True, label_on="on", label_off="off",
                                  tooltip="On: the LLM rewrites the prompt from the image. Off: the prompt goes in as typed."),
                 io.String.Input("save_to", default="Krea2One", optional=True,
@@ -161,7 +162,7 @@ class FaceProcessing(io.ComfyNode):
                                 tooltip="A loaded .txt (LOAD TXT): prompts split by --- lines or blank lines, an image each. "
                                         "Empty: text. <lora:name:strength> tags work in any prompt."),
                 io.Boolean.Input("manual_crop", default=False, optional=True, label_on="on", label_off="off",
-                                 tooltip="On: the input is turned, cropped and padded as set on its preview, before Face Crop."),
+                                 tooltip="On: the input is turned, cropped and padded as set on its preview."),
                 io.String.Input("crop", default="", optional=True,
                                 tooltip="The preview's crop: JSON {image, angle, box, pad} in pixels, used only for that image."),
                 io.Combo.Input("system_file", options=prompts, default=next(iter(prompts), None), optional=True,
@@ -187,17 +188,17 @@ class FaceProcessing(io.ComfyNode):
 
     @classmethod
     def execute(cls, image, text, seed, steps, sampler_name, scheduler, resolution_source, aspect_ratio,
-                custom_width, custom_height, ref_boost, grounding_px, max_resolution,
-                unet_name, lora_name, clip_name, vae_name, llm_name, face_crop=True, ai_prompt=False, save_to="Krea2One",
-                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", **_):  # **_: the LLM tab's
+                custom_width, custom_height, ref_boost, max_resolution,
+                unet_name, lora_name, clip_name, vae_name, llm_name, ai_prompt=False, save_to="Krea2One",
+                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", **_):
+        # **_: the LLM tab's inputs, and grounding_px and face_crop, which saved workflows still carry
         spec = crop_edit.spec_of(crop, image) if manual_crop else None
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)
         g = GraphBuilder()
-        full = g.node("LoadImage", image=image).out(0)
+        ref = g.node("LoadImage", image=image).out(0)
         if spec:
-            full = g.node("MyNode_CropRotatePad", image=full, crop=json.dumps(spec)).out(0)
-        ref = g.node("MyNode_FaceCrop", image=full).out(0) if face_crop else full
+            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps(spec)).out(0)
 
         model = g.node("UNETLoader", unet_name=unet_name, weight_dtype="default").out(0)
         model = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=1.0).out(0)
@@ -223,7 +224,7 @@ class FaceProcessing(io.ComfyNode):
             if ai_prompt:
                 prompt = _generate(g, llm, ref, prompt, system)
             ru = g.node("MyNode_Translate", text=prompt).out(0)
-            pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=grounding_px).out(0)
+            pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=1024).out(0)
             neg = g.node("ConditioningZeroOut", conditioning=pos).out(0)
             samples = g.node("KSampler", model=own, positive=pos, negative=neg, latent_image=latent, seed=seed,
                              steps=steps, cfg=1.0, sampler_name=sampler_name, scheduler=scheduler, denoise=1.0).out(0)
