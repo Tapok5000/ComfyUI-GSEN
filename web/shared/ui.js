@@ -1,6 +1,7 @@
 // Helpers for nodes whose whole body is a custom DOM face (no LiteGraph title bar, widgets hidden).
 // Exports only: the frontend imports every .js under web/, so nothing here may run on import.
 import { app } from "../../../scripts/app.js"
+import { tree } from "./tree.js"
 
 export const el = (tag, cls, html) => {
   const e = document.createElement(tag)
@@ -26,24 +27,15 @@ const PICK = {
 }
 let closePick = null // one pick list at a time
 
-/**
- * The face's pick list, laid out like a model picker: a search box, then the folder's subfolders (with how many files
- * each holds) and its files; a subfolder opens in place, the row on top goes back up. A list of files sorts by name;
- * any other (samplers, presets, seeds) keeps its order, without icons. It opens on the top folder; current is lit,
- * and so are the folders on its way.
- */
+// the face's pick list, laid out like a model picker: a search box over tree()'s folders and files (tree.js)
 export function menu(e, values, pick, { title = "", current } = {}) {
   closePick?.()
-  const files = values.length > 0 && values.every((v) => /\.\w{1,12}$/.test(v))
-  const byName = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" }).compare
-  const items = values.map((v) => ({ v: String(v), p: files ? String(v).split(/[\\/]/) : [String(v)] }))
-  const cur = current == null ? null : String(current), onPath = files && cur ? cur.split(/[\\/]/) : []
+  const t = tree(values, current)
   const box = el("div", "mn-menu"), find = el("input", "mn-menu-f"), list = el("div", "mn-menu-l")
   find.placeholder = "Search"
   find.spellcheck = false
   list.setAttribute("role", "listbox")
   box.append(txt("div", "mn-menu-h", title), find, list)
-  const inside = (p, path) => p.length > path.length && path.every((x, i) => p[i] === x)
   let at = [], rows = [], act = -1
   let x0 = e.clientX - 10, y0 = e.clientY - 10 // where it opened; a longer folder only lifts it
   const mark = (i, scroll = true) => {
@@ -53,7 +45,7 @@ export function menu(e, values, pick, { title = "", current } = {}) {
     if (scroll) rows[act]?.scrollIntoView({ block: "nearest" })
   }
   const row = (cls, icon, name, run, count) => {
-    const r = el("div", `mn-menu-r ${cls}`, files ? icon : null)
+    const r = el("div", `mn-menu-r ${cls}`, t.files ? icon : null)
     r.setAttribute("role", "option")
     r.append(typeof name === "string" ? txt("span", "n", name) : name)
     if (count != null) r.append(txt("span", "c", String(count)))
@@ -64,36 +56,21 @@ export function menu(e, values, pick, { title = "", current } = {}) {
     at = path
     render()
   }
+  const fileName = ({ name, dirs }) => {
+    if (!dirs.length) return name
+    const n = el("span", "n")
+    n.append(txt("span", "d", `${dirs.join(" › ")} › `), name)
+    return n
+  }
   const render = () => {
-    const q = find.value.toLowerCase().split(/\s+/).filter(Boolean)
-    rows = []
-    if (q.length) {
-      const hits = items.filter(({ v }) => q.every((t) => v.toLowerCase().includes(t)))
-      if (files) hits.sort((a, b) => byName(a.v, b.v))
-      for (const { v, p } of hits) {
-        const name = el("span", "n")
-        if (p.length > 1) name.append(txt("span", "d", `${p.slice(0, -1).join(" › ")} › `))
-        name.append(p.at(-1))
-        rows.push(row(v === cur ? "cur" : "", PICK.file, name, () => choose(v)))
-      }
-    } else {
-      const dirs = new Map(), here = []
-      for (const it of items.filter(({ p }) => inside(p, at))) {
-        if (it.p.length > at.length + 1) dirs.set(it.p[at.length], (dirs.get(it.p[at.length]) ?? 0) + 1)
-        else here.push(it)
-      }
-      if (at.length) rows.push(row("back", PICK.back, at.join(" › "), go(at.slice(0, -1))))
-      const lit = onPath.length > at.length + 1 && inside(onPath, at) ? onPath[at.length] : null
-      for (const [d, n] of [...dirs].sort(([a], [b]) => byName(a, b))) {
-        rows.push(row(d === lit ? "dir cur" : "dir", PICK.dir, d, go([...at, d]), n))
-      }
-      if (files) here.sort((a, b) => byName(a.p.at(-1), b.p.at(-1)))
-      for (const { v, p } of here) rows.push(row(v === cur ? "cur" : "", PICK.file, p.at(-1), () => choose(v)))
-    }
+    const shown = t.view(at, find.value)
+    rows = shown.map((it) => (it.kind === "file"
+      ? row(it.cur ? "cur" : "", PICK.file, fileName(it), () => choose(it.value))
+      : row(it.cur ? "dir cur" : it.kind, PICK[it.kind], it.name, go(it.path), it.count)))
     list.replaceChildren(...(rows.length ? rows : [txt("div", "mn-menu-none", "Nothing found")]))
     list.scrollTop = 0
     act = -1
-    mark(q.length ? 0 : rows.findIndex((r) => r.classList.contains("cur") && !r.classList.contains("dir")))
+    mark(find.value.trim() ? 0 : shown.findIndex((it) => it.kind === "file" && it.cur))
     x0 = Math.max(8, Math.min(x0, innerWidth - box.offsetWidth - 8))
     y0 = Math.max(8, Math.min(y0, innerHeight - box.offsetHeight - 8))
     Object.assign(box.style, { left: `${x0}px`, top: `${y0}px` })
@@ -117,8 +94,10 @@ export function menu(e, values, pick, { title = "", current } = {}) {
       mark(act + (ev.key === "ArrowDown" ? 1 : -1))
     } else if (ev.key === "Enter") rows[act]?.click()
     else if (ev.key === "Escape") close()
+    else if (ev.key === "Tab") ev.preventDefault() // the keys reach the list only through the search box
   }
-  list.onmousedown = (ev) => { ev.preventDefault() } // the search box keeps the focus: the keys go on working
+  // a click anywhere in it, the title too, leaves the focus in the search box, so the keys go on working
+  box.onmousedown = (ev) => { if (ev.target !== find) ev.preventDefault() }
   list.onpointermove = (ev) => {
     const i = rows.indexOf(ev.target.closest?.(".mn-menu-r"))
     if (i >= 0 && i !== act) mark(i, false)
