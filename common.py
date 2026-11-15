@@ -8,6 +8,7 @@ import os
 import re
 import uuid
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from io import BytesIO
 
@@ -129,12 +130,13 @@ def save_images(images, folder, cls, info=None):
 
 
 LLM_PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "llm.html")
+LLM_SIDE = 2048  # the picture beside a prompt only shows what it was written from: 0.3-0.8 MB, not a 2-15 MB PNG
 
 
 def save_llm(text, ru, image, folder):
-    """A prompt written from a picture (Settings → LLM), in a folder of its own in SAVE/<day>/: 001/001_LLM.png (the
-    picture), .txt (the prompt) and .html (the picture and the prompt, EN / RU, laid out like MyNode.svg's page). No
-    folder or no text: not saved."""
+    """A prompt written from a picture (Settings → LLM), in a folder of its own in SAVE/<day>/: 001/001_LLM.jpg (the
+    picture, its long side up to LLM_SIDE), .txt (the prompt) and .html (the picture and the prompt, EN / RU, laid out
+    like MyNode.svg's page). No folder or no text: not saved."""
     folder = folder.strip().strip('"')
     if not folder or not text.strip():
         return None
@@ -143,7 +145,9 @@ def save_llm(text, ru, image, folder):
     n = 1 + max((int(d) for d in os.listdir(day) if d.isdigit()), default=0)
     out, name = os.path.join(day, f"{n:03}"), f"{n:03}_LLM"
     os.makedirs(out)
-    ui.ImageSaveHelper._convert_tensor_to_pil(image[0]).save(os.path.join(out, name + ".png"), compress_level=4)
+    picture = ui.ImageSaveHelper._convert_tensor_to_pil(image[0]).convert("RGB")
+    picture.thumbnail((LLM_SIDE, LLM_SIDE))  # never enlarges
+    picture.save(os.path.join(out, name + ".jpg"), quality=92, optimize=True)
     with open(LLM_PAGE, encoding="utf-8") as f:
         page = f.read()
     for key, value in (("{{name}}", name), ("{{en}}", html.escape(text.strip())), ("{{ru}}", html.escape(ru.strip()))):
@@ -209,17 +213,18 @@ async def _result(request):
     return web.FileResponse(path)
 
 
-# the LLM tab's result in its SAVE (save_llm): 2026-11-15/001/001_LLM.png, .txt and .html
-LLM_FILE = re.compile(r"\d{4}-\d{2}-\d{2}/(\d{3,})/\1_LLM\.(?:png|txt|html)")
+# the LLM tab's result in its SAVE (save_llm): 2026-11-15/001/001_LLM.jpg (.png before 1.24.0), .txt and .html
+LLM_FILE = re.compile(r"\d{4}-\d{2}-\d{2}/(\d{3,})/\1_LLM\.(?:jpg|png|txt|html)")
 
 
 def saved_files(save, llm):
     """What Krea2 One saved in SAVE and what its LLM tab wrote in its own SAVE: [(path, name in the zip)], each under its
-    folder's name. Only those files: a zip of whatever folder a request names would hand over anything in it."""
+    folder's name; a result's name there is .jpg (pack). Only those files: a zip of whatever folder a request names
+    would hand over anything in it."""
     out = {}
     if path := results_dir(save):
         for _, name in results(path):
-            out[os.path.join(path, name)] = f"{os.path.basename(path)}/{name}"
+            out[os.path.join(path, name)] = f"{os.path.basename(path)}/{os.path.splitext(name)[0]}.jpg"
     if path := results_dir(llm):
         for root, _, names in os.walk(path):
             for n in names:
@@ -229,20 +234,43 @@ def saved_files(save, llm):
     return sorted(out.items(), key=lambda f: f[1])
 
 
+def _jpeg(path):
+    """A result as JPEG 95 without chroma subsampling: a fifth of its PNG and the same to the eye (PSNR ~45 dB on
+    Krea2 One's 2048x3072), but without the workflow inside. The PNG is lossless already: a zip saves under 3% of it."""
+    buf = BytesIO()
+    with Image.open(path) as im:
+        im.convert("RGB").save(buf, "JPEG", quality=95, subsampling=0, optimize=True)
+    return buf.getvalue()
+
+
 def pack(files, path):
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as z:  # the PNGs are compressed already
-        for full, name in files:
-            z.write(full, name)
+    """saved_files into a zip: each result's PNG as JPEG (_jpeg; the PNG in SAVE stays), the LLM tab's files as they are."""
+    def jpeg(file):
+        full, name = file
+        if not (full.endswith(".png") and name.endswith(".jpg")):
+            return name, None
+        try:
+            return name, _jpeg(full)
+        except OSError:  # a result still being saved, or a broken one, goes in as it is: the zip itself must not fail
+            return os.path.splitext(name)[0] + ".png", None
+
+    # the PNGs decode side by side (JPEG encoding holds the GIL, more threads gain nothing): 350 results in ~45 s, not ~85
+    with ThreadPoolExecutor(4) as pool, zipfile.ZipFile(path, "w") as z:
+        for (full, _), (name, data) in zip(files, pool.map(jpeg, files), strict=True):
+            if data is None:
+                z.write(full, name)
+            else:
+                z.writestr(zipfile.ZipInfo.from_file(full, name), data)  # dated as the result, not as the zip
 
 
 @PromptServer.instance.routes.get("/mynode/zip")
 async def _zip(request):
-    """Settings → Save → zip: saved_files as one .zip download. check=1: only how many files and bytes, so the face can say
-    so first. Packed into ComfyUI's temp folder, then sent with its length (the browser shows how far), then deleted."""
+    """Settings → Save → zip: saved_files as one .zip download. check=1: only how many files, so the face can say so first.
+    Packed into ComfyUI's temp folder, then sent with its length (the browser shows how far), then deleted."""
     q = request.query
     files = await asyncio.to_thread(saved_files, q.get("save", ""), q.get("llm", ""))
     if q.get("check"):
-        return web.json_response({"files": len(files), "bytes": sum(os.path.getsize(f) for f, _ in files)})
+        return web.json_response({"files": len(files)})
     if not files:
         return web.Response(status=404)
     tmp = os.path.join(folder_paths.get_temp_directory(), f"gsen_{uuid.uuid4().hex}.zip")

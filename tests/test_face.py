@@ -322,12 +322,17 @@ def test_gallery():
         assert ask(common._result, folder="..", name=f"{DAY}/ID_2.png").status == 404
         first = common.save_llm(" a <red> & blue prompt\n", "красный", img, "R")  # a folder of its own: picture, text, page
         assert first.endswith(os.path.join("R", DAY, "001"))
-        assert sorted(os.listdir(first)) == ["001_LLM.html", "001_LLM.png", "001_LLM.txt"]
+        assert sorted(os.listdir(first)) == ["001_LLM.html", "001_LLM.jpg", "001_LLM.txt"]
         page = Path(first, "001_LLM.html").read_text(encoding="utf-8")
-        assert '<div class="text en">a &lt;red&gt; &amp; blue prompt</div>' in page and 'src="001_LLM.png"' in page
+        assert '<div class="text en">a &lt;red&gt; &amp; blue prompt</div>' in page and 'src="001_LLM.jpg"' in page
         assert '<div class="text ru">красный</div>' in page  # the page's EN / RU switch shows one of them
         assert Path(first, "001_LLM.txt").read_text(encoding="utf-8") == " a <red> & blue prompt\n"
         assert common.save_llm("again", "", img, "R").endswith("002")
+        wide = common.save_llm("wide", "", torch.rand(1, 10, 2100, 3), "R")  # past LLM_SIDE it comes down to it
+        with Image.open(Path(wide, "003_LLM.jpg")) as im:
+            assert (im.format, max(im.size)) == ("JPEG", common.LLM_SIDE)
+        with Image.open(Path(first, "001_LLM.jpg")) as im:
+            assert im.size == (8, 8)  # a small one is never enlarged
         assert common.save_llm("not saved", "", img, "") is None
         assert common.save_llm(" \n", "", img, "R") is None  # the LLM wrote nothing: the face says "no prompt", nothing saved
     (show,) = inputs_of(expand(seed=5), "MyNode_Show")
@@ -433,22 +438,34 @@ def test_zip():
         folder_paths.set_output_directory(os.path.join(d, "out"))
         made = {"Krea2One": ["2026-11-15/ID_1.png", "2026-11-15/ID_2.png", "ID_7.png", "2026-11-15/notes.txt", "secret.txt"],
                 "IMGtext": ["2026-11-15/001/001_LLM.png", "2026-11-15/001/001_LLM.txt", "2026-11-15/001/001_LLM.html",
-                            "2026-11-15/001/other.txt", "2026-11-15/002/001_LLM.txt"]}
+                            "2026-11-15/001/other.txt", "2026-11-15/002/001_LLM.txt", "2026-11-16/001/001_LLM.jpg"]}
         for folder, names in made.items():
             for name in names:
-                Path(d, "out", folder, name).parent.mkdir(parents=True, exist_ok=True)
-                Path(d, "out", folder, name).write_bytes(b"xy")
+                path = Path(d, "out", folder, name)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if name.endswith(".png"):
+                    Image.new("RGB", (4, 4), "red").save(path)
+                else:
+                    path.write_bytes(b"xy")
+        Path(d, "out", "Krea2One", "2026-11-15", "ID_3.png").write_bytes(b"cut")  # being saved right now, or broken
         try:
             files = common.saved_files("Krea2One", "IMGtext")
             want = [f"IMGtext/2026-11-15/001/001_LLM.{ext}" for ext in ("html", "png", "txt")] + [
-                "Krea2One/2026-11-15/ID_1.png", "Krea2One/2026-11-15/ID_2.png", "Krea2One/ID_7.png"]
+                "IMGtext/2026-11-16/001/001_LLM.jpg", "Krea2One/2026-11-15/ID_1.jpg", "Krea2One/2026-11-15/ID_2.jpg",
+                "Krea2One/2026-11-15/ID_3.jpg", "Krea2One/ID_7.jpg"]
             assert [n for _, n in files] == want  # only what GSEN made: the notes and the stray files stay out
             assert common.saved_files("..", "../..") == []  # a relative SAVE stays inside output
-            assert json.loads(ask(common._zip, save="Krea2One", llm="IMGtext", check="1").text) == {"files": 6, "bytes": 12}
+            assert json.loads(ask(common._zip, save="Krea2One", llm="IMGtext", check="1").text) == {"files": 8}
             assert ask(common._zip, save="", llm="").status == 404
             common.pack(files, os.path.join(d, "a.zip"))
             with zipfile.ZipFile(os.path.join(d, "a.zip")) as z:
-                assert sorted(z.namelist()) == want and z.read("Krea2One/ID_7.png") == b"xy"
+                assert sorted(z.namelist()) == sorted(n.replace("ID_3.jpg", "ID_3.png") for n in want)
+                assert z.read("Krea2One/2026-11-15/ID_3.png") == b"cut"  # it goes in as it is, the rest is packed
+                with Image.open(BytesIO(z.read("Krea2One/ID_7.jpg"))) as im:  # a result goes in as JPEG
+                    assert im.format == "JPEG" and im.getpixel((1, 1))[0] > 240
+                old_llm = Path(d, "out", "IMGtext", "2026-11-15", "001", "001_LLM.png").read_bytes()
+                assert z.read("IMGtext/2026-11-15/001/001_LLM.png") == old_llm  # the LLM tab's files as they are
+                assert z.read("IMGtext/2026-11-16/001/001_LLM.jpg") == z.read("IMGtext/2026-11-15/001/001_LLM.txt") == b"xy"
         finally:
             folder_paths.set_output_directory(real)
     pack = importlib.import_module("custom_nodes.ComfyUI-GSEN")

@@ -512,7 +512,7 @@ function build(node) {
     const r = await api.fetchApi(`/mynode/zip?${q}&check=1`).then((x) => x.json()).catch(() => null)
     if (!r) return toast("No answer from ComfyUI.", "error")
     if (!r.files) return toast("Nothing saved yet in SAVE or the LLM tab's SAVE.", "warn")
-    toast(`Packing ${r.files} files, ${gb(r.bytes)}: the download starts once they are in.`)
+    toast(`Packing ${r.files} files, the pictures as JPEG: the download starts once they are in.`)
     const a = el("a")
     a.href = api.apiURL(`/mynode/zip?${q}`)
     a.download = ""
