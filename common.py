@@ -1,6 +1,7 @@
 """Pack-wide pieces, shared by every node: the image galleries' and sounds' HTTP routes, result saving, the expansion output."""
 import asyncio
 import functools
+import html
 import json
 import os
 import re
@@ -124,16 +125,27 @@ def save_images(images, folder, cls, info=None):
     return [{"filename": file, "subfolder": sub, "type": "output", "mn_id": first + i} for i, file in enumerate(files)]
 
 
-def save_text(text, folder, prefix):
-    """text as a numbered .txt in SAVE/<day>/; an empty folder or text is not saved. Returns the path."""
+LLM_PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "llm.html")
+
+
+def save_llm(text, image, folder):
+    """A prompt written from a picture (Settings → LLM), in a folder of its own in SAVE/<day>/: 001/001_LLM.png (the
+    picture), .txt (the prompt) and .html (both, laid out like MyNode.svg's page). No folder or no text: not saved."""
     folder = folder.strip().strip('"')
     if not folder or not text.strip():
         return None
-    full, name, counter, _, _ = _save_path(folder, prefix)
-    path = os.path.join(full, f"{name}_{counter:05}_.txt")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(text)
-    return path
+    day = _save_path(folder, "LLM")[0]  # the day folder, inside output when SAVE is relative
+    os.makedirs(day, exist_ok=True)
+    n = 1 + max((int(d) for d in os.listdir(day) if d.isdigit()), default=0)
+    out, name = os.path.join(day, f"{n:03}"), f"{n:03}_LLM"
+    os.makedirs(out)
+    ui.ImageSaveHelper._convert_tensor_to_pil(image[0]).save(os.path.join(out, name + ".png"), compress_level=4)
+    with open(LLM_PAGE, encoding="utf-8") as f:
+        page = f.read().replace("{{name}}", name).replace("{{text}}", html.escape(text.strip()))
+    for ext, body in ((".txt", text), (".html", page)):
+        with open(os.path.join(out, name + ext), "w", encoding="utf-8") as f:
+            f.write(body)
+    return out
 
 
 def results_dir(folder):

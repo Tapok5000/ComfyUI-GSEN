@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 from comfy_api.latest import io
 
-from ..common import save_images, save_text
+from ..common import save_images, save_llm
 from . import crop_edit, faces, krea2_edit
 
 
@@ -136,15 +136,17 @@ class Show(io.ComfyNode):
 
 
 class LLMText(io.ComfyNode):
-    """Settings → LLM's result: the text on the node, and a numbered .txt in SAVE."""
+    """Settings → LLM's result: the text on the node, and in SAVE a numbered folder with the picture, the text and a
+    page of both (common.save_llm)."""
 
     @classmethod
     def define_schema(cls):
         return io.Schema(node_id="MyNode_LLMText", category="🟩 GSEN", is_output_node=True, is_dev_only=True,
-                         inputs=[io.String.Input("text", force_input=True), io.String.Input("save_to", default="")],
+                         inputs=[io.String.Input("text", force_input=True), io.Image.Input("image"),
+                                 io.String.Input("save_to", default="")],
                          outputs=[])
 
     @classmethod
-    def execute(cls, text, save_to=""):
-        save_text(text, save_to, "LLM")
+    def execute(cls, text, image, save_to=""):
+        save_llm(text, image, save_to)
         return io.NodeOutput(ui={"mn_llm": [text]})

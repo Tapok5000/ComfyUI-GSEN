@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{name}}</title>
+<style>
+/* a prompt written from a picture, laid out like MyNode.svg's 1920 x 1080 page; the page scales to the window */
+html,body{margin:0;height:100%;overflow:hidden;background:#2a2a2a}
+.page{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;font-family:Arial,Helvetica,sans-serif}
+.page i{position:absolute;box-sizing:border-box;border:0 solid #b2d51e}
+.c{width:50px;height:50px}
+.c.tl{left:0;top:0;border-width:5.38px 0 0 5.38px}
+.c.tr{right:0;top:0;border-width:5.38px 5.38px 0 0}
+.c.bl{left:0;bottom:0;border-width:0 0 5.38px 5.38px}
+.c.br{right:0;bottom:0;border-width:0 5.38px 5.38px 0}
+.frame{position:absolute;left:368.4px;top:96.5px;width:581px;height:848.7px;background:#000}
+.frame img{position:absolute;left:44.9px;top:44.9px;width:491.2px;height:758.9px;object-fit:contain}
+.f{width:17.8px;height:17.8px}
+.f.tl{left:9.4px;top:16.1px;border-width:1.91px 0 0 1.91px}
+.f.tr{right:10.2px;top:16.1px;border-width:1.91px 1.91px 0 0}
+.f.bl{left:9.4px;bottom:17.2px;border-width:0 0 1.91px 1.91px}
+.f.br{right:10.2px;bottom:17.2px;border-width:0 1.91px 1.91px 0}
+.text{position:absolute;left:1026.2px;top:125px;width:525px;max-height:820px;overflow-y:auto;color:#d0d0d0;font-size:22.3px;line-height:27.92px;white-space:pre-wrap;overflow-wrap:break-word;scrollbar-width:thin;scrollbar-color:#454545 #2a2a2a}
+</style>
+</head>
+<body>
+<div class="page">
+<i class="c tl"></i><i class="c tr"></i><i class="c bl"></i><i class="c br"></i>
+<div class="frame"><img src="{{name}}.png" alt=""><i class="f tl"></i><i class="f tr"></i><i class="f bl"></i><i class="f br"></i></div>
+<div class="text">{{text}}</div>
+</div>
+<script>
+const page = document.querySelector(".page")
+const fit = () => {
+  const k = Math.min(innerWidth / 1920, innerHeight / 1080)
+  page.style.transform = `scale(${k})`
+  page.style.left = (innerWidth - 1920 * k) / 2 + "px"
+  page.style.top = (innerHeight - 1080 * k) / 2 + "px"
+}
+addEventListener("resize", fit)
+fit()
+</script>
+</body>
+</html>

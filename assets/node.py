@@ -239,7 +239,7 @@ class FaceProcessing(io.ComfyNode):
 
 class LLMPrompt(io.ComfyNode):
     """Settings → LLM: the AI step alone. A picture and a picture → prompt system prompt (assets/prompts/img_to_text) in;
-    the prompt the LLM writes is shown on the node and saved as a .txt in its SAVE (parts.LLMText). The face queues it
+    the prompt the LLM writes is shown on the node and saved with the picture in its SAVE (parts.LLMText). The face queues it
     on its own, outside the workflow."""
 
     @classmethod
@@ -264,5 +264,5 @@ class LLMPrompt(io.ComfyNode):
         picture = g.node("LoadImage", image=image).out(0)
         llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0)
         text = _generate(g, llm, picture, "", _system_path(system_file, IMG_TO_TEXT).read_text(encoding="utf-8"))
-        g.node("MyNode_LLMText", text=text, save_to=save_to)
+        g.node("MyNode_LLMText", text=text, image=picture, save_to=save_to)
         return Expansion(expand=g.finalize())
