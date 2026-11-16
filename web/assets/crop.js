@@ -1,7 +1,8 @@
 // Krea2 One's Crop, edited on its input preview: turn, crop box, padding. Same model as ausboss Image Crop + Rotate +
 // Pad, and assets/crop_edit.py applies it: the picture turns clockwise on a canvas grown to fit, the box is cut from
 // that canvas, the padding is gray. Saved as {angle, box: [x, y, w, h], pad: [left, top, right, bottom], ratio} in
-// pixels; ratio is the preset the box keeps, for the preview only. The box's handles and the presets are Windows Photos'.
+// pixels; ratio is the preset the box keeps, for the preview only. The handles, the presets, the wheel and the view
+// (the frame fills the editor, the picture moves under it) are Windows Photos'.
 const LIME = "#c7f400", INK = "#070a10"
 const CW = 306, CH = 447 // face.css .mn-pbox
 const ROOM = 30 // around the picture for the handles and the turn knob
@@ -56,12 +57,21 @@ export function resizeLocked([x, y, w, h], d, dx, dy, r, cw, ch) {
   return [ns ? clamp(x + (w - nw) / 2, 0, cw - nw) : e ? ax : ax - nw, ew ? clamp(y + (h - nh) / 2, 0, ch - nh) : s ? ay : ay - nh, nw, nh]
 }
 
+/** The box after the wheel: f times its size about the picture point px, py (taken inside it), which so stays under
+ *  the pointer; its ratio kept, no bigger than the canvas, no side under MIN. */
+export function zoomAt([x, y, w, h], px, py, f, cw, ch) {
+  f = clamp(f, Math.max(MIN / w, MIN / h), Math.min(cw / w, ch / h))
+  px = clamp(px, x, x + w)
+  py = clamp(py, y, y + h)
+  return [clamp(px - (px - x) * f, 0, cw - w * f), clamp(py - (py - y) * f, 0, ch - h * f), w * f, h * f].map(Math.round)
+}
+
 /** img: the shown input; read(): its saved crop or null; write(crop) saves one. */
 export function cropEditor(img, read, write) {
   const canvas = document.createElement("canvas"), label = document.createElement("div"), ctx = canvas.getContext("2d")
   canvas.className = "mn-cropcv"
   label.className = "mn-croplbl"
-  let s = null, view = null, drag = null
+  let s = null, view = null, drag = null, tween = 0, settle = false
 
   const aspect = () => aspectOf(s.ratio, s.W, s.H, s.angle)
   const fitBox = () => { s.box = fitIn(s.box, s.cw, s.ch, aspect()) }
@@ -74,10 +84,10 @@ export function cropEditor(img, read, write) {
     fitBox()
   }
   const save = () => write({ angle: s.angle, box: s.box, pad: s.pad, ratio: s.ratio })
-  // where the turned picture's centre sits on screen and how big a picture pixel is; held still while dragging
+  // where the turned picture's centre sits on screen and how big a picture pixel is. As in Windows the frame (box and
+  // padding) fills the editor and the picture is zoomed and moved under it; a handle's drag holds the view still
   const fit = () => {
-    const [x, y, w, h] = s.box, [l, t, r, b] = s.pad
-    const x0 = Math.min(0, x - l), y0 = Math.min(0, y - t), x1 = Math.max(s.cw, x + w + r), y1 = Math.max(s.ch, y + h + b)
+    const [x, y, w, h] = s.box, [l, t, r, b] = s.pad, x0 = x - l, y0 = y - t, x1 = x + w + r, y1 = y + h + b
     const k = Math.min((CW - 2 * ROOM) / (x1 - x0), (CH - 2 * ROOM) / (y1 - y0))
     return { k, cx: CW / 2 + (s.cw / 2 - (x0 + x1) / 2) * k, cy: CH / 2 + (s.ch / 2 - (y0 + y1) / 2) * k }
   }
@@ -127,8 +137,8 @@ export function cropEditor(img, read, write) {
       s.box[1] += (s.ch - s0.ch) / 2
       if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // Original turns with the picture
     } else if (h.kind === "move") {
-      s.box[0] += dx
-      s.box[1] += dy
+      s.box[0] -= dx // the picture goes with the pointer, the frame stays
+      s.box[1] -= dy
     } else if (h.kind === "box" && aspect()) {
       s.box = resizeLocked(s0.box, h.d, dx, dy, aspect(), s.cw, s.ch)
     } else if (h.kind === "box") {
@@ -143,6 +153,7 @@ export function cropEditor(img, read, write) {
       s.pad[SIDES[h.d]] = Math.max(0, Math.round(s0.pad[SIDES[h.d]] + out[h.d]))
     }
     fitBox()
+    if (h.kind === "move") view = fit()
   }
 
   const diamond = (x, y) => {
@@ -276,9 +287,28 @@ export function cropEditor(img, read, write) {
     if (!h) return
     e.preventDefault()
     e.stopPropagation()
+    cancelAnimationFrame(tween) // the view stops where it is shown
     canvas.setPointerCapture(e.pointerId)
     drag = { h, p0: local(e), s0: structuredClone(s) }
   })
+  // the wheel zooms the picture under the frame about the pointer, as Windows does; Ctrl and sideways stay the graph's.
+  // Nodes 2.0 (its nodes carry data-node-id) gives the wheel to the graph unless a [data-capture-wheel] element holds
+  // the focus: taken on hover there, but not from a field being typed in
+  canvas.dataset.captureWheel = "true"
+  canvas.tabIndex = -1
+  canvas.addEventListener("pointerenter", () => {
+    const typing = document.activeElement?.matches("input, textarea, [contenteditable=true]")
+    if (canvas.closest("[data-node-id]") && !typing) canvas.focus({ preventScroll: true })
+  })
+  canvas.addEventListener("wheel", (e) => {
+    if (!s || drag || e.ctrlKey || e.metaKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+    e.preventDefault()
+    e.stopPropagation()
+    const [mx, my] = local(e), f = Math.exp((e.deltaMode === 1 ? 33 : 1) * e.deltaY * 0.0015) // a notch ±15%
+    s.box = zoomAt(s.box, s.cw / 2 + (mx - view.cx) / view.k, s.ch / 2 + (my - view.cy) / view.k, f, s.cw, s.ch)
+    if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // rounding w and h apart must not walk it off
+    save()
+  }, { passive: false })
   canvas.addEventListener("pointermove", (e) => {
     if (drag) {
       move(local(e), e.shiftKey)
@@ -291,6 +321,7 @@ export function cropEditor(img, read, write) {
   const end = () => {
     if (!drag) return
     const changed = JSON.stringify(drag.s0) !== JSON.stringify(s)
+    settle = drag.h.kind !== "move" // a handle let go: the view glides to the new frame, as in Windows
     drag = null
     if (changed) save()
     else draw()
@@ -301,8 +332,19 @@ export function cropEditor(img, read, write) {
   function draw() {
     if (drag) return
     load()
-    if (s) view = fit()
-    paint()
+    cancelAnimationFrame(tween)
+    const from = settle && s && view, to = s && fit()
+    settle = false
+    view = to || view
+    if (!from) return paint()
+    const t0 = performance.now()
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / 180), e = 1 - (1 - t) ** 3
+      view = { k: from.k + (to.k - from.k) * e, cx: from.cx + (to.cx - from.cx) * e, cy: from.cy + (to.cy - from.cy) * e }
+      paint()
+      if (t < 1) tween = requestAnimationFrame(step)
+    }
+    tween = requestAnimationFrame(step)
   }
   return { canvas, label, draw, choose, preset: () => s?.ratio }
 }
