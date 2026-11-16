@@ -82,12 +82,17 @@ function build(node) {
   fval.onclick = (e) => {
     menu(e, PRESETS.map(([, n]) => n), (n) => ed.choose(PRESETS.find(([, x]) => x === n)[0]), { title: "Format", current: nameOf(ed.preset()) })
   }
+  // Mask and its preview, where MyNode.svg has them: on, everything outside the face oval comes out gray
+  const maskB = txt("div", "mn-ftmask", "Mask"), mini = el("div", "mn-ftmini"), miniCv = el("canvas")
+  maskB.title = "Gray outside the face oval: Format ⛶ Face 1:1 or ⛶ Face 2:3"
+  maskB.onclick = () => { set("mask", !W("mask").value) }
+  mini.append(miniCv)
   pBox.append(ed.canvas)
-  prev.append(pBox, la, ra, ed.label, reset, fmt)
+  prev.append(pBox, la, ra, ed.label, reset, fmt, maskB, mini)
   left.append(pick, up, file, prev)
   pImg.onload = () => refresh()
 
-  // the result, with Mask (gray outside the face oval) and a Run of this node alone
+  // the result and a Run of this node alone
   const right = el("div", "mn-ftres"), frame = el("div", "mn-ftframe"), res = el("img"), rDims = el("div", "mn-ftdims")
   const run = txt("div", "mn-run mn-ftrun", "Run")
   run.title = "Run this node"
@@ -95,14 +100,9 @@ function build(node) {
     app.canvas.selectNode(node) // the command queues the selected output nodes, so: only this one
     app.extensionManager.command.execute("Comfy.QueueSelectedOutputNodes")
   }
-  const mk = el("div", "mn-row c tog mn-ftmask"), mv = el("div", "v"), mt = el("span")
-  mk.title = "Gray outside the face oval: Format Face 1:1 or Face 2:3"
-  mv.append(mt, el("div", "mn-dot"))
-  mk.append(txt("div", "k", "Mask"), mv)
-  mk.onclick = () => { set("mask", !W("mask").value) }
-  mk.dataset.click = run.dataset.click = ""
+  run.dataset.click = ""
   frame.append(res)
-  right.append(mk, run, frame, rDims)
+  right.append(run, frame, rDims)
   res.onload = () => { rDims.textContent = `${res.naturalWidth} × ${res.naturalHeight}` }
   node.onExecuted = (out) => {
     const im = out?.mn_images?.[0]
@@ -121,8 +121,9 @@ function build(node) {
     }
     ed.draw()
     fval.textContent = nameOf(ed.preset())
-    mt.textContent = W("mask")?.value ? "on" : "off"
-    mk.classList.toggle("on", !!W("mask")?.value)
+    maskB.classList.toggle("on", !!W("mask")?.value)
+    miniCv.hidden = !(W("mask")?.value && String(ed.preset()).startsWith("face")) // a mask is there only with a face
+    if (!miniCv.hidden) ed.mini(miniCv, true)
   }
   node._ft = refresh
 

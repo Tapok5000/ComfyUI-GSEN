@@ -2,22 +2,33 @@
 // Pad, and assets/crop_edit.py applies it: the picture turns clockwise on a canvas grown to fit, the box is cut from
 // that canvas, the padding is gray. Saved as {angle, box: [x, y, w, h], pad: [left, top, right, bottom], ratio} in
 // pixels; ratio is the preset the box keeps, for the preview only. The handles, the presets, the wheel and the view
-// (the frame fills the editor, the picture moves under it) are Windows Photos'.
+// (the frame fills the editor, the picture moves under it) are Windows Photos'; Alt turns the picture.
 const LIME = "#c7f400", INK = "#070a10"
 const CW = 306, CH = 447 // face.css .mn-pbox
-const ROOM = 30 // around the picture for the handles and the turn knob
+const ROOM = 20 // around the frame for the padding handles
 const OUT = 12 // padding handles sit this far outside the frame, clear of the box handles
 const GRAB = 10, MIN = 16, Q = 2 // grab radius, smallest box side in picture pixels, canvas supersampling
 const SIDES = { w: 0, n: 1, e: 2, s: 3 }
 const CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize" }
-// Windows Photos' ratios, then MyNode.svg's face templates ("1 1", "2:3"): the oval's middle and half axes in box parts
-export const PRESETS = [["free", "Free"], ["orig", "Original"], ["1:1", "Square"],
-  ...["9:16", "16:9", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "5:7", "7:5", "1:2", "2:1"].map((k) => [k, k]),
-  ["face 1:1", "Face 1:1"], ["face 2:3", "Face 2:3"]]
+// MyNode.svg's face templates ("1 1", "2:3") first, then Windows Photos' ratios; OVAL: the oval's middle and half axes
+// in box parts
+export const PRESETS = [["face 1:1", "⛶ Face 1:1"], ["face 2:3", "⛶ Face 2:3"], ["free", "Free"], ["orig", "Original"],
+  ["1:1", "Square"], ...["9:16", "16:9", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "5:7", "7:5", "1:2", "2:1"].map((k) => [k, k])]
 const OVAL = { "face 1:1": [0.5, 0.4358, 0.2467, 0.3026], "face 2:3": [0.5, 0.3861, 0.2962, 0.2927] }
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
-const ratio = (w, h) => (w > h ? `${(w / h).toFixed(2)}:1` : `1:${(h / w).toFixed(2)}`)
+
+/** A box's shape as a format: the nearest a:b with both at most 16, so 1306×1959 is 2:3 and 1.12:1 is 9:8. */
+export function ratioName(w, h) {
+  let best = "1:1", err = Infinity
+  for (let b = 1; b <= 16; b++) {
+    for (let a = 1; a <= 16; a++) {
+      const e = Math.abs(Math.log((a * h) / (b * w)))
+      if (e < err - 1e-9) [best, err] = [`${a}:${b}`, e] // the first of equal ones has the smallest terms
+    }
+  }
+  return best
+}
 
 /** The canvas PIL's rotate(expand=True) makes for a w x h picture turned by deg (crop_edit.py asks PIL itself). */
 export function turnedSize(w, h, deg) {
@@ -103,7 +114,6 @@ export function cropEditor(img, read, write, signal) {
     const { box: [a0, b0, a1, b1], frame: [f0, g0, f1, g1] } = rects(), fm = (f0 + f1) / 2, gm = (g0 + g1) / 2
     const am = (a0 + a1) / 2, bm = (b0 + b1) / 2
     return [
-      { kind: "turn", x: clamp(f1 + 28, 12, CW - 12), y: clamp(g0 - 28, 12, CH - 12) },
       ...[["w", f0 - OUT, gm], ["e", f1 + OUT, gm], ["n", fm, g0 - OUT], ["s", fm, g1 + OUT]]
         .map(([d, x, y]) => ({ kind: "pad", d, x, y })),
       // the side bars too, so the nearest wins over the padding diamond 12 px out
@@ -126,6 +136,18 @@ export function cropEditor(img, read, write, signal) {
     return d ? { kind: "box", d } : spanX && spanY ? { kind: "move" } : null
   }
 
+  // the picture turned to angle (wrapped to ±180°): its canvas grows to fit, the box keeps its place against the
+  // picture's centre, and Original turns with it
+  const turnTo = (angle) => {
+    const [cw, ch] = [s.cw, s.ch]
+    s.angle = Math.round((((angle + 540) % 360) - 180) * 10) / 10
+    ;[s.cw, s.ch] = turnedSize(s.W, s.H, s.angle)
+    s.box[0] += (s.cw - cw) / 2
+    s.box[1] += (s.ch - ch) / 2
+    if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch)
+    fitBox()
+  }
+
   const move = (p, shift) => {
     const { h, p0, s0 } = drag, dx = (p[0] - p0[0]) / view.k, dy = (p[1] - p0[1]) / view.k
     s = structuredClone(s0)
@@ -134,11 +156,7 @@ export function cropEditor(img, read, write, signal) {
       let a = ((s0.angle + (turned * 180) / Math.PI + 540) % 360) - 180
       const step = shift ? 15 : 90 // Shift: 15° steps; otherwise only a right angle within 2° pulls it in
       if (shift || Math.abs(a - Math.round(a / step) * step) < 2) a = Math.round(a / step) * step
-      s.angle = Math.round(a * 10) / 10
-      ;[s.cw, s.ch] = turnedSize(s.W, s.H, s.angle)
-      s.box[0] += (s.cw - s0.cw) / 2 // the box keeps its place against the picture's centre
-      s.box[1] += (s.ch - s0.ch) / 2
-      if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // Original turns with the picture
+      turnTo(a)
     } else if (h.kind === "move") {
       s.box[0] -= dx // the picture goes with the pointer, the frame stays
       s.box[1] -= dy
@@ -173,9 +191,8 @@ export function cropEditor(img, read, write, signal) {
     if (!s) return
     const [, , w, h] = s.box, [l, t, r, b] = s.pad
     const oval = OVAL[s.ratio], sc = oval ? Math.min(s.oval, ovalMax(oval)) : 1
-    const free = s.ratio.includes(":") ? "" : ` · ${ratio(w, h)}` // a preset's ratio is on the Format pill
-    const sized = sc === 1 ? "" : ` · oval ${Math.round(sc * 100)}%` // to give the next picture the same face size
-    label.textContent = `crop ${w}×${h}${free}${sized}${l + t + r + b ? ` → ${w + l + r}×${h + t + b}` : ""}`
+    const free = s.ratio.includes(":") ? "" : ` · ${ratioName(w, h)}` // a preset's ratio is on the Format pill
+    label.textContent = `crop ${w}×${h}${free}${l + t + r + b ? ` → ${w + l + r}×${h + t + b}` : ""}`
     ctx.setTransform(Q, 0, 0, Q, 0, 0)
     const { box: [a0, b0, a1, b1], frame: [f0, g0, f1, g1] } = rects(), bw = a1 - a0, bh = b1 - b0
     const pw = s.W * view.k, ph = s.H * view.k
@@ -246,33 +263,50 @@ export function cropEditor(img, read, write, signal) {
     }
     ctx.lineWidth = 3
     ctx.stroke()
-    const [knob, ...rest] = handles()
     ctx.lineWidth = 1
     ctx.fillStyle = LIME
     ctx.strokeStyle = INK
-    for (const { kind, x, y } of rest) {
+    for (const { kind, x, y } of handles()) {
       if (kind !== "pad") continue
       ctx.beginPath()
       diamond(x, y)
       ctx.fill()
       ctx.stroke()
     }
-    ctx.strokeStyle = LIME
-    ctx.beginPath()
-    ctx.moveTo(f1 + 1.5, g0 - 1.5)
-    ctx.lineTo(knob.x, knob.y)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.arc(knob.x, knob.y, 10, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.fillStyle = INK
-    ctx.font = "bold 13px Arial"
-    ctx.textAlign = "center"
-    ctx.textBaseline = "middle"
-    ctx.fillText("↻", knob.x, knob.y + 1)
     if (drag?.h.kind !== "turn") return
-    ctx.fillStyle = LIME
-    ctx.fillText(`${s.angle.toFixed(1)}°`, clamp(knob.x, 24, CW - 24), knob.y + (knob.y < 40 ? 24 : -20))
+    ctx.font = "bold 13px Arial" // the angle while Alt+drag turns the picture; top left, clear of the top diamond
+    ctx.fillText(`${s.angle.toFixed(1)}°`, 4, 13)
+  }
+
+  /** The crop as it comes out, small, into a canvas: the picture in its box, gray past it, and with mask the gray
+   *  outside the face oval too (facetest's preview; what Python's crop_edit.apply and the mask give). */
+  const mini = (out, mask) => {
+    const c = out.getContext("2d")
+    out.width = out.clientWidth * Q
+    out.height = out.clientHeight * Q
+    if (!s) return
+    const [x, y, w, h] = s.box, [l, t, r, b] = s.pad, k = Math.min(out.width / (w + l + r), out.height / (h + t + b))
+    c.translate((out.width - (w + l + r) * k) / 2, (out.height - (h + t + b) * k) / 2)
+    c.scale(k, k)
+    c.fillStyle = "rgb(128,128,128)" // crop_edit.GRAY
+    c.fillRect(0, 0, w + l + r, h + t + b)
+    c.save()
+    c.translate(l - x, t - y)
+    c.beginPath()
+    c.rect(x, y, w, h)
+    c.clip()
+    c.translate(s.cw / 2, s.ch / 2)
+    c.rotate((s.angle * Math.PI) / 180)
+    c.drawImage(img, -s.W / 2, -s.H / 2, s.W, s.H)
+    c.restore()
+    const oval = mask && OVAL[s.ratio]
+    if (!oval) return
+    const sc = Math.min(s.oval, ovalMax(oval))
+    c.beginPath()
+    c.rect(l, t, w, h)
+    c.moveTo(l + (oval[0] + oval[2] * sc) * w, t + oval[1] * h)
+    c.ellipse(l + oval[0] * w, t + oval[1] * h, oval[2] * w * sc, oval[3] * h * sc, 0, 0, Math.PI * 2)
+    c.fill("evenodd")
   }
 
   const choose = (key) => {
@@ -288,7 +322,7 @@ export function cropEditor(img, read, write, signal) {
     return [((e.clientX - r.left) * CW) / r.width, ((e.clientY - r.top) * CH) / r.height]
   }
   canvas.addEventListener("pointerdown", (e) => {
-    const h = e.button === 0 && s && hit(local(e))
+    const h = e.button === 0 && s && (e.altKey ? { kind: "turn" } : hit(local(e))) // Alt: anywhere turns the picture
     if (!h) return
     e.preventDefault()
     e.stopPropagation()
@@ -296,16 +330,19 @@ export function cropEditor(img, read, write, signal) {
     canvas.setPointerCapture(e.pointerId)
     drag = { h, p0: local(e), s0: structuredClone(s) }
   })
-  // the wheel over the editor zooms the picture under the frame about the pointer, as Windows does; with Ctrl on a face
-  // template it sizes the oval. Taken on window before anyone: Nodes 2.0's node pane hands every Ctrl wheel, and an
-  // unfocused plain one, to the graph (frontend useCanvasInteractions). Ctrl elsewhere and sideways stay the graph's
+  // the wheel over the editor zooms the picture under the frame about the pointer, as Windows does; with Alt it turns
+  // the picture a degree a notch, with Ctrl on a face template it sizes the oval. Taken on window before anyone: Nodes
+  // 2.0's node pane hands every Ctrl wheel, and an unfocused plain one, to the graph (frontend useCanvasInteractions).
+  // Ctrl elsewhere and sideways stay the graph's
   window.addEventListener("wheel", (e) => {
-    const ctrl = e.ctrlKey || e.metaKey
+    const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey
     if (e.target !== canvas || !s || drag || Math.abs(e.deltaX) > Math.abs(e.deltaY) || (ctrl && !OVAL[s.ratio])) return
     e.preventDefault()
     e.stopPropagation()
     const step = (e.deltaMode === 1 ? 33 : 1) * e.deltaY
-    if (ctrl) {
+    if (e.altKey) {
+      turnTo(s.angle + step / 100)
+    } else if (ctrl) {
       s.oval = Math.round(clamp(s.oval * Math.exp(-step * 0.001), 0.3, ovalMax(OVAL[s.ratio])) * 1000) / 1000 // ±10%
     } else {
       const [mx, my] = local(e), f = Math.exp(step * 0.0015) // a notch ±15%
@@ -321,7 +358,7 @@ export function cropEditor(img, read, write, signal) {
       return
     }
     const h = s && hit(local(e))
-    canvas.style.cursor = !h ? "" : h.kind === "move" ? "move" : h.kind === "turn" ? "grab" : CURSOR[h.d]
+    canvas.style.cursor = e.altKey ? "grab" : !h ? "" : h.kind === "move" ? "move" : CURSOR[h.d]
   })
   const end = () => {
     if (!drag) return
@@ -351,5 +388,5 @@ export function cropEditor(img, read, write, signal) {
     }
     tween = requestAnimationFrame(step)
   }
-  return { canvas, label, draw, choose, preset: () => s?.ratio }
+  return { canvas, label, draw, choose, mini, preset: () => s?.ratio }
 }

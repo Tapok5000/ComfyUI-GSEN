@@ -1,6 +1,13 @@
 // node ComfyUI-GSEN/tests/test_crop.mjs: Crop's presets and the box kept at their ratio (web/assets/crop.js), no browser
 import assert from "node:assert/strict"
-import { aspectOf, fitIn, resizeLocked, withRatio, zoomAt } from "../web/assets/crop.js"
+import { aspectOf, fitIn, ratioName, resizeLocked, withRatio, zoomAt } from "../web/assets/crop.js"
+
+// a free box's shape is told as a format, never as 1:1.50 or 1.12:1
+assert.equal(ratioName(1306, 1959), "2:3")
+assert.equal(ratioName(1600, 900), "16:9")
+assert.equal(ratioName(1120, 1000), "9:8")
+assert.equal(ratioName(1020, 1000), "1:1")
+assert.equal(ratioName(3560, 1000), "7:2")
 
 assert.equal(aspectOf("free", 1600, 2400, 0), 0)
 assert.equal(aspectOf("9:16", 1600, 2400, 0), 9 / 16)
