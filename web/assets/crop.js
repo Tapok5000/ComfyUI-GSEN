@@ -275,6 +275,7 @@ export function cropEditor(img, read, write) {
     if (!s) return
     s.ratio = key
     if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch)
+    settle = true // the view glides to the new frame, as after a handle
     save()
   }
 
