@@ -202,11 +202,11 @@ function build(node) {
   const cropReset = txt("div", "mn-lbl mn-txt mn-cropreset", "RESET")
   cropReset.onclick = () => set("crop", "")
   pBox.append(ed.canvas)
-  prev.append(ed.label, cropReset)
+  prev.append(ed.label, cropReset, ed.bar)
   binds.push(() => {
     const on = !!W("manual_crop")?.value
-    pWrap.hidden = on
-    ed.canvas.hidden = ed.label.hidden = cropReset.hidden = !on
+    pWrap.hidden = pDims.hidden = on // the crop's own line takes the input's size's place
+    ed.canvas.hidden = ed.label.hidden = cropReset.hidden = ed.bar.hidden = !on
     if (on) ed.draw()
   })
 
