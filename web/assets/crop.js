@@ -10,7 +10,7 @@ const GRAB = 10, MIN = 16, Q = 2 // grab radius, smallest box side in picture pi
 const SIDES = { w: 0, n: 1, e: 2, s: 3 }
 const CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize" }
 // Windows Photos' ratios, then MyNode.svg's face templates ("1 1", "2:3"): the oval's middle and half axes in box parts
-const PRESETS = [["free", "Free"], ["orig", "Original"], ["1:1", "Square"],
+export const PRESETS = [["free", "Free"], ["orig", "Original"], ["1:1", "Square"],
   ...["9:16", "16:9", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "5:7", "7:5", "1:2", "2:1"].map((k) => [k, k]),
   ["face 1:1", "Face 1:1"], ["face 2:3", "Face 2:3"]]
 const OVAL = { "face 1:1": [0.5, 0.4358, 0.2467, 0.3026], "face 2:3": [0.5, 0.3861, 0.2962, 0.2927] }
@@ -56,23 +56,11 @@ export function resizeLocked([x, y, w, h], d, dx, dy, r, cw, ch) {
   return [ns ? clamp(x + (w - nw) / 2, 0, cw - nw) : e ? ax : ax - nw, ew ? clamp(y + (h - nh) / 2, 0, ch - nh) : s ? ay : ay - nh, nw, nh]
 }
 
-// a preset's icon in the bar: its shape, as Windows draws them; Original a picture, the face templates their oval
-const icon = (key) => {
-  const r = aspectOf(key, 4, 3, 0) || 4 / 3, w = r >= 1 ? 16 : 16 * r, h = r >= 1 ? 16 / r : 16
-  const x = 12 - w / 2, y = 12 - h / 2, o = OVAL[key]
-  const inner = key === "orig" ? `<path d="M${x + 2.5} ${y + h - 2.5}l3.5-4 2.5 2.5 2-2 3.5 3.5"/>`
-    : o ? `<ellipse cx="${x + o[0] * w}" cy="${y + o[1] * h}" rx="${o[2] * w}" ry="${o[3] * h}"/>` : ""
-  return `<svg viewBox="2 2 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="${x}"
-    y="${y}" width="${w}" height="${h}" rx="2"${key === "free" ? ' stroke-dasharray="3 2.2"' : ""}/>${inner}</svg>`
-}
-
 /** img: the shown input; read(): its saved crop or null; write(crop) saves one. */
 export function cropEditor(img, read, write) {
-  const canvas = document.createElement("canvas"), label = document.createElement("div"), bar = document.createElement("div")
-  const ctx = canvas.getContext("2d")
+  const canvas = document.createElement("canvas"), label = document.createElement("div"), ctx = canvas.getContext("2d")
   canvas.className = "mn-cropcv"
   label.className = "mn-croplbl"
-  bar.className = "mn-ratios"
   let s = null, view = null, drag = null
 
   const aspect = () => aspectOf(s.ratio, s.W, s.H, s.angle)
@@ -168,11 +156,10 @@ export function cropEditor(img, read, write) {
     canvas.width = CW * Q
     canvas.height = CH * Q
     label.textContent = ""
-    for (const el of bar.children) el.classList.toggle("on", el.dataset.key === s?.ratio)
     if (!s) return
     const [, , w, h] = s.box, [l, t, r, b] = s.pad
-    const name = s.ratio.includes(":") ? s.ratio.replace("face", "Face") : ratio(w, h)
-    label.textContent = `crop ${w}×${h} · ${name}${l + t + r + b ? ` → ${w + l + r}×${h + t + b}` : ""}`
+    const free = s.ratio.includes(":") ? "" : ` · ${ratio(w, h)}` // a preset's ratio is on the Format pill
+    label.textContent = `crop ${w}×${h}${free}${l + t + r + b ? ` → ${w + l + r}×${h + t + b}` : ""}`
     ctx.setTransform(Q, 0, 0, Q, 0, 0)
     const { box: [a0, b0, a1, b1], frame: [f0, g0, f1, g1] } = rects(), bw = a1 - a0, bh = b1 - b0
     const pw = s.W * view.k, ph = s.H * view.k
@@ -273,19 +260,11 @@ export function cropEditor(img, read, write) {
     ctx.fillText(`${s.angle.toFixed(1)}°`, clamp(knob.x, 24, CW - 24), knob.y + (knob.y < 40 ? 24 : -20))
   }
 
-  for (const [key, name] of PRESETS) {
-    if (key === "face 1:1") bar.append(document.createElement("i")) // the face templates, a group of their own
-    const b = document.createElement("div")
-    b.className = "mn-ratio"
-    b.dataset.key = key
-    b.innerHTML = `${icon(key)}<span>${name}</span>`
-    b.onclick = () => {
-      if (!s) return
-      s.ratio = key
-      if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch)
-      save()
-    }
-    bar.append(b)
+  const choose = (key) => {
+    if (!s) return
+    s.ratio = key
+    if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch)
+    save()
   }
 
   const local = (e) => {
@@ -325,5 +304,5 @@ export function cropEditor(img, read, write) {
     if (s) view = fit()
     paint()
   }
-  return { canvas, label, bar, draw }
+  return { canvas, label, draw, choose, preset: () => s?.ratio }
 }

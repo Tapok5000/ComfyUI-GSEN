@@ -49,15 +49,9 @@
 .mn-cropcv{position:absolute;left:0;top:0;width:306px;height:447px}
 .mn-croplbl{position:absolute;left:8.3px;right:0;top:32.57px;text-align:center;font-size:17.33px;line-height:20px;color:var(--lime);pointer-events:none}
 .mn-cropreset{top:36.6px}
-/* Crop's presets under its editor, as Windows Photos has them: the shape over its name, the box's own lit */
-.mn-ratios{position:absolute;left:0;right:0;top:507px;display:flex;justify-content:center;gap:3px}
-.mn-ratios[hidden]{display:none}
-.mn-ratios>i{width:1px;margin:3px 2px 15px;background:#3d4428}
-.mn-ratio{display:flex;flex-direction:column;align-items:center;gap:1px;color:#8b8d91;font-size:11px;line-height:12px;white-space:nowrap;cursor:pointer}
-.mn-ratio:hover{color:#fff}
-.mn-ratio.on{color:var(--lime)}
-.mn-ratio svg{width:20px;height:20px;border-radius:5px}
-.mn-ratio.on svg{background:rgba(199,244,0,.14)}
+/* Crop's Format under its editor (index.js): a middle pill's look, centred on the picture */
+.mn-row.mn-fmt{left:140px;top:511.5px;width:230px}
+.mn-row[data-w=crop_format]>.v{left:82px;right:10px}
 .mn-arrow{position:absolute;top:264.2px;width:0;height:0;border-top:13.5px solid transparent;border-bottom:13.5px solid transparent;cursor:pointer}
 .mn-arrow.l{left:85.8px;border-right:13.5px solid var(--lime)}
 .mn-arrow.r{left:420.5px;border-left:13.5px solid var(--lime)}

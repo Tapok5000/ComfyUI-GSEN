@@ -2,7 +2,7 @@
 import { app } from "../../../scripts/app.js"
 import { api } from "../../../scripts/api.js"
 import { canvasControls, comboValues, el, hideWidgets, menu, nodeByExecId, txt } from "../shared/ui.js"
-import { cropEditor } from "./crop.js"
+import { PRESETS, cropEditor } from "./crop.js"
 
 const NODE = "MyNode_FaceProcessing"
 const SIZE = [1890.6, 745]
@@ -201,13 +201,30 @@ function build(node) {
   const ed = cropEditor(pImg, readCrop, (c) => set("crop", JSON.stringify({ image: W("image")?.value, ...c })))
   const cropReset = txt("div", "mn-lbl mn-txt mn-cropreset", "RESET")
   cropReset.onclick = () => set("crop", "")
+  // its Format: one pill like the middle's, the list on a click (all of them in a row under the picture were too much)
+  const fmt = el("div", "mn-row c mn-fmt"), fv = el("div", "v"), fl = el("div", "mn-tri l"), fval = el("div", "mn-val")
+  const fr = el("div", "mn-tri r"), nameOf = (key) => PRESETS.find(([k]) => k === key)?.[1] ?? "Free"
+  const stepFmt = (d) => {
+    const i = PRESETS.findIndex(([k]) => k === ed.preset())
+    ed.choose(PRESETS[(i + d + PRESETS.length) % PRESETS.length][0])
+  }
+  fmt.dataset.w = "crop_format"
+  fv.append(fl, fval, fr)
+  fmt.append(txt("div", "k", "Format"), fv)
+  fl.onclick = () => { stepFmt(-1) }
+  fr.onclick = () => { stepFmt(1) }
+  fval.onclick = (e) => {
+    menu(e, PRESETS.map(([, n]) => n), (n) => ed.choose(PRESETS.find(([, x]) => x === n)[0]), { title: "Format", current: nameOf(ed.preset()) })
+  }
+  fits.push(fval)
   pBox.append(ed.canvas)
-  prev.append(ed.label, cropReset, ed.bar)
+  prev.append(ed.label, cropReset, fmt)
   binds.push(() => {
     const on = !!W("manual_crop")?.value
     pWrap.hidden = pDims.hidden = on // the crop's own line takes the input's size's place
-    ed.canvas.hidden = ed.label.hidden = cropReset.hidden = ed.bar.hidden = !on
+    ed.canvas.hidden = ed.label.hidden = cropReset.hidden = fmt.hidden = !on
     if (on) ed.draw()
+    fval.textContent = nameOf(ed.preset())
   })
 
   // output aspect: the image itself, a preset "… - WxH", or custom W/H
@@ -226,9 +243,7 @@ function build(node) {
   }
   pImg.onload = () => {
     pDims.textContent = `${pImg.naturalWidth}×${pImg.naturalHeight}`
-    updateCrop()
-    refreshFrame()
-    ed.draw()
+    refresh() // the crop's editor and its Format pill: the first refresh came before the picture
   }
   const stepImage = (d) => {
     const list = comboValues(W("image"))
