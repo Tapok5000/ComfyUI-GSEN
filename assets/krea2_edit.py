@@ -1,9 +1,11 @@
 """Krea 2 identity edit: source patch + image-grounded prompt encode, on bare ComfyUI.
 
 Adapted from comfyui-krea2edit 1.2.5 (Apache License 2.0, copy in licenses/krea2edit.txt). Changes: trimmed to
-the path 444.json runs (one source image with vae -> pixel path, fit_mode "fit", stride-1 positions, ref_boost);
+the path 444.json runs (one source image with vae -> pixel path, fit_mode "fit", stride-1 positions, ref_position
+aligned or beside, ref_boost);
 the source is encoded before sampling (what krea2edit does when target_latent is wired); ref_boost can act on a
-mask's part of the source only (ours, like ref_boost_mask in RedNodeAI's Krea 2 nodes). The math is otherwise unchanged.
+mask's part of the source only (ours, like ref_boost_mask in RedNodeAI's Krea 2 nodes); beside follows _place_refs of
+comfyui-krea2edit 2.0.0 (same license). The math is otherwise unchanged.
 """
 import math
 
@@ -78,10 +80,12 @@ def _4d(v):
     return v.reshape(v.shape[0] * v.shape[2], v.shape[1], *v.shape[-2:]) if v.ndim == 5 else v
 
 
-def forward(m, x, timesteps, context, src, transformer_options, ref_boost=1.0, mask=None):
+def forward(m, x, timesteps, context, src, transformer_options, ref_boost=1.0, mask=None, beside=False):
     """SingleStreamDiT._forward with the clean source prepended: [text | source (frame 1) | target (frame 0)].
     src is already on the target grid (fit_encode); a smaller one sits at a centered offset, stride 1.
-    mask (fit_mask, src's size): where ref_boost acts, fading to none where it is 0; None: on all of src."""
+    mask (fit_mask, src's size): where ref_boost acts, fading to none where it is 0; None: on all of src.
+    beside: the source's columns start right of the target's (krea2edit's "beside (right of target)") instead of on
+    them, so its layout, head angle and light stop pinning the result's."""
     patch = m.patch
     shape5 = x.shape if x.ndim == 5 else None
     x = _4d(x)
@@ -104,7 +108,7 @@ def forward(m, x, timesteps, context, src, transformer_options, ref_boost=1.0, m
     txtlen, srclen = context.shape[1], ref.shape[1]
     combined = torch.cat([context, ref, tgt], dim=1)
     dev = combined.device
-    src_ids = _ids(bs, 1, gh, gw, dev, max(0.0, (h - gh) / 2), max(0.0, (w - gw) / 2))
+    src_ids = _ids(bs, 1, gh, gw, dev, max(0.0, (h - gh) / 2), float(w) if beside else max(0.0, (w - gw) / 2))
     freqs = m.pe_embedder(torch.cat([torch.zeros(bs, txtlen, 3, device=dev), src_ids, _ids(bs, 0, h, w, dev)], dim=1))
 
     bias = None
@@ -126,10 +130,10 @@ def forward(m, x, timesteps, context, src, transformer_options, ref_boost=1.0, m
     return out
 
 
-def patch(model, vae, image, target_latent, ref_boost, mask=None):
+def patch(model, vae, image, target_latent, ref_boost, mask=None, beside=False):
     """Clone of a Krea2 model whose diffusion forward sees the source image (and ref_boost, on mask's part of it
-    when there is one: [1, h, w] on the image). The source is encoded here, for the target size, so the VAE never
-    loads mid-sampling."""
+    when there is one: [1, h, w] on the image; placed beside the target or on it, see forward). The source is
+    encoded here, for the target size, so the VAE never loads mid-sampling."""
     m = model.clone()
     inner = model.model
 
@@ -149,7 +153,7 @@ def patch(model, vae, image, target_latent, ref_boost, mask=None):
         if size not in cache:  # sampled at another size than the target latent
             cache[size] = encoded(size)
         src, src_mask = cache[size]
-        return forward(executor.class_obj, x, timesteps, context, src, opts, ref_boost, src_mask)
+        return forward(executor.class_obj, x, timesteps, context, src, opts, ref_boost, src_mask, beside)
 
     comfy.patcher_extension.add_wrapper_with_key(
         comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, "mynode_krea2_edit", wrapper,

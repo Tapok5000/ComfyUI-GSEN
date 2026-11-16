@@ -30,14 +30,15 @@ class Krea2Patch(io.ComfyNode):
         return io.Schema(node_id="MyNode_Krea2Patch", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Model.Input("model"), io.Vae.Input("vae"), io.Image.Input("image"),
                                  io.Latent.Input("target"), io.Float.Input("ref_boost", default=1.0, min=0.0, max=1000.0),
-                                 io.String.Input("oval", default="", optional=True)],
+                                 io.String.Input("oval", default="", optional=True),
+                                 io.Boolean.Input("beside", default=False, optional=True)],
                          outputs=[io.Model.Output()])
 
     @classmethod
-    def execute(cls, model, vae, image, target, ref_boost, oval=""):
+    def execute(cls, model, vae, image, target, ref_boost, oval="", beside=False):
         face = json.loads(oval or "null")  # Mask: {"oval", "pad"} of the crop in image, where ref_boost acts
         mask = crop_edit.oval_mask(face["oval"], face["pad"], *image.shape[1:3]) if face else None
-        return io.NodeOutput(krea2_edit.patch(model, vae, image, target, ref_boost, mask))
+        return io.NodeOutput(krea2_edit.patch(model, vae, image, target, ref_boost, mask, beside))
 
 
 class Krea2Encode(io.ComfyNode):
