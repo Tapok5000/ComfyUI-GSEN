@@ -35,6 +35,7 @@ from comfy.cli_args import args  # noqa: E402
 
 args.cpu = True
 import comfy.ops  # noqa: E402
+import comfy.patcher_extension  # noqa: E402
 import folder_paths  # noqa: E402
 from comfy.ldm.krea2.model import SingleStreamDiT  # noqa: E402
 
@@ -76,6 +77,34 @@ def test_forward_matches_core():
     assert not torch.allclose(ours, boosted, atol=1e-4)
     assert refit.shape == x.shape  # an odd source grid: the mask is padded with it
     assert torch.allclose(whole, boosted, atol=1e-5) and torch.allclose(none, ours, atol=1e-5)  # mask 1: x12, 0: x1
+
+
+def test_patch_mask():
+    dit, t, ctx, image = tiny_dit(), torch.tensor([0.4]), torch.randn(1, 5, 3 * 32), torch.rand(1, 200, 160, 3)
+
+    class Vae:  # Wan's latent, [B, C, T=1, h/8, w/8]; the same one for the same size
+        def encode(self, img):
+            g = torch.Generator().manual_seed(img.shape[1] * 1000 + img.shape[2])
+            return torch.randn(img.shape[0], 4, 1, img.shape[1] // 8, img.shape[2] // 8, generator=g)
+
+    class Model:
+        model = SimpleNamespace(process_latent_in=lambda x: x)
+
+        def __init__(self):
+            self.model_options = {}
+
+        def clone(self):
+            return Model()
+
+    def run(ref_boost, mask, x):  # one step of the patched model, through the wrapper sampling calls
+        m = krea2_edit.patch(Model(), Vae(), image, {"samples": torch.zeros(1, 4, 1, 24, 20)}, ref_boost, mask)
+        wrappers = m.model_options["transformer_options"]["wrappers"][comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL]
+        with torch.no_grad():
+            return wrappers["mynode_krea2_edit"][0](SimpleNamespace(class_obj=dit), x, t, ctx, {})
+
+    for x in torch.randn(1, 4, 24, 20), torch.randn(1, 4, 17, 13):  # the target's size, and another one: encoded again
+        off = run(2.0, torch.zeros(1, 200, 160), x)  # a mask of 0 everywhere: the boost reaches no token
+        assert torch.allclose(off, run(1.0, None, x), atol=1e-5) and not torch.allclose(off, run(2.0, None, x), atol=1e-4)
 
 
 def test_target_size():
@@ -514,6 +543,7 @@ def test_zip():
 
 if __name__ == "__main__":
     test_forward_matches_core()
+    test_patch_mask()
     test_target_size()
     test_fit_geometry()
     test_whole_reference()
