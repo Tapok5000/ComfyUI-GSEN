@@ -227,8 +227,11 @@ function build(node) {
     fval.textContent = nameOf(ed.preset())
   })
 
-  // output aspect: the image itself, a preset "… - WxH", or custom W/H
+  // output aspect: the image itself (as cropped, with its gray padding: sizes.py takes it so), a preset "… - WxH",
+  // or custom W/H
   const targetAspect = () => {
+    const c = !W("resolution_source")?.value && W("manual_crop")?.value && readCrop(), [l, t, r, b] = c?.pad ?? [0, 0, 0, 0]
+    if (c?.box) return (c.box[2] + l + r) / (c.box[3] + t + b)
     if (!W("resolution_source")?.value) return pImg.naturalWidth ? pImg.naturalWidth / pImg.naturalHeight : 0
     const f = String(W("aspect_ratio")?.value ?? "custom"), m = f.match(/(\d+)\s*x\s*(\d+)\s*$/)
     return f !== "custom" && m ? m[1] / m[2] : W("custom_width").value / W("custom_height").value
@@ -307,7 +310,12 @@ function build(node) {
       return r
     } else {
       const { min, max, precision, step2: step } = w.options
-      const f = numberField(() => w.value, (x) => set(name, x), (x) => { w.value = x }, { min, max, precision, step })
+      const typed = (x) => {
+        w.value = x
+        updateCrop() // W and H reshape both frames while being typed
+        refreshFrame()
+      }
+      const f = numberField(() => w.value, (x) => set(name, x), typed, { min, max, precision, step })
       binds.push(() => { if (document.activeElement !== f.inp) f.show() })
       fits.push(f.inp)
       v.append(...f.nodes)
@@ -469,8 +477,11 @@ function build(node) {
     split = 0 // the pointer gone, the result is back
     paintCompare()
   })
+  // the frame has the next result's shape, a shown result fitted in it; one that has it (sizes round to 8: within 2%)
+  // fills it exactly
   const refreshFrame = () => {
-    const ar = rImg.naturalWidth ? rImg.naturalWidth / rImg.naturalHeight : targetAspect()
+    const t = targetAspect(), r = rImg.naturalWidth / rImg.naturalHeight || 0
+    const ar = r && (!t || Math.abs(r / t - 1) < 0.02) ? r : t
     if (ar) frame.style.setProperty("--ar", ar)
   }
   rImg.onload = () => {
