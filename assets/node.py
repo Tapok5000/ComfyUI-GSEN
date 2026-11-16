@@ -162,8 +162,7 @@ class FaceProcessing(io.ComfyNode):
                                 tooltip="A loaded .txt (LOAD TXT): prompts split by --- lines or blank lines, an image each. "
                                         "Empty: text. <lora:name:strength> tags work in any prompt."),
                 io.Boolean.Input("manual_crop", default=False, optional=True, label_on="on", label_off="off",
-                                 tooltip="On: the input is turned, cropped and padded as set on its preview. A ⛶ Face crop sits "
-                                         "beside the result, so the head takes the new pose and light."),
+                                 tooltip="On: the input is turned, cropped and padded as set on its preview."),
                 io.String.Input("crop", default="", optional=True,
                                 tooltip="The preview's crop: JSON {image, angle, box, pad} in pixels, used only for that image."),
                 io.Combo.Input("system_file", options=prompts, default=max(prompts, key=_natural, default=None), optional=True,
@@ -201,13 +200,11 @@ class FaceProcessing(io.ComfyNode):
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)
         g = GraphBuilder()
-        ref, oval, beside = g.node("LoadImage", image=image).out(0), "", False
+        ref, oval = g.node("LoadImage", image=image).out(0), ""
         if spec:
             ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps(spec)).out(0)
-            face = crop_edit.face_oval(crop, image)
-            # a ⛶ Face crop goes into a new scene: aligned on the result, its head angle and light would look pasted in
-            beside = face is not None
-            oval = json.dumps({"oval": face, "pad": spec["pad"]}) if face and crop_mask else ""  # Mask: ref_boost on the face
+            face = crop_edit.face_oval(crop, image) if crop_mask else None
+            oval = json.dumps({"oval": face, "pad": spec["pad"]}) if face else ""  # Mask: ref_boost on the face only
 
         model = g.node("UNETLoader", unet_name=unet_name, weight_dtype="default").out(0)
         model = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=1.0).out(0)
@@ -229,8 +226,7 @@ class FaceProcessing(io.ComfyNode):
                     own = g.node("LoraLoaderModelOnly", model=own, lora_name=file, strength_model=strength).out(0)
                 else:
                     missing.add(name)
-            own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost, oval=oval,
-                         beside=beside).out(0)
+            own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost, oval=oval).out(0)
             if ai_prompt:
                 prompt = _generate(g, llm, ref, prompt, system)
             ru = g.node("MyNode_Translate", text=prompt).out(0)

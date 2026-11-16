@@ -72,19 +72,11 @@ def test_forward_matches_core():
         refit = krea2_edit.forward(m, x, t, ctx, torch.randn(1, 4, 13, 9), {}, ref_boost=12.0, mask=torch.rand(1, 1, 13, 9))
         whole = krea2_edit.forward(m, x, t, ctx, src, {}, ref_boost=12.0, mask=torch.ones(1, 1, 8, 12))
         none = krea2_edit.forward(m, x, t, ctx, src, {}, ref_boost=12.0, mask=torch.zeros(1, 1, 8, 12))
-        placed, real_ids = [], krea2_edit._ids
-        krea2_edit._ids = lambda *a: placed.append(a[2:]) or real_ids(*a)
-        try:
-            beside = krea2_edit.forward(m, x, t, ctx, torch.randn(1, 4, 6, 8), {}, ref_boost=1.0, beside=True)
-        finally:
-            krea2_edit._ids = real_ids
     # same model, same RoPE ids; the source block only sits before the target instead of after it
     assert torch.allclose(core, ours, atol=1e-5), (core - ours).abs().max()
     assert not torch.allclose(ours, boosted, atol=1e-4)
     assert refit.shape == x.shape  # an odd source grid: the mask is padded with it
     assert torch.allclose(whole, boosted, atol=1e-5) and torch.allclose(none, ours, atol=1e-5)  # mask 1: x12, 0: x1
-    # beside: the 3x4 source grid keeps its centered rows and starts at column 6, right of the 4x6 target
-    assert placed[0][:2] == (3, 4) and placed[0][3:] == (0.5, 6.0) and beside.shape == x.shape
 
 
 def test_patch_mask():
@@ -250,19 +242,13 @@ def test_crop_mask():
     gen = next(n["inputs"] for n in graph.values() if n["class_type"] in ("TextGenerateV2", "TextGenerate"))
     assert (gen.get("images.image1") or gen.get("image"))[0] == cut
     assert inputs_of(expand(manual_crop=True, crop=raw), "MyNode_Krea2Patch")[0]["oval"] == ""
-    # a ⛶ Face crop, with or without Mask, is placed beside the result; other crops and the whole input stay aligned
-    four_five = json.dumps({**json.loads(raw), "ratio": "4:5"})
-    assert patch["beside"] is True and inputs_of(expand(manual_crop=True, crop=raw), "MyNode_Krea2Patch")[0]["beside"] is True
-    assert inputs_of(expand(manual_crop=True, crop=four_five), "MyNode_Krea2Patch")[0]["beside"] is False
-    assert inputs_of(expand(), "MyNode_Krea2Patch")[0]["beside"] is False
     real, parts.krea2_edit.patch = parts.krea2_edit.patch, lambda *a: a
     try:
-        (masked,) = parts.Krea2Patch.execute("m", "v", torch.zeros(1, 40, 30, 3), {}, 2.0, patch["oval"], True).result
+        (masked,) = parts.Krea2Patch.execute("m", "v", torch.zeros(1, 40, 30, 3), {}, 2.0, patch["oval"]).result
         (whole,) = parts.Krea2Patch.execute("m", "v", torch.zeros(1, 40, 30, 3), {}, 2.0).result
     finally:
         parts.krea2_edit.patch = real
-    assert torch.equal(masked[-2], crop_edit.oval_mask(oval, (0, 0, 0, 0), 40, 30)) and masked[-1] is True
-    assert whole[-2:] == (None, False)
+    assert torch.equal(masked[-1], crop_edit.oval_mask(oval, (0, 0, 0, 0), 40, 30)) and whole[-1] is None
 
 
 def test_system_prompt():
