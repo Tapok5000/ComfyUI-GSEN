@@ -16,7 +16,7 @@ MAX_PAD = 8192  # per side: the JSON comes from the prompt, and a huge pad would
 # MyNode.svg's face templates ("1 1", "2:3"), the same numbers as crop.js OVAL: the oval's middle and half axes in parts
 # of the box
 OVAL = {"face 1:1": (0.5, 0.4358, 0.2467, 0.3026), "face 2:3": (0.5, 0.3861, 0.2962, 0.2927)}
-FEATHER = 0.3  # Mask's soft edge, a part of the oval's radius: half inside its line, half outside (crop.js has it too)
+FEATHER = 0.45  # Mask's soft edge, a part of the oval's radius: half inside its line, half outside (crop.js has it too)
 
 
 def spec_of(crop, image):

@@ -15,7 +15,7 @@ const CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
 export const PRESETS = [["face 1:1", "⛶ Face 1:1"], ["face 2:3", "⛶ Face 2:3"], ["free", "Free"], ["orig", "Original"],
   ["1:1", "Square"], ...["9:16", "16:9", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "5:7", "7:5", "1:2", "2:1"].map((k) => [k, k])]
 const OVAL = { "face 1:1": [0.5, 0.4358, 0.2467, 0.3026], "face 2:3": [0.5, 0.3861, 0.2962, 0.2927] }
-const FEATHER = 0.3 // crop_edit.FEATHER: Mask's soft edge, a part of the oval's radius
+const FEATHER = 0.45 // crop_edit.FEATHER: Mask's soft edge, a part of the oval's radius
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 

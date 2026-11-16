@@ -198,10 +198,12 @@ class FaceProcessing(io.ComfyNode):
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)
         g = GraphBuilder()
-        ref = g.node("LoadImage", image=image).out(0)
+        ref = seen = g.node("LoadImage", image=image).out(0)  # seen: what the LLM reads
         if spec:
             oval = crop_edit.face_oval(crop, image) if crop_mask else None
-            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps({**spec, "oval": oval})).out(0)
+            seen = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps({**spec, "oval": None})).out(0)
+            # the Mask's gray goes to Krea2's reference only: the LLM would write it into the prompt as a backdrop
+            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps({**spec, "oval": oval})).out(0) if oval else seen
 
         model = g.node("UNETLoader", unet_name=unet_name, weight_dtype="default").out(0)
         model = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=1.0).out(0)
@@ -225,7 +227,7 @@ class FaceProcessing(io.ComfyNode):
                     missing.add(name)
             own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost).out(0)
             if ai_prompt:
-                prompt = _generate(g, llm, ref, prompt, system)
+                prompt = _generate(g, llm, seen, prompt, system)
             ru = g.node("MyNode_Translate", text=prompt).out(0)
             pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=1024).out(0)
             neg = g.node("ConditioningZeroOut", conditioning=pos).out(0)

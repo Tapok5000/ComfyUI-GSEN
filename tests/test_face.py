@@ -197,12 +197,16 @@ def test_crop_mask():
     big = crop_edit.face_oval(json.dumps({**json.loads(raw), "oval": 9}), "a.png")
     assert abs(big[3] - 0.4358) < 1e-9  # Ctrl+wheel's size stops where the oval meets the box, as crop.js draws it
     row = crop_edit.oval_mask(oval, (0, 0, 0, 0), 400, 400)[0, 174]  # through the oval's middle; its line at x 298.7
-    assert row[283] == 1 and row[314] == 0 and 0.3 < row[298] < 0.7  # a soft edge across the line, the face whole inside
-    # Mask on: the reference's crop carries the oval; Mask off leaves it out
-    (cut,) = inputs_of(expand(manual_crop=True, crop=raw, crop_mask=True), "MyNode_CropRotatePad")
-    assert json.loads(cut["crop"])["oval"] == list(oval)
+    assert row[275] == 1 and row[321] == 0 and 0.3 < row[298] < 0.7  # a soft edge across the line, the face whole inside
+    # Mask on: Krea2's reference carries the oval, the LLM reads the crop without it; Mask off leaves the oval out
+    graph = expand(manual_crop=True, crop=raw, crop_mask=True, ai_prompt=True)
+    cuts = {k: json.loads(n["inputs"]["crop"])["oval"] for k, n in graph.items() if n["class_type"] == "MyNode_CropRotatePad"}
+    masked, plain = next(k for k, o in cuts.items() if o), next(k for k, o in cuts.items() if not o)
+    assert cuts[masked] == list(oval) and inputs_of(graph, "MyNode_Krea2Patch")[0]["image"][0] == masked
+    gen = next(n["inputs"] for n in graph.values() if n["class_type"] in ("TextGenerateV2", "TextGenerate"))
+    assert (gen.get("images.image1") or gen.get("image"))[0] == plain  # no gray backdrop for the LLM to write about
     assert json.loads(inputs_of(expand(manual_crop=True, crop=raw), "MyNode_CropRotatePad")[0]["crop"])["oval"] is None
-    (out,) = parts.CropRotatePad.execute(torch.full((1, 80, 60, 3), 0.8), cut["crop"]).result
+    (out,) = parts.CropRotatePad.execute(torch.full((1, 80, 60, 3), 0.8), graph[masked]["inputs"]["crop"]).result
     assert out.shape == (1, 40, 40, 3) and abs(out[0, 0, 0, 0].item() - 128 / 255) < 1e-6  # the padding's gray outside
     assert abs(out[0, 17, 20, 0].item() - 0.8) < 1e-6  # the face as it was
 
