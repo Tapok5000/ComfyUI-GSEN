@@ -217,9 +217,9 @@ function build(node) {
     menu(e, PRESETS.map(([, n]) => n), (n) => ed.choose(PRESETS.find(([, x]) => x === n)[0]), { title: "Format", current: nameOf(ed.preset()) })
   }
   fits.push(fval)
-  // its Mask and the Mask's preview, where MyNode.svg has them: with ⛶ Face, the reference is gray outside the oval
+  // its Mask and the Mask's preview, where MyNode.svg has them: with ⛶ Face, ref_boost acts on the face oval only
   const maskB = txt("div", "mn-cmask", "Mask"), mini = el("div", "mn-cmini"), miniCv = el("canvas")
-  maskB.title = "Gray outside the face oval: Format ⛶ Face 1:1 or ⛶ Face 2:3"
+  maskB.title = "ref_boost on the face oval only, the rest at x1: Format ⛶ Face 1:1 or ⛶ Face 2:3, ref_boost not 1"
   maskB.onclick = () => { set("crop_mask", !W("crop_mask")?.value) }
   mini.append(miniCv)
   pBox.append(ed.canvas)

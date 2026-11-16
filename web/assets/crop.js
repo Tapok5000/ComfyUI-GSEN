@@ -279,8 +279,8 @@ export function cropEditor(img, read, write, signal) {
     ctx.fillText(`${s.angle.toFixed(1)}°`, 4, 13)
   }
 
-  /** The crop as it comes out, small, into a canvas: the picture in its box, gray past it, and with mask the gray
-   *  outside the face oval too (Mask's preview: what crop_edit.apply and mask_outside give). */
+  /** The crop as it comes out, small, into a canvas: the picture in its box, gray past it, and with mask the face oval
+   *  ref_boost acts on, the rest dimmed (Mask's preview: crop_edit.oval_mask's soft edge). */
   const mini = (out, mask) => {
     const c = out.getContext("2d")
     out.width = out.clientWidth * Q
@@ -310,6 +310,7 @@ export function cropEditor(img, read, write, signal) {
     c.beginPath()
     c.rect(l, t, w, h)
     c.clip() // the soft edge stays in the box
+    c.fillStyle = "rgba(0,0,0,.55)" // a veil, not gray: the reference keeps all of it, only at x1
     // crop_edit.FEATHER's band as a blur: a canvas blur is in bitmap pixels, k of them to the output's one
     c.filter = `blur(${(FEATHER * Math.min(rx, ry) * k) / 4}px)`
     c.beginPath()

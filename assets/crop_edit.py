@@ -3,7 +3,7 @@
 Same model as ausboss Image Crop + Rotate + Pad: the picture turns clockwise on a canvas grown to fit it, the box
 is cut from that canvas, and the padding around the box plus the corners the turn leaves empty are gray.
 The preview saves {"image", "angle", "box": [x, y, w, h], "pad": [left, top, right, bottom]} in pixels, and "ratio"
-and "oval" (the preset it keeps the box at, its face oval's size), which only the preview reads.
+and "oval" (the preset it keeps the box at, its face oval's size), which only face_oval reads besides the preview.
 """
 import json
 
@@ -72,7 +72,7 @@ def face_oval(crop, image):
 
 def oval_mask(oval, pad, h, w):
     """MASK [1, h, w] of an h x w crop (its box and padding): 1 inside the oval on the box, fading to 0 across its line
-    over FEATHER of the radius (smoothstep), so the face meets the gray softly and is whole inside."""
+    over FEATHER of the radius (smoothstep): Mask's ref_boost holds on the whole face and fades out softly."""
     x, y, rx, ry = oval
     left, top, right, bottom = pad
     bw, bh = w - left - right, h - top - bottom
@@ -80,12 +80,6 @@ def oval_mask(oval, pad, h, w):
     dx = (np.arange(w, dtype=np.float32)[None, :] + 0.5 - (left + x * bw)) / (rx * bw)
     m = np.clip(0.5 + (1 - np.sqrt(dx * dx + dy * dy)) / FEATHER, 0, 1)
     return torch.from_numpy(m * m * (3 - 2 * m))[None]
-
-
-def mask_outside(image, oval, pad):
-    """IMAGE batch cropped and padded -> gray outside the face oval (the gray of the padding), the face as it was."""
-    m = oval_mask(oval, pad, *image.shape[1:3])[..., None].to(image)
-    return image * m + GRAY[0] / 255 * (1 - m)
 
 
 def apply(image, spec):

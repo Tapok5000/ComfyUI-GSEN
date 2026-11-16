@@ -21,9 +21,7 @@ class CropRotatePad(io.ComfyNode):
 
     @classmethod
     def execute(cls, image, crop):
-        spec = json.loads(crop)  # with "oval" when Mask is on: gray outside the face template's oval
-        out = crop_edit.apply(image, spec)
-        return io.NodeOutput(crop_edit.mask_outside(out, spec["oval"], spec["pad"]) if spec.get("oval") else out)
+        return io.NodeOutput(crop_edit.apply(image, json.loads(crop)))
 
 
 class Krea2Patch(io.ComfyNode):
@@ -31,12 +29,15 @@ class Krea2Patch(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(node_id="MyNode_Krea2Patch", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Model.Input("model"), io.Vae.Input("vae"), io.Image.Input("image"),
-                                 io.Latent.Input("target"), io.Float.Input("ref_boost", default=1.0, min=0.0, max=1000.0)],
+                                 io.Latent.Input("target"), io.Float.Input("ref_boost", default=1.0, min=0.0, max=1000.0),
+                                 io.String.Input("oval", default="", optional=True)],
                          outputs=[io.Model.Output()])
 
     @classmethod
-    def execute(cls, model, vae, image, target, ref_boost):
-        return io.NodeOutput(krea2_edit.patch(model, vae, image, target, ref_boost))
+    def execute(cls, model, vae, image, target, ref_boost, oval=""):
+        face = json.loads(oval or "null")  # Mask: {"oval", "pad"} of the crop in image, where ref_boost acts
+        mask = crop_edit.oval_mask(face["oval"], face["pad"], *image.shape[1:3]) if face else None
+        return io.NodeOutput(krea2_edit.patch(model, vae, image, target, ref_boost, mask))
 
 
 class Krea2Encode(io.ComfyNode):

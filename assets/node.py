@@ -172,7 +172,8 @@ class FaceProcessing(io.ComfyNode):
                 io.Combo.Input("llm_system_file", options=to_text, default=next(iter(to_text), None), optional=True,
                                tooltip="Settings → LLM's system prompt, picture → prompt: a .txt in assets/prompts/img_to_text."),
                 io.Boolean.Input("crop_mask", default=False, optional=True, label_on="on", label_off="off",
-                                 tooltip="Crop's Mask. On, with Format ⛶ Face: outside the face oval the reference is gray."),
+                                 tooltip="Crop's Mask. On, with Format ⛶ Face: ref_boost acts on the face oval only, "
+                                         "the rest of the reference at x1. Does nothing at ref_boost 1."),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -198,12 +199,11 @@ class FaceProcessing(io.ComfyNode):
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)
         g = GraphBuilder()
-        ref = seen = g.node("LoadImage", image=image).out(0)  # seen: what the LLM reads
+        ref, oval = g.node("LoadImage", image=image).out(0), ""
         if spec:
-            oval = crop_edit.face_oval(crop, image) if crop_mask else None
-            seen = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps({**spec, "oval": None})).out(0)
-            # the Mask's gray goes to Krea2's reference only: the LLM would write it into the prompt as a backdrop
-            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps({**spec, "oval": oval})).out(0) if oval else seen
+            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps(spec)).out(0)
+            face = crop_edit.face_oval(crop, image) if crop_mask else None
+            oval = json.dumps({"oval": face, "pad": spec["pad"]}) if face else ""  # Mask: ref_boost on the face only
 
         model = g.node("UNETLoader", unet_name=unet_name, weight_dtype="default").out(0)
         model = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=1.0).out(0)
@@ -225,9 +225,9 @@ class FaceProcessing(io.ComfyNode):
                     own = g.node("LoraLoaderModelOnly", model=own, lora_name=file, strength_model=strength).out(0)
                 else:
                     missing.add(name)
-            own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost).out(0)
+            own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost, oval=oval).out(0)
             if ai_prompt:
-                prompt = _generate(g, llm, seen, prompt, system)
+                prompt = _generate(g, llm, ref, prompt, system)
             ru = g.node("MyNode_Translate", text=prompt).out(0)
             pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=1024).out(0)
             neg = g.node("ConditioningZeroOut", conditioning=pos).out(0)

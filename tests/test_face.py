@@ -68,11 +68,14 @@ def test_forward_matches_core():
         core = m._forward(x, t, ctx, ref_latents=[src], ref_latents_method="index", transformer_options={})
         ours = krea2_edit.forward(m, x, t, ctx, src, {}, ref_boost=1.0)
         boosted = krea2_edit.forward(m, x, t, ctx, src, {}, ref_boost=12.0)
-        refit = krea2_edit.forward(m, x, t, ctx, torch.randn(1, 4, 14, 10), {}, ref_boost=12.0)
+        refit = krea2_edit.forward(m, x, t, ctx, torch.randn(1, 4, 13, 9), {}, ref_boost=12.0, mask=torch.rand(1, 1, 13, 9))
+        whole = krea2_edit.forward(m, x, t, ctx, src, {}, ref_boost=12.0, mask=torch.ones(1, 1, 8, 12))
+        none = krea2_edit.forward(m, x, t, ctx, src, {}, ref_boost=12.0, mask=torch.zeros(1, 1, 8, 12))
     # same model, same RoPE ids; the source block only sits before the target instead of after it
     assert torch.allclose(core, ours, atol=1e-5), (core - ours).abs().max()
     assert not torch.allclose(ours, boosted, atol=1e-4)
-    assert refit.shape == x.shape
+    assert refit.shape == x.shape  # an odd source grid: the mask is padded with it
+    assert torch.allclose(whole, boosted, atol=1e-5) and torch.allclose(none, ours, atol=1e-5)  # mask 1: x12, 0: x1
 
 
 def test_target_size():
@@ -89,6 +92,10 @@ def test_target_size():
 def test_fit_geometry():
     assert krea2_edit.fit_geometry(600, 600, 1536, 1024) == (0, 0, 600, 600, 1024, 1024)  # square face: fits inside
     assert krea2_edit.fit_geometry(1500, 1000, 1536, 1024) == (0, 0, 1500, 1000, 1536, 1024)  # same aspect: fills
+    strip = torch.zeros(1, 1000, 1000)
+    strip[..., :31] = 1  # what fit_encode cuts off the left of a square source for a 1024x960 target
+    assert krea2_edit.fit_mask(strip, 128, 120, (128, 120)).max() == 0
+    assert krea2_edit.fit_mask(1 - strip, 128, 120, (128, 120)).min() == 1
 
 
 def test_whole_reference():
@@ -198,17 +205,21 @@ def test_crop_mask():
     assert abs(big[3] - 0.4358) < 1e-9  # Ctrl+wheel's size stops where the oval meets the box, as crop.js draws it
     row = crop_edit.oval_mask(oval, (0, 0, 0, 0), 400, 400)[0, 174]  # through the oval's middle; its line at x 298.7
     assert row[275] == 1 and row[321] == 0 and 0.3 < row[298] < 0.7  # a soft edge across the line, the face whole inside
-    # Mask on: Krea2's reference carries the oval, the LLM reads the crop without it; Mask off leaves the oval out
+    # Mask on: the same one crop for Krea2 and the LLM, and Krea2Patch gets the oval ref_boost acts on; off: no oval
     graph = expand(manual_crop=True, crop=raw, crop_mask=True, ai_prompt=True)
-    cuts = {k: json.loads(n["inputs"]["crop"])["oval"] for k, n in graph.items() if n["class_type"] == "MyNode_CropRotatePad"}
-    masked, plain = next(k for k, o in cuts.items() if o), next(k for k, o in cuts.items() if not o)
-    assert cuts[masked] == list(oval) and inputs_of(graph, "MyNode_Krea2Patch")[0]["image"][0] == masked
+    (cut,) = [k for k, n in graph.items() if n["class_type"] == "MyNode_CropRotatePad"]
+    (patch,) = inputs_of(graph, "MyNode_Krea2Patch")
+    assert patch["image"][0] == cut and json.loads(patch["oval"]) == {"oval": list(oval), "pad": [0, 0, 0, 0]}
     gen = next(n["inputs"] for n in graph.values() if n["class_type"] in ("TextGenerateV2", "TextGenerate"))
-    assert (gen.get("images.image1") or gen.get("image"))[0] == plain  # no gray backdrop for the LLM to write about
-    assert json.loads(inputs_of(expand(manual_crop=True, crop=raw), "MyNode_CropRotatePad")[0]["crop"])["oval"] is None
-    (out,) = parts.CropRotatePad.execute(torch.full((1, 80, 60, 3), 0.8), graph[masked]["inputs"]["crop"]).result
-    assert out.shape == (1, 40, 40, 3) and abs(out[0, 0, 0, 0].item() - 128 / 255) < 1e-6  # the padding's gray outside
-    assert abs(out[0, 17, 20, 0].item() - 0.8) < 1e-6  # the face as it was
+    assert (gen.get("images.image1") or gen.get("image"))[0] == cut
+    assert inputs_of(expand(manual_crop=True, crop=raw), "MyNode_Krea2Patch")[0]["oval"] == ""
+    real, parts.krea2_edit.patch = parts.krea2_edit.patch, lambda *a: a
+    try:
+        (masked,) = parts.Krea2Patch.execute("m", "v", torch.zeros(1, 40, 30, 3), {}, 2.0, patch["oval"]).result
+        (whole,) = parts.Krea2Patch.execute("m", "v", torch.zeros(1, 40, 30, 3), {}, 2.0).result
+    finally:
+        parts.krea2_edit.patch = real
+    assert torch.equal(masked[-1], crop_edit.oval_mask(oval, (0, 0, 0, 0), 40, 30)) and whole[-1] is None
 
 
 def test_system_prompt():
