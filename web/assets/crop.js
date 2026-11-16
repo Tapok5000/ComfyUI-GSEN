@@ -286,8 +286,14 @@ export function cropEditor(img, read, write, signal) {
     out.width = out.clientWidth * Q
     out.height = out.clientHeight * Q
     if (!s) return
-    const [x, y, w, h] = s.box, [l, t, r, b] = s.pad, k = Math.min(out.width / (w + l + r), out.height / (h + t + b))
-    c.translate((out.width - (w + l + r) * k) / 2, (out.height - (h + t + b) * k) / 2)
+    const [x, y, w, h] = s.box, [l, t, r, b] = s.pad, oval = mask && OVAL[s.ratio]
+    const sc = oval ? Math.min(s.oval, ovalMax(oval)) : 1, rx = oval ? oval[2] * w * sc : 0, ry = oval ? oval[3] * h * sc : 0
+    // what it shows, in the output's pixels: the whole crop, or with a mask the oval and its soft edge, big
+    const ox = l + (oval ? oval[0] : 0) * w, oy = t + (oval ? oval[1] : 0) * h, grow = 1 + FEATHER / 2
+    const [x0, y0] = oval ? [Math.max(0, ox - rx * grow), Math.max(0, oy - ry * grow)] : [0, 0]
+    const [x1, y1] = oval ? [Math.min(w + l + r, ox + rx * grow), Math.min(h + t + b, oy + ry * grow)] : [w + l + r, h + t + b]
+    const k = Math.min(out.width / (x1 - x0), out.height / (y1 - y0))
+    c.translate((out.width - (x1 - x0) * k) / 2 - x0 * k, (out.height - (y1 - y0) * k) / 2 - y0 * k)
     c.scale(k, k)
     c.fillStyle = "rgb(128,128,128)" // crop_edit.GRAY
     c.fillRect(0, 0, w + l + r, h + t + b)
@@ -300,9 +306,7 @@ export function cropEditor(img, read, write, signal) {
     c.rotate((s.angle * Math.PI) / 180)
     c.drawImage(img, -s.W / 2, -s.H / 2, s.W, s.H)
     c.restore()
-    const oval = mask && OVAL[s.ratio]
     if (!oval) return
-    const sc = Math.min(s.oval, ovalMax(oval)), rx = oval[2] * w * sc, ry = oval[3] * h * sc
     c.beginPath()
     c.rect(l, t, w, h)
     c.clip() // the soft edge stays in the box
@@ -310,8 +314,8 @@ export function cropEditor(img, read, write, signal) {
     c.filter = `blur(${(FEATHER * Math.min(rx, ry) * k) / 4}px)`
     c.beginPath()
     c.rect(l - w, t - h, 3 * w, 3 * h) // past the box, or the blur would fade its border too
-    c.moveTo(l + oval[0] * w + rx, t + oval[1] * h)
-    c.ellipse(l + oval[0] * w, t + oval[1] * h, rx, ry, 0, 0, Math.PI * 2)
+    c.moveTo(ox + rx, oy)
+    c.ellipse(ox, oy, rx, ry, 0, 0, Math.PI * 2)
     c.fill("evenodd")
   }
 

@@ -1,6 +1,6 @@
 [project]
 name = "comfyui-gsen"
-version = "1.27.2"
+version = "1.27.3"
 description = "Personal ComfyUI nodes. Krea2 One: face crop, AI prompt, Krea2 identity edit and RU/EN in one node with its own face."
 requires-python = ">=3.10"
 dependencies = []  # only what ComfyUI itself ships: torch, einops, aiohttp, pillow
