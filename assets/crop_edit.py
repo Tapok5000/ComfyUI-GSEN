@@ -16,6 +16,7 @@ MAX_PAD = 8192  # per side: the JSON comes from the prompt, and a huge pad would
 # MyNode.svg's face templates ("1 1", "2:3"), the same numbers as crop.js OVAL: the oval's middle and half axes in parts
 # of the box
 OVAL = {"face 1:1": (0.5, 0.4358, 0.2467, 0.3026), "face 2:3": (0.5, 0.3861, 0.2962, 0.2927)}
+FEATHER = 0.15  # Mask's soft edge, a part of the oval's radius: half inside its line, half outside (crop.js has it too)
 
 
 def spec_of(crop, image):
@@ -70,14 +71,15 @@ def face_oval(crop, image):
 
 
 def oval_mask(oval, pad, h, w):
-    """MASK [1, h, w] of an h x w crop (its box and padding): 1 inside the oval on the box, a pixel-wide soft edge."""
+    """MASK [1, h, w] of an h x w crop (its box and padding): 1 inside the oval on the box, fading to 0 across its line
+    over FEATHER of the radius (smoothstep), so the face meets the gray softly and is whole inside."""
     x, y, rx, ry = oval
     left, top, right, bottom = pad
     bw, bh = w - left - right, h - top - bottom
-    ax, ay = rx * bw, ry * bh
-    dy = (np.arange(h, dtype=np.float32)[:, None] + 0.5 - (top + y * bh)) / ay
-    dx = (np.arange(w, dtype=np.float32)[None, :] + 0.5 - (left + x * bw)) / ax
-    return torch.from_numpy(np.clip((1 - np.sqrt(dx * dx + dy * dy)) * min(ax, ay) + 0.5, 0, 1))[None]
+    dy = (np.arange(h, dtype=np.float32)[:, None] + 0.5 - (top + y * bh)) / (ry * bh)
+    dx = (np.arange(w, dtype=np.float32)[None, :] + 0.5 - (left + x * bw)) / (rx * bw)
+    m = np.clip(0.5 + (1 - np.sqrt(dx * dx + dy * dy)) / FEATHER, 0, 1)
+    return torch.from_numpy(m * m * (3 - 2 * m))[None]
 
 
 def mask_outside(image, oval, pad):

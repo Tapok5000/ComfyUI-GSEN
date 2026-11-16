@@ -15,6 +15,7 @@ const CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
 export const PRESETS = [["face 1:1", "⛶ Face 1:1"], ["face 2:3", "⛶ Face 2:3"], ["free", "Free"], ["orig", "Original"],
   ["1:1", "Square"], ...["9:16", "16:9", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "5:7", "7:5", "1:2", "2:1"].map((k) => [k, k])]
 const OVAL = { "face 1:1": [0.5, 0.4358, 0.2467, 0.3026], "face 2:3": [0.5, 0.3861, 0.2962, 0.2927] }
+const FEATHER = 0.15 // crop_edit.FEATHER: Mask's soft edge, a part of the oval's radius
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
@@ -301,11 +302,16 @@ export function cropEditor(img, read, write, signal) {
     c.restore()
     const oval = mask && OVAL[s.ratio]
     if (!oval) return
-    const sc = Math.min(s.oval, ovalMax(oval))
+    const sc = Math.min(s.oval, ovalMax(oval)), rx = oval[2] * w * sc, ry = oval[3] * h * sc
     c.beginPath()
     c.rect(l, t, w, h)
-    c.moveTo(l + (oval[0] + oval[2] * sc) * w, t + oval[1] * h)
-    c.ellipse(l + oval[0] * w, t + oval[1] * h, oval[2] * w * sc, oval[3] * h * sc, 0, 0, Math.PI * 2)
+    c.clip() // the soft edge stays in the box
+    // crop_edit.FEATHER's band as a blur: a canvas blur is in bitmap pixels, k of them to the output's one
+    c.filter = `blur(${(FEATHER * Math.min(rx, ry) * k) / 4}px)`
+    c.beginPath()
+    c.rect(l - w, t - h, 3 * w, 3 * h) // past the box, or the blur would fade its border too
+    c.moveTo(l + oval[0] * w + rx, t + oval[1] * h)
+    c.ellipse(l + oval[0] * w, t + oval[1] * h, rx, ry, 0, 0, Math.PI * 2)
     c.fill("evenodd")
   }
 

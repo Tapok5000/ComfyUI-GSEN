@@ -196,6 +196,8 @@ def test_crop_mask():
     assert crop_edit.face_oval(json.dumps({**json.loads(raw), "ratio": "4:5"}), "a.png") is None
     big = crop_edit.face_oval(json.dumps({**json.loads(raw), "oval": 9}), "a.png")
     assert abs(big[3] - 0.4358) < 1e-9  # Ctrl+wheel's size stops where the oval meets the box, as crop.js draws it
+    row = crop_edit.oval_mask(oval, (0, 0, 0, 0), 400, 400)[0, 174]  # through the oval's middle; its line at x 298.7
+    assert row[290] == 1 and row[307] == 0 and 0.3 < row[298] < 0.7  # a soft edge across the line, the face whole inside
     # Mask on: the reference's crop carries the oval; Mask off leaves it out
     (cut,) = inputs_of(expand(manual_crop=True, crop=raw, crop_mask=True), "MyNode_CropRotatePad")
     assert json.loads(cut["crop"])["oval"] == list(oval)
