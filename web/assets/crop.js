@@ -66,8 +66,11 @@ export function zoomAt([x, y, w, h], px, py, f, cw, ch) {
   return [clamp(px - (px - x) * f, 0, cw - w * f), clamp(py - (py - y) * f, 0, ch - h * f), w * f, h * f].map(Math.round)
 }
 
-/** img: the shown input; read(): its saved crop or null; write(crop) saves one. */
-export function cropEditor(img, read, write) {
+// how far a face template's oval may grow about its middle and stay inside the box
+const ovalMax = ([x, y, rx, ry]) => Math.min(Math.min(x, 1 - x) / rx, Math.min(y, 1 - y) / ry)
+
+/** img: the shown input; read(): its saved crop or null; write(crop) saves one; signal: aborted when the node goes. */
+export function cropEditor(img, read, write, signal) {
   const canvas = document.createElement("canvas"), label = document.createElement("div"), ctx = canvas.getContext("2d")
   canvas.className = "mn-cropcv"
   label.className = "mn-croplbl"
@@ -79,11 +82,11 @@ export function cropEditor(img, read, write) {
     const W = img.naturalWidth, H = img.naturalHeight, r = read() ?? {}
     if (!W) return void (s = null)
     const angle = clamp(+r.angle || 0, -180, 180), [cw, ch] = turnedSize(W, H, angle)
-    const ratio = PRESETS.some(([k]) => k === r.ratio) ? r.ratio : "free"
-    s = { W, H, angle, cw, ch, box: [...(r.box ?? [0, 0, cw, ch])], pad: [...(r.pad ?? [0, 0, 0, 0])], ratio }
+    const ratio = PRESETS.some(([k]) => k === r.ratio) ? r.ratio : "free", oval = clamp(+r.oval || 1, 0.3, 2)
+    s = { W, H, angle, cw, ch, box: [...(r.box ?? [0, 0, cw, ch])], pad: [...(r.pad ?? [0, 0, 0, 0])], ratio, oval }
     fitBox()
   }
-  const save = () => write({ angle: s.angle, box: s.box, pad: s.pad, ratio: s.ratio })
+  const save = () => write({ angle: s.angle, box: s.box, pad: s.pad, ratio: s.ratio, ...(s.oval !== 1 && { oval: s.oval }) })
   // where the turned picture's centre sits on screen and how big a picture pixel is. As in Windows the frame (box and
   // padding) fills the editor and the picture is zoomed and moved under it; a handle's drag holds the view still
   const fit = () => {
@@ -169,8 +172,10 @@ export function cropEditor(img, read, write) {
     label.textContent = ""
     if (!s) return
     const [, , w, h] = s.box, [l, t, r, b] = s.pad
+    const oval = OVAL[s.ratio], sc = oval ? Math.min(s.oval, ovalMax(oval)) : 1
     const free = s.ratio.includes(":") ? "" : ` · ${ratio(w, h)}` // a preset's ratio is on the Format pill
-    label.textContent = `crop ${w}×${h}${free}${l + t + r + b ? ` → ${w + l + r}×${h + t + b}` : ""}`
+    const sized = sc === 1 ? "" : ` · oval ${Math.round(sc * 100)}%` // to give the next picture the same face size
+    label.textContent = `crop ${w}×${h}${free}${sized}${l + t + r + b ? ` → ${w + l + r}×${h + t + b}` : ""}`
     ctx.setTransform(Q, 0, 0, Q, 0, 0)
     const { box: [a0, b0, a1, b1], frame: [f0, g0, f1, g1] } = rects(), bw = a1 - a0, bh = b1 - b0
     const pw = s.W * view.k, ph = s.H * view.k
@@ -189,10 +194,9 @@ export function cropEditor(img, read, write) {
     ctx.rect(a0, b0, bw, bh)
     ctx.fill("evenodd")
     ctx.restore()
-    const oval = OVAL[s.ratio]
     if (oval) {
       // MyNode.svg's face template on the box: the face goes in the dotted oval, the rest of the box is darker
-      const cx = a0 + oval[0] * bw, cy = b0 + oval[1] * bh, rx = oval[2] * bw, ry = oval[3] * bh
+      const cx = a0 + oval[0] * bw, cy = b0 + oval[1] * bh, rx = oval[2] * bw * sc, ry = oval[3] * bh * sc
       ctx.beginPath()
       ctx.rect(a0, b0, bw, bh)
       ctx.moveTo(cx + rx, cy)
@@ -292,24 +296,24 @@ export function cropEditor(img, read, write) {
     canvas.setPointerCapture(e.pointerId)
     drag = { h, p0: local(e), s0: structuredClone(s) }
   })
-  // the wheel zooms the picture under the frame about the pointer, as Windows does; Ctrl and sideways stay the graph's.
-  // Nodes 2.0 (its nodes carry data-node-id) gives the wheel to the graph unless a [data-capture-wheel] element holds
-  // the focus: taken on hover there, but not from a field being typed in
-  canvas.dataset.captureWheel = "true"
-  canvas.tabIndex = -1
-  canvas.addEventListener("pointerenter", () => {
-    const typing = document.activeElement?.matches("input, textarea, [contenteditable=true]")
-    if (canvas.closest("[data-node-id]") && !typing) canvas.focus({ preventScroll: true })
-  })
-  canvas.addEventListener("wheel", (e) => {
-    if (!s || drag || e.ctrlKey || e.metaKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+  // the wheel over the editor zooms the picture under the frame about the pointer, as Windows does; with Ctrl on a face
+  // template it sizes the oval. Taken on window before anyone: Nodes 2.0's node pane hands every Ctrl wheel, and an
+  // unfocused plain one, to the graph (frontend useCanvasInteractions). Ctrl elsewhere and sideways stay the graph's
+  window.addEventListener("wheel", (e) => {
+    const ctrl = e.ctrlKey || e.metaKey
+    if (e.target !== canvas || !s || drag || Math.abs(e.deltaX) > Math.abs(e.deltaY) || (ctrl && !OVAL[s.ratio])) return
     e.preventDefault()
     e.stopPropagation()
-    const [mx, my] = local(e), f = Math.exp((e.deltaMode === 1 ? 33 : 1) * e.deltaY * 0.0015) // a notch ±15%
-    s.box = zoomAt(s.box, s.cw / 2 + (mx - view.cx) / view.k, s.ch / 2 + (my - view.cy) / view.k, f, s.cw, s.ch)
-    if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // rounding w and h apart must not walk it off
+    const step = (e.deltaMode === 1 ? 33 : 1) * e.deltaY
+    if (ctrl) {
+      s.oval = Math.round(clamp(s.oval * Math.exp(-step * 0.001), 0.3, ovalMax(OVAL[s.ratio])) * 1000) / 1000 // ±10%
+    } else {
+      const [mx, my] = local(e), f = Math.exp(step * 0.0015) // a notch ±15%
+      s.box = zoomAt(s.box, s.cw / 2 + (mx - view.cx) / view.k, s.ch / 2 + (my - view.cy) / view.k, f, s.cw, s.ch)
+      if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // rounding w and h apart must not walk it off
+    }
     save()
-  }, { passive: false })
+  }, { capture: true, passive: false, signal })
   canvas.addEventListener("pointermove", (e) => {
     if (drag) {
       move(local(e), e.shiftKey)

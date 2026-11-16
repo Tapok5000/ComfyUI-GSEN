@@ -47,7 +47,6 @@
 .mn-pwrap img:not([src]){display:none}
 .mn-crop{position:absolute;border:1px solid var(--lime);box-shadow:0 0 0 2000px rgba(0,0,0,.5);pointer-events:none}
 .mn-cropcv{position:absolute;left:0;top:0;width:306px;height:447px}
-.mn-cropcv:focus{outline:none}
 .mn-croplbl{position:absolute;left:8.3px;right:0;top:32.57px;text-align:center;font-size:17.33px;line-height:20px;color:var(--lime);pointer-events:none}
 .mn-cropreset{top:36.6px}
 /* Crop's Format under its editor (index.js): a middle pill's look, centred on the picture */

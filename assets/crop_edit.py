@@ -2,8 +2,8 @@
 
 Same model as ausboss Image Crop + Rotate + Pad: the picture turns clockwise on a canvas grown to fit it, the box
 is cut from that canvas, and the padding around the box plus the corners the turn leaves empty are gray.
-The preview saves {"image", "angle", "box": [x, y, w, h], "pad": [left, top, right, bottom]} in pixels, and "ratio",
-the preset it keeps the box at, which only the preview reads.
+The preview saves {"image", "angle", "box": [x, y, w, h], "pad": [left, top, right, bottom]} in pixels, and "ratio"
+and "oval" (the preset it keeps the box at, its face oval's size), which only the preview reads.
 """
 import json
 

@@ -198,7 +198,7 @@ function build(node) {
       return null
     }
   }
-  const ed = cropEditor(pImg, readCrop, (c) => set("crop", JSON.stringify({ image: W("image")?.value, ...c })))
+  const ed = cropEditor(pImg, readCrop, (c) => set("crop", JSON.stringify({ image: W("image")?.value, ...c })), off.signal)
   const cropReset = txt("div", "mn-lbl mn-txt mn-cropreset", "RESET")
   cropReset.onclick = () => set("crop", "")
   // its Format: one pill like the middle's, the list on a click (all of them in a row under the picture were too much)

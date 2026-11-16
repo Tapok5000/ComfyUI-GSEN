@@ -168,9 +168,10 @@ def test_prompt_list():
 
 def test_manual_crop():
     crop_edit = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.crop_edit")
-    raw = json.dumps({"image": "a.png", "angle": 90, "box": [10, 20, 30, 40], "pad": [1, 2, 3, 4], "ratio": "face 2:3"})
+    raw = json.dumps({"image": "a.png", "angle": 90, "box": [10, 20, 30, 40], "pad": [1, 2, 3, 4],
+                      "ratio": "face 2:3", "oval": 1.2})
     spec = crop_edit.spec_of(raw, "a.png")
-    assert "ratio" not in spec  # the preset the preview keeps the box at is the preview's own
+    assert "ratio" not in spec and "oval" not in spec  # the preset and its oval's size are the preview's own
     assert crop_edit.spec_of(raw, "b.png") is None and crop_edit.spec_of("{broken", "a.png") is None
     img = torch.rand(1, 50, 80, 3)
     turned = crop_edit.apply(img, {**spec, "box": None, "pad": [0, 0, 0, 0]})
