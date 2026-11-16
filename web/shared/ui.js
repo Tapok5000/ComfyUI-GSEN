@@ -1,6 +1,7 @@
 // Helpers for nodes whose whole body is a custom DOM face (no LiteGraph title bar, widgets hidden).
 // Exports only: the frontend imports every .js under web/, so nothing here may run on import.
 import { app } from "../../../scripts/app.js"
+import { api } from "../../../scripts/api.js"
 import { tree } from "./tree.js"
 
 export const el = (tag, cls, html) => {
@@ -194,4 +195,49 @@ export function canvasControls(node, root, handle) {
     e.stopPropagation()
     app.canvas.processMouseWheel(e)
   }, { passive: false })
+}
+
+export const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "GSEN", detail, life })
+
+// a hidden file input for pictures: the chosen file goes to ComfyUI's input/, put() gets its name there
+export function picker(put) {
+  const inp = el("input")
+  inp.type = "file"
+  inp.accept = "image/*"
+  inp.hidden = true
+  inp.onchange = () => {
+    const f = inp.files[0]
+    inp.value = ""
+    if (f) upload(f, put)
+  }
+  return inp
+}
+
+async function upload(f, put) {
+  const body = new FormData()
+  body.append("image", f)
+  const r = await api.fetchApi("/upload/image", { method: "POST", body })
+  if (r.status !== 200) return toast(`Upload: ${r.statusText}`, "error", 3000)
+  const d = await r.json()
+  put(d.subfolder ? `${d.subfolder}/${d.name}` : d.name)
+}
+
+// a picture dragged in from the file manager goes in as Upload takes it; left to the canvas it would open the
+// PNG's workflow or make a LoadImage node
+export function dropTo(zone, put) {
+  zone.addEventListener("dragover", (e) => {
+    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === "file")) return
+    e.preventDefault()
+    e.stopPropagation()
+    zone.classList.add("mn-drop")
+  })
+  zone.addEventListener("dragleave", (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove("mn-drop") })
+  zone.addEventListener("drop", (e) => {
+    zone.classList.remove("mn-drop")
+    const f = [...(e.dataTransfer?.files ?? [])].find((x) => x.type.startsWith("image/"))
+    if (!f) return
+    e.preventDefault()
+    e.stopPropagation()
+    upload(f, put)
+  })
 }

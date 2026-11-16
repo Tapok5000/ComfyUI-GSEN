@@ -9,12 +9,12 @@ from typing_extensions import override
 from comfy_api.latest import ComfyExtension, io
 
 from . import common  # noqa: F401  registers the gallery and sound HTTP routes
-from . import assets
+from . import assets, facetest
 from . import update  # also registers Settings → Update's routes
 from .assets.node import core_problems
 
 WEB_DIRECTORY = "./web"
-NODES = [*assets.NODES]
+NODES = [*assets.NODES, *facetest.NODES]
 
 LIME, PLAIN = "\033[38;2;199;244;0m", "\033[0m"  # c7f400, the pack's lime; the console's own colour
 LOGO = """\

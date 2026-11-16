@@ -1,7 +1,7 @@
 // Face of MyNode_FaceProcessing: the whole node is this DOM, laid out 1:1 from MyNode.svg (face.css).
 import { app } from "../../../scripts/app.js"
 import { api } from "../../../scripts/api.js"
-import { canvasControls, comboValues, el, hideWidgets, menu, nodeByExecId, txt } from "../shared/ui.js"
+import { canvasControls, comboValues, dropTo, el, hideWidgets, menu, nodeByExecId, picker, toast, txt } from "../shared/ui.js"
 import { PRESETS, cropEditor } from "./crop.js"
 
 const NODE = "MyNode_FaceProcessing"
@@ -926,8 +926,6 @@ function build(node) {
   refresh()
 }
 
-const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "GSEN", detail, life })
-
 // MyNode.svg's GSEN texture, running up-left along its words, one word (80 px) every 8 s. A Web Animation on the page's
 // clock, not a CSS one: a CSS animation starts over whenever the face is re-attached or hidden for a moment (the canvas
 // and other packs can do that), and one ComfyUI with many packs showed it standing still
@@ -938,49 +936,6 @@ function texture(cls) {
     run.animate([{ transform: "none" }, { transform: "translate(-80px,-80px)" }], { duration: 8000, iterations: Infinity }).startTime = 0
   }
   return box
-}
-
-// a hidden file input for pictures: the chosen file goes to ComfyUI's input/, put() gets its name there
-function picker(put) {
-  const inp = el("input")
-  inp.type = "file"
-  inp.accept = "image/*"
-  inp.hidden = true
-  inp.onchange = () => {
-    const f = inp.files[0]
-    inp.value = ""
-    if (f) upload(f, put)
-  }
-  return inp
-}
-
-async function upload(f, put) {
-  const body = new FormData()
-  body.append("image", f)
-  const r = await api.fetchApi("/upload/image", { method: "POST", body })
-  if (r.status !== 200) return toast(`Upload: ${r.statusText}`, "error", 3000)
-  const d = await r.json()
-  put(d.subfolder ? `${d.subfolder}/${d.name}` : d.name)
-}
-
-// a picture dragged in from the file manager goes in as Upload takes it; left to the canvas it would open the
-// PNG's workflow or make a LoadImage node
-function dropTo(zone, put) {
-  zone.addEventListener("dragover", (e) => {
-    if (![...(e.dataTransfer?.items ?? [])].some((i) => i.kind === "file")) return
-    e.preventDefault()
-    e.stopPropagation()
-    zone.classList.add("mn-drop")
-  })
-  zone.addEventListener("dragleave", (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove("mn-drop") })
-  zone.addEventListener("drop", (e) => {
-    zone.classList.remove("mn-drop")
-    const f = [...(e.dataTransfer?.files ?? [])].find((x) => x.type.startsWith("image/"))
-    if (!f) return
-    e.preventDefault()
-    e.stopPropagation()
-    upload(f, put)
-  })
 }
 
 const LLM_RUNS = new Map() // prompt id of a Settings → LLM run -> its node; the run isn't part of the graph

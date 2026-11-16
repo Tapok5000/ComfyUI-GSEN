@@ -49,6 +49,15 @@
 .mn-cropcv{position:absolute;left:0;top:0;width:306px;height:447px}
 .mn-croplbl{position:absolute;left:8.3px;right:0;top:32.57px;text-align:center;font-size:17.33px;line-height:20px;color:var(--lime);pointer-events:none}
 .mn-cropreset{top:36.6px}
+/* Face Crop Test (web/facetest): Krea2 One's left column under ComfyUI's title bar, the result beside it */
+.mn-ft .mn-left{top:0}
+.mn-ftres{position:absolute;left:526.33px;top:0;right:0;bottom:0;background:linear-gradient(#070a10,#303722)}
+.mn-row.mn-ftmask{left:16px;top:14px;width:140px}
+.mn-ftrun{position:absolute;left:auto;right:16px;top:9px}
+.mn-ftframe{position:absolute;left:16px;right:16px;top:60px;bottom:44px;display:flex;align-items:center;justify-content:center;background:#070a10}
+.mn-ftframe img{max-width:100%;max-height:100%}
+.mn-ftframe img:not([src]){display:none}
+.mn-ftdims{position:absolute;left:0;right:0;bottom:12px;text-align:center;font-size:17.33px;line-height:20px;color:var(--lime)}
 /* Crop's Format under its editor (index.js): a middle pill's look, centred on the picture */
 .mn-row.mn-fmt{left:140px;top:511.5px;width:230px}
 .mn-row[data-w=crop_format]>.v{left:82px;right:10px}

@@ -13,6 +13,9 @@ from PIL import Image
 
 GRAY = (128, 128, 128)  # ausboss's default fill
 MAX_PAD = 8192  # per side: the JSON comes from the prompt, and a huge pad would be a huge canvas
+# MyNode.svg's face templates ("1 1", "2:3"), the same numbers as crop.js OVAL: the oval's middle and half axes in parts
+# of the box
+OVAL = {"face 1:1": (0.5, 0.4358, 0.2467, 0.3026), "face 2:3": (0.5, 0.3861, 0.2962, 0.2927)}
 
 
 def spec_of(crop, image):
@@ -48,6 +51,33 @@ def size(w, h, spec):
     *_, bw, bh = _box(spec, *turned)
     left, top, right, bottom = spec["pad"]
     return bw + left + right, bh + top + bottom
+
+
+def face_oval(crop, image):
+    """The face template's oval the preview set on this image, as crop.js draws it: (x, y, rx, ry) in parts of the box,
+    its size (Ctrl+wheel) applied and kept inside the box; None when the crop has no face template."""
+    try:
+        raw = json.loads(crop or "null")
+        oval = OVAL.get(raw.get("ratio")) if isinstance(raw, dict) and raw.get("image") == image else None
+        scale = float(raw.get("oval") or 1) if oval else 1.0
+    except (TypeError, ValueError):
+        return None
+    if not oval:
+        return None
+    x, y, rx, ry = oval
+    scale = min(max(scale, 0.3), min(x, 1 - x) / rx, min(y, 1 - y) / ry)
+    return x, y, rx * scale, ry * scale
+
+
+def oval_mask(oval, pad, h, w):
+    """MASK [1, h, w] of an h x w crop (its box and padding): 1 inside the oval on the box, a pixel-wide soft edge."""
+    x, y, rx, ry = oval
+    left, top, right, bottom = pad
+    bw, bh = w - left - right, h - top - bottom
+    ax, ay = rx * bw, ry * bh
+    dy = (np.arange(h, dtype=np.float32)[:, None] + 0.5 - (top + y * bh)) / ay
+    dx = (np.arange(w, dtype=np.float32)[None, :] + 0.5 - (left + x * bw)) / ax
+    return torch.from_numpy(np.clip((1 - np.sqrt(dx * dx + dy * dy)) * min(ax, ay) + 0.5, 0, 1))[None]
 
 
 def apply(image, spec):
