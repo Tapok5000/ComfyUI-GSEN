@@ -279,7 +279,7 @@ export function cropEditor(img, read, write, signal) {
   }
 
   /** The crop as it comes out, small, into a canvas: the picture in its box, gray past it, and with mask the gray
-   *  outside the face oval too (facetest's preview; what Python's crop_edit.apply and the mask give). */
+   *  outside the face oval too (Mask's preview: what crop_edit.apply and mask_outside give). */
   const mini = (out, mask) => {
     const c = out.getContext("2d")
     out.width = out.clientWidth * Q

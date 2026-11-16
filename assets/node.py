@@ -171,6 +171,8 @@ class FaceProcessing(io.ComfyNode):
                                 tooltip="Where Settings → LLM keeps the prompts it writes, like save_to. Empty: not saved."),
                 io.Combo.Input("llm_system_file", options=to_text, default=next(iter(to_text), None), optional=True,
                                tooltip="Settings → LLM's system prompt, picture → prompt: a .txt in assets/prompts/img_to_text."),
+                io.Boolean.Input("crop_mask", default=False, optional=True, label_on="on", label_off="off",
+                                 tooltip="Crop's Mask. On, with Format ⛶ Face: outside the face oval the reference is gray."),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -190,7 +192,7 @@ class FaceProcessing(io.ComfyNode):
     def execute(cls, image, text, seed, steps, sampler_name, scheduler, resolution_source, aspect_ratio,
                 custom_width, custom_height, ref_boost, max_resolution,
                 unet_name, lora_name, clip_name, vae_name, llm_name, ai_prompt=False, save_to="Krea2One",
-                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", **_):
+                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", crop_mask=False, **_):
         # **_: the LLM tab's inputs, and grounding_px and face_crop, which saved workflows still carry
         spec = crop_edit.spec_of(crop, image) if manual_crop else None
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
@@ -198,7 +200,8 @@ class FaceProcessing(io.ComfyNode):
         g = GraphBuilder()
         ref = g.node("LoadImage", image=image).out(0)
         if spec:
-            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps(spec)).out(0)
+            oval = crop_edit.face_oval(crop, image) if crop_mask else None
+            ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps({**spec, "oval": oval})).out(0)
 
         model = g.node("UNETLoader", unet_name=unet_name, weight_dtype="default").out(0)
         model = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=1.0).out(0)

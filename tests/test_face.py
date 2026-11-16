@@ -187,33 +187,22 @@ def test_manual_crop():
     assert not inputs_of(expand(manual_crop=False, crop=raw), "MyNode_CropRotatePad")
 
 
-def test_face_crop_test():
+def test_crop_mask():
     crop_edit = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.crop_edit")
-    face = importlib.import_module("custom_nodes.ComfyUI-GSEN.facetest.node").FaceCropTest
-    raw = json.dumps({"image": "f.png", "angle": 0, "box": [10, 20, 40, 40], "pad": [0, 0, 0, 0], "ratio": "face 1:1"})
-    oval = crop_edit.face_oval(raw, "f.png")
-    assert oval == (0.5, 0.4358, 0.2467, 0.3026) and crop_edit.face_oval(raw, "g.png") is None
-    assert crop_edit.face_oval(json.dumps({**json.loads(raw), "ratio": "4:5"}), "f.png") is None
-    big = crop_edit.face_oval(json.dumps({**json.loads(raw), "oval": 9}), "f.png")
+    parts = importlib.import_module("custom_nodes.ComfyUI-GSEN.assets.parts")
+    raw = json.dumps({"image": "a.png", "angle": 0, "box": [10, 20, 40, 40], "pad": [0, 0, 0, 0], "ratio": "face 1:1"})
+    oval = crop_edit.face_oval(raw, "a.png")
+    assert oval == (0.5, 0.4358, 0.2467, 0.3026) and crop_edit.face_oval(raw, "b.png") is None
+    assert crop_edit.face_oval(json.dumps({**json.loads(raw), "ratio": "4:5"}), "a.png") is None
+    big = crop_edit.face_oval(json.dumps({**json.loads(raw), "oval": 9}), "a.png")
     assert abs(big[3] - 0.4358) < 1e-9  # Ctrl+wheel's size stops where the oval meets the box, as crop.js draws it
-    m = crop_edit.oval_mask(oval, (0, 0, 0, 0), 40, 40)
-    assert m.shape == (1, 40, 40) and m[0, 17, 20] == 1 and m[0, 0, 0] == 0
-    real, temp = folder_paths.get_input_directory(), folder_paths.get_temp_directory()
-    with tempfile.TemporaryDirectory() as d:
-        try:
-            folder_paths.set_input_directory(d)
-            folder_paths.set_temp_directory(os.path.join(d, "temp"))
-            Image.new("RGB", (60, 80), (200, 30, 30)).save(os.path.join(d, "f.png"))
-            image, mask = face.execute(image="f.png", mask=False, crop=raw).result
-            assert image.shape == (1, 40, 40, 3) and torch.equal(mask, m)  # the box as cropped, the oval beside it
-            assert abs(image[0, 0, 0, 0].item() - 200 / 255) < 1e-6
-            gray, _ = face.execute(image="f.png", mask=True, crop=raw).result
-            assert gray[0, 0, 0].tolist() == [0.5, 0.5, 0.5] and abs(gray[0, 17, 20, 0].item() - 200 / 255) < 1e-6
-            whole, ones = face.execute(image="f.png", mask=True, crop="").result
-            assert whole.shape == (1, 80, 60, 3) and bool(ones.eq(1).all())  # no face template: nothing to mask
-        finally:
-            folder_paths.set_input_directory(real)
-            folder_paths.set_temp_directory(temp)
+    # Mask on: the reference's crop carries the oval; Mask off leaves it out
+    (cut,) = inputs_of(expand(manual_crop=True, crop=raw, crop_mask=True), "MyNode_CropRotatePad")
+    assert json.loads(cut["crop"])["oval"] == list(oval)
+    assert json.loads(inputs_of(expand(manual_crop=True, crop=raw), "MyNode_CropRotatePad")[0]["crop"])["oval"] is None
+    (out,) = parts.CropRotatePad.execute(torch.full((1, 80, 60, 3), 0.8), cut["crop"]).result
+    assert out.shape == (1, 40, 40, 3) and abs(out[0, 0, 0, 0].item() - 128 / 255) < 1e-6  # the padding's gray outside
+    assert abs(out[0, 17, 20, 0].item() - 0.8) < 1e-6  # the face as it was
 
 
 def test_system_prompt():
@@ -379,7 +368,9 @@ def test_llm_tab():
         (node.IMG_TO_TEXT / "describe.txt").write_text("Describe.", encoding="utf-8")
         try:
             graph = node.LLMPrompt.execute(image="b.png", llm_name="m", system_file="describe.txt", save_to="R").expand
-            *_, save, system = node.FaceProcessing.define_schema().inputs  # the LLM tab's own SAVE and System, appended
+            # the LLM tab's own SAVE and System, appended, then Crop's Mask: new inputs go last, saved workflows keep theirs
+            *_, save, system, mask = node.FaceProcessing.define_schema().inputs
+            assert (mask.id, mask.default, mask.optional) == ("crop_mask", False, True)
         finally:
             node.IMG_TO_TEXT = real
     (gen_id,) = [k for k, n in graph.items() if n["class_type"] == "TextGenerateV2"]
@@ -514,7 +505,7 @@ if __name__ == "__main__":
     test_old_core_llm()
     test_prompt_list()
     test_manual_crop()
-    test_face_crop_test()
+    test_crop_mask()
     test_system_prompt()
     test_newest_default()
     test_core_problems()

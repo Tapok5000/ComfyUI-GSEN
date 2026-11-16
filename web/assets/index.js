@@ -217,14 +217,22 @@ function build(node) {
     menu(e, PRESETS.map(([, n]) => n), (n) => ed.choose(PRESETS.find(([, x]) => x === n)[0]), { title: "Format", current: nameOf(ed.preset()) })
   }
   fits.push(fval)
+  // its Mask and the Mask's preview, where MyNode.svg has them: with ⛶ Face, the reference is gray outside the oval
+  const maskB = txt("div", "mn-cmask", "Mask"), mini = el("div", "mn-cmini"), miniCv = el("canvas")
+  maskB.title = "Gray outside the face oval: Format ⛶ Face 1:1 or ⛶ Face 2:3"
+  maskB.onclick = () => { set("crop_mask", !W("crop_mask")?.value) }
+  mini.append(miniCv)
   pBox.append(ed.canvas)
-  prev.append(ed.label, cropReset, fmt)
+  prev.append(ed.label, cropReset, fmt, maskB, mini)
   binds.push(() => {
     const on = !!W("manual_crop")?.value
     pWrap.hidden = pDims.hidden = on // the crop's own line takes the input's size's place
-    ed.canvas.hidden = ed.label.hidden = cropReset.hidden = fmt.hidden = !on
+    ed.canvas.hidden = ed.label.hidden = cropReset.hidden = fmt.hidden = maskB.hidden = mini.hidden = !on
     if (on) ed.draw()
     fval.textContent = nameOf(ed.preset())
+    maskB.classList.toggle("on", !!W("crop_mask")?.value)
+    miniCv.hidden = !(on && W("crop_mask")?.value && String(ed.preset()).startsWith("face")) // a mask needs a face
+    if (!miniCv.hidden) ed.mini(miniCv, true)
   })
 
   // output aspect: the image itself (as cropped, with its gray padding: sizes.py takes it so), a preset "… - WxH",
@@ -236,10 +244,11 @@ function build(node) {
     const f = String(W("aspect_ratio")?.value ?? "custom"), m = f.match(/(\d+)\s*x\s*(\d+)\s*$/)
     return f !== "custom" && m ? m[1] / m[2] : W("custom_width").value / W("custom_height").value
   }
-  // lime frame = the part of the input the output aspect covers; the rest is dimmed
+  // lime frame = the part of the input the output keeps, the rest dimmed. Krea2 trims the reference only when the
+  // shapes are within 8% (krea2_edit CROP_TOL); a farther one goes in whole, fitted inside, and there is no frame
   const updateCrop = () => {
     const ai = pImg.naturalWidth / pImg.naturalHeight, at = targetAspect()
-    crop.hidden = !(ai && at)
+    crop.hidden = !(ai && at) || Math.min(ai, at) / Math.max(ai, at) < 0.92
     if (crop.hidden) return
     const w = at >= ai ? 100 : (100 * at) / ai, h = at >= ai ? (100 * ai) / at : 100
     Object.assign(crop.style, { width: w + "%", height: h + "%", left: (100 - w) / 2 + "%", top: (100 - h) / 2 + "%" })

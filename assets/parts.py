@@ -21,7 +21,9 @@ class CropRotatePad(io.ComfyNode):
 
     @classmethod
     def execute(cls, image, crop):
-        return io.NodeOutput(crop_edit.apply(image, json.loads(crop)))
+        spec = json.loads(crop)  # with "oval" when Mask is on: gray outside the face template's oval
+        out = crop_edit.apply(image, spec)
+        return io.NodeOutput(crop_edit.mask_outside(out, spec["oval"], spec["pad"]) if spec.get("oval") else out)
 
 
 class Krea2Patch(io.ComfyNode):

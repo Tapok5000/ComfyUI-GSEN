@@ -80,6 +80,12 @@ def oval_mask(oval, pad, h, w):
     return torch.from_numpy(np.clip((1 - np.sqrt(dx * dx + dy * dy)) * min(ax, ay) + 0.5, 0, 1))[None]
 
 
+def mask_outside(image, oval, pad):
+    """IMAGE batch cropped and padded -> gray outside the face oval (the gray of the padding), the face as it was."""
+    m = oval_mask(oval, pad, *image.shape[1:3])[..., None].to(image)
+    return image * m + GRAY[0] / 255 * (1 - m)
+
+
 def apply(image, spec):
     """IMAGE batch -> the same batch turned, cropped and padded."""
     out = []
