@@ -219,7 +219,7 @@ function build(node) {
   fits.push(fval)
   // its Mask and the Mask's preview, where MyNode.svg has them: with ⛶ Face, ref_boost acts on the face oval only
   const maskB = txt("div", "mn-cmask", "Mask"), mini = el("div", "mn-cmini"), miniCv = el("canvas")
-  maskB.title = "ref_boost on the face oval only, the rest at x1: Format ⛶ Face 1:1 or ⛶ Face 2:3, ref_boost not 1"
+  maskB.title = "ref_boost on the face oval only, the rest at x1: Format ⛶ Face 1:1 or ⛶ Face 2:3; with Mask set Ref boost 5-6"
   maskB.onclick = () => { set("crop_mask", !W("crop_mask")?.value) }
   mini.append(miniCv)
   pBox.append(ed.canvas)
@@ -318,7 +318,8 @@ function build(node) {
       r.append(sv)
       return r
     } else {
-      const { min, max, precision, step2: step } = w.options
+      const { min, max, precision, step2 } = w.options
+      const step = name === "ref_boost" ? 0.25 : step2 // its 0.01 is for typing: 1 to 4 by arrows was 300 clicks
       const typed = (x) => {
         w.value = x
         updateCrop() // W and H reshape both frames while being typed

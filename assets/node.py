@@ -139,7 +139,8 @@ class FaceProcessing(io.ComfyNode):
                 io.Combo.Input("aspect_ratio", options=list(PRESETS), default="custom"),
                 io.Int.Input("custom_width", default=1024, min=16, max=16384, step=8),
                 io.Int.Input("custom_height", default=1536, min=16, max=16384, step=8),
-                io.Float.Input("ref_boost", default=2.0, min=0.0, max=1000.0, step=0.01),
+                # 3, not krea2edit's 2: measured on a face crop, likeness 0.865 at 2 and 0.887 at 3, edits still made
+                io.Float.Input("ref_boost", default=3.0, min=0.0, max=1000.0, step=0.01),
                 io.Int.Input("grounding_px", default=1024, min=0, max=4096, step=64,
                              tooltip="Not used since 1.22.0, always 1024; kept so saved workflows load."),
                 io.Int.Input("max_resolution", default=0, min=0, max=16384, step=8),
@@ -174,7 +175,7 @@ class FaceProcessing(io.ComfyNode):
                                tooltip="Settings → LLM's system prompt, picture → prompt: a .txt in assets/prompts/img_to_text."),
                 io.Boolean.Input("crop_mask", default=False, optional=True, label_on="on", label_off="off",
                                  tooltip="Crop's Mask. On, with Format ⛶ Face: ref_boost acts on the face oval only, "
-                                         "the rest of the reference at x1. Does nothing at ref_boost 1."),
+                                         "the rest of the reference at x1, so it wants ref_boost 5-6. Does nothing at 1."),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
