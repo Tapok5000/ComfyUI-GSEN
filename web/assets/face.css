@@ -31,9 +31,10 @@
 .mn-dims{left:1311.92px;top:1.38px;width:584px;text-align:center;line-height:44px;font-size:17.33px;color:#3d4428;pointer-events:none}
 /* MyNode.svg has no timer under open Settings, and the pill straddles the panel's edge */
 .mn:has(.mn-set.open) :is(.mn-pill.t,.mn-clock,.mn-time){visibility:hidden}
-/* ⛶: the face on the whole screen, scaled by --k (index.js) and centred, black around it; toasts of its own (ui.js) */
+/* ⛶: the face on the whole screen, scaled by --k (index.js) to the screen's width, its panels stretched down to the
+   screen's bottom (no black bars; only a screen wider than the node, 32:9, keeps them at the sides); toasts of its own (ui.js) */
 .mn-fs{position:absolute;inset:0}
-.mn-fs:fullscreen>.mn{inset:auto;left:50%;top:50%;width:1890.6px;height:745px;translate:-50% -50%;scale:var(--k)}
+.mn-fs:fullscreen>.mn{inset:0 auto auto 50%;width:1890.6px;height:calc(100vh / var(--k));translate:-50%;transform-origin:50% 0;scale:var(--k)}
 .mn-ftoast{position:fixed;z-index:10001;top:16px;right:16px;max-width:420px;padding:10px 14px;background:#202124;border:1px solid #3c3d41;border-left:4px solid #c7f400;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.55);color:#e3e3e3;font:13.5px/1.35 system-ui,"Segoe UI",Arial,sans-serif}
 .mn-ftoast.warn{border-left-color:#f2c14e}
 .mn-ftoast.error{border-left-color:#ff6b6b}
