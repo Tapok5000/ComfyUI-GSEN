@@ -7,14 +7,14 @@ import { PRESETS, cropEditor } from "./crop.js"
 const NODE = "MyNode_FaceProcessing"
 const SIZE = [1890.6, 745]
 
-// [label, widget, top, left, width] px from MyNode.svg: the middle's two columns of pills under the prompt boxes
+// [label, widget, top, left, width] px from MyNode.svg: the middle's two columns of pills under the prompt boxes.
+// Resize lies over Crop's left end and custom / preset over W x H's, as MyNode.svg draws them: the later one is on top
 const ROWS = [
-  ["LLM", "ai_prompt", 400.24, 52.35, 145], ["Ref boost", "ref_boost", 400.24, 209.59, 200],
-  ["Resize", "resolution_source", 454.93, 52.35, 145], ["Crop", "manual_crop", 454.93, 209.59, 145],
-  ["W", "custom_width", 565.46, 52.35, 145], ["H", "custom_height", 565.46, 209.59, 145],
-  ["", "aspect_ratio", 565.46, 52.35, 302.24], // a preset's pill, in W and H's place (not in MyNode.svg)
-  ["seed", "seed", 400.26, 468.17, 199.89], ["steps", "steps", 478.23, 468.74, 140],
-  ["sampler", "sampler_name", 520.09, 470.14, 200], ["scheduler", "scheduler", 565.46, 470.14, 200],
+  ["LLM", "ai_prompt", 426.9, 50.4, 138.91], ["Ref boost", "ref_boost", 426.9, 209.63, 199.93],
+  ["Crop", "manual_crop", 483.19, 156.04, 144.89], ["Resize", "resolution_source", 483.17, 50.47, 138.55],
+  ["", "aspect_ratio", 540.18, 152.53, 199.88], // a preset's name, in W x H's place (not in MyNode.svg)
+  ["seed", "seed", 426.88, 468.17, 199.89], ["steps", "steps", 504.85, 468.74, 140],
+  ["sampler", "sampler_name", 546.71, 470.14, 200], ["scheduler", "scheduler", 592.08, 470.14, 200],
 ]
 // under seed: [label, control_after_generate value, left, width]. FIX keeps the seed, RANDOM rolls one after each Run;
 // LIST is the seeds kept with + beside seed (MyNode.svg), one picked goes back in and is pinned (FIX)
@@ -31,23 +31,33 @@ const MODEL_ROWS = [["MODEL", "unet_name", 375.62], ["LORA", "lora_name", 402.42
 // a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (assets/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
 const countPrompts = (t) => t.split(DASHES.test(t) ? DASHES : /\n\s*\n/).filter((p) => p.trim()).length
+// MyNode.svg's 🔊 and 🔇 (font glyphs there), outlined: one box, the speaker in the same place in both, drawn 9.5% wider
+// and 10.4% taller than the glyph and with its lower half 20% darker, as MyNode.svg has it (its shadow: face.css)
+const speaker = (d) => `<svg viewBox="0 0 21.03 16.69" width="23.02" height="18.43" preserveAspectRatio="none" fill="currentColor">
+  <path d="${d}"/><svg y="8.29" width="21.03" height="8.4" viewBox="0 8.29 21.03 8.4"><path d="${d}" fill="#161a0a" fill-opacity=".2"/></svg></svg>`
 
 const ICON = {
   clock: `<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#111" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.6 1.8M3.8 6.2 7 3.6M20.2 6.2 17 3.6M7.2 19.6l-1.6 2M16.8 19.6l1.6 2"/></svg>`,
   open: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="#111" stroke-width="2"><path d="M1 1h20v20H1zM7 15 18 4M11 4h7v7"/></svg>`,
+  // MyNode.svg's ⛶ (its layer Corner): four corners, lighter under the diagonal from top right to bottom left
+  full: `<svg viewBox="302.205 -60.551 473.881 455.851" width="23.36" height="22.47"><g fill="#111">
+    <path d="m302.205-60.551h204v37c0,23-18,41-41,41h-85v86c0,23-18,40-41,40h-37z"/><path d="m776.086-60.551h-204v37c0,23 18,41 41,41h85v86c0,23 18,40 41,40h37z"/>
+    <path d="m302.205 191.301h37c23,0 41,18 41,41v85h85c23,0 41,18 41,41v37h-204z"/><path d="m776.086 191.301h-37c-23,0-41,18-41,41v85h-85c-23,0-41,18-41,41v37h204z"/>
+    </g><g fill="#fff" fill-opacity=".1"><path d="m775.649-60.552-80.957,77.985h3.289v86.029c0,23 18.014,39.983 41.014,39.983h37.011v-203.998z"/>
+    <path d="m383.346 317.288-80.997,78.025h203.76v-37.011c0-23-18.014-41.014-41.014-41.014z"/>
+    <path d="m738.995 191.315h37.011v203.998h-203.998v-37.011c0-23 17.974-41.014 40.974-41.014h84.999v-84.999c0-23 18.014-40.974 41.014-40.974z"/></g></svg>`,
   upload: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#161a0a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 13.5V20h16v-6.5"/></svg>`,
   search: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#777" stroke-width="2.6" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg>`,
   plus: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M11 6v10M6 11h10"/></svg>`,
   cross: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m7 7 8 8m0-8-8 8"/></svg>`,
   // MyNode.svg's 🔍 (a glyph there, mirrored), outlined: the Gallery's Filter Images...
   find: `<svg viewBox="0 0 14.5 14.54" width="14.5" height="14.54" fill="currentColor"><path transform="scale(-1 1)" d="m-12.938,5.744q0,-0.869 0.325,-1.622 0.325,-0.760 0.898,-1.332 0.579,-0.572 1.332,-0.898 0.760,-0.325 1.622,-0.325 0.861,0 1.615,0.325 0.760,0.325 1.332,0.898 0.579,0.572 0.905,1.332 0.325,0.753 0.325,1.622 0,0.861 -0.325,1.622 -0.325,0.753 -0.905,1.332 -0.572,0.572 -1.332,0.898 -0.753,0.318 -1.615,0.318 -0.861,0 -1.622,-0.318 -0.753,-0.325 -1.332,-0.898 -0.572,-0.579 -0.898,-1.332 -0.325,-0.760 -0.325,-1.622zm6.445,-2.230q-0.21,-0.376 -0.564,-0.521 -0.354,-0.152 -0.630,0.01 -0.282,0.166 -0.333,0.550 -0.043,0.376 0.173,0.746 0.217,0.376 0.564,0.528 0.354,0.144 0.637,-0.014 0.282,-0.159 0.326,-0.536 0.043,-0.383 -0.173,-0.760zm-8.010,2.230q0,-1.187 0.441,-2.230 0.449,-1.042 1.238,-1.832 0.789,-0.789 1.832,-1.231 1.042,-0.449 2.230,-0.449 1.187,0 2.230,0.449 1.042,0.441 1.832,1.231 0.789,0.789 1.231,1.832 0.449,1.042 0.449,2.230 0,0.912 -0.275,1.745 -0.268,0.825 -0.746,1.520 0.470,-0.101 0.948,0.029 0.485,0.130 0.854,0.499l1.658,1.658q0.383,0.383 0.507,0.890 0.130,0.499 0,0.999 -0.123,0.499 -0.507,0.883 -0.383,0.376 -0.883,0.507 -0.499,0.130 -0.999,0 -0.499,-0.130 -0.883,-0.507l-1.658,-1.665q-0.376,-0.369 -0.507,-0.854 -0.130,-0.485 -0.022,-0.963 -0.688,0.470 -1.513,0.738 -0.818,0.260 -1.716,0.260 -1.187,0 -2.230,-0.449 -1.042,-0.449 -1.832,-1.238 -0.789,-0.789 -1.238,-1.825 -0.441,-1.042 -0.441,-2.230zm10.443,0q0,-0.977 -0.369,-1.825 -0.362,-0.854 -1.013,-1.499 -0.644,-0.644 -1.499,-1.006 -0.847,-0.369 -1.817,-0.369 -0.970,0 -1.825,0.369 -0.854,0.362 -1.499,1.006 -0.644,0.644 -1.014,1.499 -0.362,0.847 -0.362,1.825 0,0.970 0.362,1.825 0.369,0.847 1.014,1.499 0.644,0.644 1.499,1.006 0.854,0.362 1.825,0.362 0.970,0 1.817,-0.362 0.854,-0.362 1.499,-1.006 0.651,-0.651 1.013,-1.499 0.369,-0.854 0.369,-1.825z"/></svg>`,
-  // MyNode.svg's 🔊 and 🔇 (font glyphs there), outlined: one box, the speaker in the same place in both
-  on: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m4.508,13.687h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h3.156v0.010l6.041,-2.833q0.416,-0.197 0.937,-0.135 0.531,0.052 0.916,0.333 0.385,0.281 0.385,0.75v4.864q0.927,0.020 1.572,0.687 0.656,0.666 0.656,1.604 0,0.927 -0.656,1.593 -0.645,0.666 -1.572,0.697v4.677q0,0.468 -0.281,0.791 -0.281,0.333 -0.698,0.437 -0.416,0.114 -0.843,-0.083zm6.791,-11.989q-0.01,0 -0.021,0 0,0 0,0 -0.052,0 -0.083,0l-0.01,0.010 -5.166,2.427v8.572l5.281,2.343zm5.312,3.031q1.291,1.427 1.354,3.364 0.073,2.270 -1.531,3.874 -0.083,0.072 -0.156,0.145 -0.239,0.218 -0.531,0.197 -0.291,-0.020 -0.510,-0.218 -0.208,-0.208 -0.208,-0.531 0,-0.333 0.229,-0.552 0.562,-0.520 0.885,-1.229 0.322,-0.708 0.322,-1.531 0,-0.812 -0.322,-1.520 -0.323,-0.718 -0.885,-1.229 -0.229,-0.218 -0.229,-0.531v-0.020q0,-0.333 0.208,-0.531 0.218,-0.208 0.510,-0.218 0.291,-0.020 0.531,0.197 0.166,0.145 0.333,0.333zm-0.458,-2.322q0.854,0.489 1.541,1.218 0.875,0.927 1.343,2.114 0.479,1.177 0.489,2.437 0.01,1.375 -0.5,2.635 -0.510,1.25 -1.479,2.218 -0.635,0.635 -1.395,1.072 -0.375,0.218 -0.375,0.656 0,0.427 0.375,0.645 0.375,0.218 0.75,0 1.239,-0.718 2.166,-1.802 0.927,-1.093 1.437,-2.458 0.520,-1.364 0.520,-2.895 0,-1.520 -0.520,-2.885 -0.510,-1.364 -1.437,-2.458 -0.927,-1.093 -2.166,-1.802 -0.375,-0.218 -0.75,0 -0.375,0.208 -0.375,0.645 0,0.427 0.375,0.656z"/></svg>`,
-  off: `<svg viewBox="0 0 21.03 16.69" width="21.03" height="16.69" fill="currentColor"><path d="m12.799,11.967v3.447q0,0.468 -0.281,0.791 -0.281,0.333 -0.697,0.437 -0.416,0.114 -0.843,-0.083l-6.468,-2.874h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h2.635l-1.625,-1.625q-0.260,-0.260 -0.260,-0.625 0,-0.375 0.260,-0.635 0.260,-0.260 0.625,-0.260 0.375,0 0.635,0.260l14.885,14.874q0.260,0.270 0.260,0.645 0,0.364 -0.260,0.624 -0.260,0.260 -0.635,0.260 -0.364,0 -0.625,-0.260zm-1.5,-1.5 -5.281,-5.281v7.520l5.281,2.343zm3.729,-2.020q0,-0.937 -0.656,-1.604 -0.645,-0.666 -1.572,-0.687v-4.864q0,-0.468 -0.385,-0.75 -0.385,-0.281 -0.916,-0.333 -0.520,-0.062 -0.937,0.135l-3.364,1.572 1.135,1.135 2.854,-1.343h0.01q0.021,-0.010 0.083,-0.010 0,0 0,0 0.01,0 0.021,0v4.322l3.468,3.468q0.260,-0.489 0.260,-1.041z"/></svg>`,
+  on: speaker("m4.508,13.687h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h3.156v0.010l6.041,-2.833q0.416,-0.197 0.937,-0.135 0.531,0.052 0.916,0.333 0.385,0.281 0.385,0.75v4.864q0.927,0.020 1.572,0.687 0.656,0.666 0.656,1.604 0,0.927 -0.656,1.593 -0.645,0.666 -1.572,0.697v4.677q0,0.468 -0.281,0.791 -0.281,0.333 -0.698,0.437 -0.416,0.114 -0.843,-0.083zm6.791,-11.989q-0.01,0 -0.021,0 0,0 0,0 -0.052,0 -0.083,0l-0.01,0.010 -5.166,2.427v8.572l5.281,2.343zm5.312,3.031q1.291,1.427 1.354,3.364 0.073,2.270 -1.531,3.874 -0.083,0.072 -0.156,0.145 -0.239,0.218 -0.531,0.197 -0.291,-0.020 -0.510,-0.218 -0.208,-0.208 -0.208,-0.531 0,-0.333 0.229,-0.552 0.562,-0.520 0.885,-1.229 0.322,-0.708 0.322,-1.531 0,-0.812 -0.322,-1.520 -0.323,-0.718 -0.885,-1.229 -0.229,-0.218 -0.229,-0.531v-0.020q0,-0.333 0.208,-0.531 0.218,-0.208 0.510,-0.218 0.291,-0.020 0.531,0.197 0.166,0.145 0.333,0.333zm-0.458,-2.322q0.854,0.489 1.541,1.218 0.875,0.927 1.343,2.114 0.479,1.177 0.489,2.437 0.01,1.375 -0.5,2.635 -0.510,1.25 -1.479,2.218 -0.635,0.635 -1.395,1.072 -0.375,0.218 -0.375,0.656 0,0.427 0.375,0.645 0.375,0.218 0.75,0 1.239,-0.718 2.166,-1.802 0.927,-1.093 1.437,-2.458 0.520,-1.364 0.520,-2.895 0,-1.520 -0.520,-2.885 -0.510,-1.364 -1.437,-2.458 -0.927,-1.093 -2.166,-1.802 -0.375,-0.218 -0.75,0 -0.375,0.208 -0.375,0.645 0,0.427 0.375,0.656z"),
+  off: speaker("m12.799,11.967v3.447q0,0.468 -0.281,0.791 -0.281,0.333 -0.697,0.437 -0.416,0.114 -0.843,-0.083l-6.468,-2.874h-3.145q-0.562,0 -0.958,-0.416 -0.395,-0.416 -0.395,-1.010v-7.666q0,-0.593 0.395,-1.010 0.395,-0.416 0.958,-0.416h2.635l-1.625,-1.625q-0.260,-0.260 -0.260,-0.625 0,-0.375 0.260,-0.635 0.260,-0.260 0.625,-0.260 0.375,0 0.635,0.260l14.885,14.874q0.260,0.270 0.260,0.645 0,0.364 -0.260,0.624 -0.260,0.260 -0.635,0.260 -0.364,0 -0.625,-0.260zm-1.5,-1.5 -5.281,-5.281v7.520l5.281,2.343zm3.729,-2.020q0,-0.937 -0.656,-1.604 -0.645,-0.666 -1.572,-0.687v-4.864q0,-0.468 -0.385,-0.75 -0.385,-0.281 -0.916,-0.333 -0.520,-0.062 -0.937,0.135l-3.364,1.572 1.135,1.135 2.854,-1.343h0.01q0.021,-0.010 0.083,-0.010 0,0 0,0 0.01,0 0.021,0v4.322l3.468,3.468q0.260,-0.489 0.260,-1.041z"),
   // MyNode.svg's ✅ and ⬇️ (emoji there, white in its fonts), outlined: Settings' model rows
   ok: `<svg viewBox="14.182 20.422 11.636 11.636" width="11.64" height="11.64" fill="currentColor"><path d="m18.5,28.391 .266,.266q.109,.109 .266,.109 .156,0 .266-.109l4.245-4.25q.109-.109 .109-.26 0-.156-.109-.271-.109-.109-.266-.109-.156,0-.266,.109l-3.979,3.984-2.026-2.026q-.109-.115-.266-.115-.156,0-.266,.115-.109,.109-.109,.266 0,.151 .109,.26l2.026,2.031zM16.245,20.609q-.516,0-.943,.255-.427,.25-.682,.677-.25,.427-.25,.943v7.51q0,.516 .25,.943 .255,.427 .682,.677 .427,.255 .943,.255h7.51q.516,0 .943-.255 .427-.25 .677-.677 .255-.427 .255-.943v-7.51q0-.516-.255-.943-.25-.427-.677-.677-.427-.255-.943-.255zm-1.125,1.875q0-.464 .328-.792 .333-.333 .797-.333h7.51q.469,0 .797,.333 .328,.328 .328,.792v7.51q0,.464-.328,.792-.328,.333-.797,.333h-7.51q-.464,0-.797-.333-.328-.328-.328-.792zm-.938,0v7.51q0,.568 .276,1.036 .281,.469 .75,.745 .469,.281 1.036,.281h7.51q.568,0 1.036-.281 .469-.276 .745-.745 .281-.469 .281-1.036v-7.51q0-.568-.281-1.036-.276-.469-.745-.745-.469-.281-1.036-.281h-7.51q-.568,0-1.036,.281-.469,.276-.75,.745-.276,.469-.276,1.036zm.375,0q0-.464 .229-.849 .229-.385 .609-.609 .385-.229 .849-.229h7.51q.469,0 .849,.229 .385,.224 .609,.609 .229,.385 .229,.849v7.51q0,.464-.229,.849-.224,.385-.609,.609-.38,.229-.849,.229h-7.51q-.464,0-.849-.229-.38-.224-.609-.609-.229-.385-.229-.849zm1.688-1.313q-.359,0-.661,.177-.297,.177-.474,.479-.177,.297-.177,.656v7.51q0,.359 .177,.656 .177,.302 .474,.479 .302,.177 .661,.177h7.51q.365,0 .661-.177 .297-.177 .474-.479 .177-.297 .177-.656v-7.51q0-.359-.177-.656-.177-.302-.474-.479-.297-.177-.661-.177zm0,.375h7.51q.391,0 .661,.276 .276,.276 .276,.661v7.51q0,.385-.276,.661-.271,.276-.661,.276h-7.51q-.385,0-.661-.276-.276-.276-.276-.661v-7.51q0-.385 .276-.661 .276-.276 .661-.276zm.094,4.948 1.896,1.896v0l.13,.13 .266,.266q.167,.167 .401,.167 .234,0 .396-.167l4.25-4.245q.161-.167 .161-.396 0-.234-.161-.401-.167-.167-.401-.167-.234,0-.396,.167l-3.849,3.849-1.896-1.896q-.161-.167-.396-.167-.234,0-.401,.167-.161,.167-.161,.401 0,.229 .161,.396zm2.823,1.495 3.984-3.979q.052-.057 .13-.057 .078,0 .135,.057 .052,.052 .052,.13 0,.078-.052,.135l-4.25,4.245q-.052,.057-.13,.057-.078,0-.135-.057L18.766,28.391v0l-.135-.135-2.026-2.026q-.052-.057-.052-.13 0-.078 .052-.135 .057-.057 .135-.057 .078,0 .13,.057l2.026,2.026 .135,.135z"/></svg>`,
   // MyNode.svg's + beside seed: a lime disc with the + cut out, over its dark shadow
-  keep: `<svg viewBox="1889.840 -315.641 32.146 30.899" width="29.02" height="27.89"><circle cx="1907.020" cy="-299.707" r="14.965" fill="#161a0a"/><path d="m1905.289-315.641a15.449,15.449 0 0 0-15.449,15.449 15.449,15.449 0 0 0 15.449,15.449 15.449,15.449 0 0 0 15.449-15.449 15.449,15.449 0 0 0-15.449-15.449zm0,7.569c.25,0 .459,.017 .625,.05 .167,.022 .296,.061 .391,.117 .107,.045 .184,.107 .232,.186 .048,.067 .072,.144 .072,.234v6.118h5.87c.095,0 .177,.022 .248,.067 .084,.045 .156,.117 .216,.218 .071,.101 .117,.23 .141,.387 .036,.146 .055,.319 .055,.52 0,.213-.019,.398-.055,.554-.035,.146-.082,.27-.141,.371-.06,.101-.133,.173-.216,.218-.084,.045-.171,.067-.266,.067h-5.851v6.118c0,.09-.025,.167-.072,.234-.047,.056-.125,.106-.232,.151-.095,.045-.225,.085-.391,.119-.167,.022-.375,.032-.625,.032-.238,0-.447-.01-.625-.032-.167-.034-.302-.074-.409-.119-.095-.045-.166-.095-.214-.151-.047-.067-.072-.144-.072-.234v-6.118h-5.851c-.107,0-.201-.022-.284-.067-.071-.045-.138-.117-.198-.218-.06-.101-.106-.225-.141-.371-.036-.157-.055-.342-.055-.554 0-.202 .019-.375 .055-.52 .035-.157 .082-.286 .141-.387 .06-.101 .126-.173 .198-.218 .084-.045 .171-.067 .266-.067h5.87v-6.118c0-.09 .025-.167 .072-.234 .048-.079 .118-.141 .214-.186 .107-.056 .243-.095 .409-.117 .178-.034 .387-.05 .625-.05z" fill="#c7f400"/></svg>`,
+  keep: `<svg viewBox="1889.840 -315.641 30.899 33.115" width="27.89" height="29.89"><circle cx="1904.805" cy="-297.492" r="14.965" fill="#161a0a"/><path d="m1905.289-315.641a15.449,15.449 0 0 0-15.449,15.449 15.449,15.449 0 0 0 15.449,15.449 15.449,15.449 0 0 0 15.449-15.449 15.449,15.449 0 0 0-15.449-15.449zm0,7.569c.25,0 .459,.017 .625,.05 .167,.022 .296,.061 .391,.117 .107,.045 .184,.107 .232,.186 .048,.067 .072,.144 .072,.234v6.118h5.87c.095,0 .177,.022 .248,.067 .084,.045 .156,.117 .216,.218 .071,.101 .117,.23 .141,.387 .036,.146 .055,.319 .055,.52 0,.213-.019,.398-.055,.554-.035,.146-.082,.27-.141,.371-.06,.101-.133,.173-.216,.218-.084,.045-.171,.067-.266,.067h-5.851v6.118c0,.09-.025,.167-.072,.234-.047,.056-.125,.106-.232,.151-.095,.045-.225,.085-.391,.119-.167,.022-.375,.032-.625,.032-.238,0-.447-.01-.625-.032-.167-.034-.302-.074-.409-.119-.095-.045-.166-.095-.214-.151-.047-.067-.072-.144-.072-.234v-6.118h-5.851c-.107,0-.201-.022-.284-.067-.071-.045-.138-.117-.198-.218-.06-.101-.106-.225-.141-.371-.036-.157-.055-.342-.055-.554 0-.202 .019-.375 .055-.52 .035-.157 .082-.286 .141-.387 .06-.101 .126-.173 .198-.218 .084-.045 .171-.067 .266-.067h5.87v-6.118c0-.09 .025-.167 .072-.234 .048-.079 .118-.141 .214-.186 .107-.056 .243-.095 .409-.117 .178-.034 .387-.05 .625-.05z" fill="#c7f400"/></svg>`,
   down: `<svg viewBox="92.962 18.262 14.075 14.075" width="14.08" height="14.08" fill="currentColor"><path d="m99.063,21.543v4.577q0,.117-.117,.117h-1.439q-.208,0-.339,.143-.124,.137-.13,.332-.006,.189 .143,.332l2.493,2.402q.137,.13 .326,.13 .189,0 .326-.13l2.493-2.402q.15-.143 .143-.332 0-.195-.13-.332-.124-.143-.339-.143h-1.439q-.117,0-.117-.117V21.543q0-.189-.137-.326-.137-.143-.332-.143h-.937q-.195,0-.332,.143-.137,.137-.137,.326zM95.306,18.262H104.694q.645,0 1.178,.319 .534,.312 .846,.846 .319,.534 .319,1.178v9.388q0,.645-.319,1.178-.312,.534-.846,.846-.534,.319-1.178,.319h-9.388q-.645,0-1.178-.319-.534-.312-.853-.846-.312-.534-.312-1.178v-9.388q0-.645 .312-1.178 .319-.534 .853-.846 .534-.319 1.178-.319zm-1.406,2.344v9.388q0,.579 .41,.99 .417,.417 .996,.417H104.694q.586,0 .996-.417 .41-.41 .41-.99v-9.388q0-.579-.41-.99-.41-.417-.996-.417h-9.388q-.579,0-.996,.417-.41,.41-.41,.99z"/></svg>`,
 }
 // GSEN in MyNode.svg's Sci-Fi font, outlined (158.29 x 29.46): the Settings header's logo, the boxes' watermark, the
@@ -60,10 +70,11 @@ const svgUrl = (attrs, body) => `url("data:image/svg+xml,${encodeURIComponent(`<
 const MARK = svgUrl('viewBox="0 0 158.293 29.4603" preserveAspectRatio="none"', `<path d="${GSEN}" fill="#fff" fill-opacity=".03"/>`)
 const TILE = svgUrl('width="320" height="320"', `<defs><pattern id="g" width="190.031" height="76.0124" patternUnits="userSpaceOnUse"
   patternTransform="rotate(45) scale(.595362)"><path d="${GSEN}"/></pattern></defs><rect width="320" height="320" fill="url(#g)" opacity=".1"/>`)
-// a box's faint word in its top left, as MyNode.svg has it: Arial 20, white at 5%; face.css takes it as --mn-cap
-const capUrl = (word) => svgUrl('width="120" height="40"',
-  `<text x="8.9" y="25.7" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#fff" fill-opacity=".05">${word}</text>`)
-const CAPS = { PROMT: capUrl("PROMT"), RU: capUrl("RU"), EN: capUrl("EN") }
+// a box's faint word in its top left, as MyNode.svg has it: Arial 20, white at 5%; face.css takes it as --mn-cap.
+// MyNode.svg draws RU's 1.3 px left of PROMT's
+const capUrl = (word, x) => svgUrl('width="120" height="40"',
+  `<text x="${x}" y="23.83" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#fff" fill-opacity=".05">${word}</text>`)
+const CAPS = { PROMT: capUrl("PROMT", 8.81), RU: capUrl("RU", 7.54), EN: capUrl("EN", 7.54) }
 
 // Settings → Sound: the files in assets/Sound (common.py), played when a Run is done
 let sounds = []
@@ -155,21 +166,27 @@ function build(node) {
     refresh()
   }
   const off = new AbortController()
-  const root = el("div", "mn")
+  const root = el("div", "mn"), fs = el("div", "mn-fs") // fs: the node's DOM widget, the face in it
 
   const head = el("div", "mn-head")
   const time = txt("div", "mn-time", "00:00"), track = el("div", "mn-track"), fill = el("div", "mn-fill")
   const pct = txt("div", "mn-pct", "0%"), openB = el("div", "mn-open", ICON.open), dims = el("div", "mn-dims")
-  const run = txt("div", "mn-run", "Run")
+  const run = txt("div", "mn-run", "Run"), fullB = el("div", "mn-full", ICON.full)
   openB.title = "Settings"
   run.title = "Run this node"
-  openB.dataset.click = run.dataset.click = ""
+  fullB.title = "Full screen (Esc: back)"
+  openB.dataset.click = run.dataset.click = fullB.dataset.click = ""
+  // ⛶: the face on the whole screen, scaled to fit (face.css); pick lists and toasts open in it (shared/ui.js)
+  fullB.onclick = () => { document.fullscreenElement === fs ? document.exitFullscreen() : fs.requestFullscreen() }
+  const fitScreen = () => fs.style.setProperty("--k", Math.min(innerWidth / SIZE[0], innerHeight / SIZE[1]))
+  addEventListener("resize", fitScreen, { signal: off.signal }) // entering full screen resizes the window too
+  fitScreen()
   run.onclick = () => {
     app.canvas.selectNode(node) // the command queues the selected output nodes, so: only this one
     app.extensionManager.command.execute("Comfy.QueueSelectedOutputNodes")
   }
   track.append(fill)
-  head.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, dims)
+  head.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, fullB, dims)
 
   const left = el("div", "mn-left")
   const pick = el("div", "mn-pick"), pName = el("div", "mn-pname"), pIdx = el("div", "mn-pidx")
@@ -265,6 +282,21 @@ function build(node) {
   ra.onclick = () => stepImage(1)
   up.onclick = () => file.click()
 
+  // a number widget's ◀ value ▶ (numberField); W and H reshape both frames while being typed
+  const numberOf = (name) => {
+    const w = W(name), { min, max, precision, step2 } = w.options
+    const step = name === "ref_boost" ? 0.25 : step2 // its 0.01 is for typing: 1 to 4 by arrows was 300 clicks
+    const typed = (x) => {
+      w.value = x
+      updateCrop()
+      refreshFrame()
+    }
+    const f = numberField(() => w.value, (x) => set(name, x), typed, { min, max, precision, step })
+    binds.push(() => { if (document.activeElement !== f.inp) f.show() })
+    fits.push(f.inp)
+    return f
+  }
+
   // on* handlers are blocks on purpose: one that returns false cancels its event (that once ate every key)
   const row = ([label, name, top, left, width], cls) => {
     const w = W(name), r = el("div", cls)
@@ -317,29 +349,17 @@ function build(node) {
       sv.append(inp)
       r.append(sv)
       return r
-    } else {
-      const { min, max, precision, step2 } = w.options
-      const step = name === "ref_boost" ? 0.25 : step2 // its 0.01 is for typing: 1 to 4 by arrows was 300 clicks
-      const typed = (x) => {
-        w.value = x
-        updateCrop() // W and H reshape both frames while being typed
-        refreshFrame()
-      }
-      const f = numberField(() => w.value, (x) => set(name, x), typed, { min, max, precision, step })
-      binds.push(() => { if (document.activeElement !== f.inp) f.show() })
-      fits.push(f.inp)
-      v.append(...f.nodes)
-    }
+    } else v.append(...numberOf(name).nodes)
     r.append(v)
     return r
   }
 
   const mid = el("div", "mn-mid")
-  const prompt = el("textarea", "mn-box"), ru = el("div", "mn-box")
+  const prompt = el("textarea", "mn-box"), ru = el("div", "mn-box ru")
   prompt.dataset.scroll = ru.dataset.scroll = ""
   prompt.spellcheck = false
-  Object.assign(prompt.style, { left: "18.89px", top: "27.64px" }) // the two boxes don't line up in MyNode.svg either
-  Object.assign(ru.style, { left: "17.59px", top: "227.24px" })
+  Object.assign(prompt.style, { left: "15.01px", top: "25.11px" })
+  Object.assign(ru.style, { left: "15.01px", top: "237.42px" })
   prompt.oninput = () => {
     W("text").value = prompt.value
     W("text").callback?.(prompt.value)
@@ -347,7 +367,7 @@ function build(node) {
   // PROMT and RU are the boxes' background, faint under their text like MyNode.svg draws them; a loaded .txt says its
   // name and count in small lime over the prompt box
   const lp = el("div", "mn-lbl on")
-  Object.assign(lp.style, { left: "20.49px", top: "14.34px" })
+  Object.assign(lp.style, { left: "16.61px", top: "11.81px" })
   prompt.style.setProperty("--mn-cap", CAPS.PROMT)
   // EN / RU: a switch over each prompt view (the RU box, a gallery card, the LLM tab), one choice for all of them, kept
   // with the workflow; RU first, as MyNode.svg lights it. A view without its RU shows the EN
@@ -400,10 +420,14 @@ function build(node) {
     lt.textContent = on ? "CLOSE TXT" : "LOAD TXT"
     prompt.readOnly = on
   })
-  // custom / preset: aspect_ratio "custom" is W × H; a preset shows its own pill in their place
+  // custom / preset: aspect_ratio "custom" is W x H, one pill with the numbers typed (MyNode.svg has no arrows there);
+  // a preset shows its name in that pill's place
   const presets = () => comboValues(W("aspect_ratio")).filter((p) => p !== "custom")
   let preset = null // the one custom goes back to
-  const mode = row(["", "", 510.54, 52.35, 147.65], "mn-row tog mn-mode")
+  const mode = row(["", "", 540.19, 49.91, 147.53], "mn-row tog mn-mode")
+  const wh = el("div", "mn-row mn-wh") // not .c: its numbers sit on their own spots, not centred between arrows
+  Object.assign(wh.style, { top: "540.18px", left: "152.53px", width: "199.88px" })
+  wh.append(numberOf("custom_width").inp, txt("span", "x", "X"), numberOf("custom_height").inp)
   mode.firstChild.append(txt("span", "cu", "custom /"), " ", txt("span", "pr", "preset"))
   mode.onclick = () => {
     const v = W("aspect_ratio")?.value
@@ -440,7 +464,7 @@ function build(node) {
     node.setProperty("mn_seeds", [s, ...seeds().filter((x) => x !== s)].slice(0, SEED_KEEP))
     toast(`Seed ${s} is in LIST.`)
   }
-  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, mode, ...ROWS.map((s) => row(s, "mn-row")), ...seedModes, keep)
+  mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, ...ROWS.map((s) => row(s, "mn-row")), wh, mode, ...seedModes, keep)
 
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
@@ -923,7 +947,8 @@ function build(node) {
   }
 
   // hideInPanel: the right Parameters panel sets widget.width to its own width, and the canvas sizes this face by it
-  const dw = node.addDOMWidget("mn_ui", "mn_ui", root, {
+  fs.append(root)
+  const dw = node.addDOMWidget("mn_ui", "mn_ui", fs, {
     serialize: false, hideOnZoom: false, margin: 0, getMinHeight: () => SIZE[1], hideInPanel: true,
   })
   dw.serialize = false
@@ -1094,9 +1119,7 @@ app.registerExtension({
     for (const ev of ["execution_success", "execution_error", "execution_interrupted"]) {
       api.addEventListener(ev, ({ detail }) => DONE.delete(detail?.prompt_id))
     }
-    api.addEventListener("mynode.toast", ({ detail }) => {
-      app.extensionManager.toast.add({ severity: "warn", summary: "Krea2 One", detail: detail.text, life: 8000 })
-    })
+    api.addEventListener("mynode.toast", ({ detail }) => toast(detail.text, "warn", 8000))
     // a model download (models.py): the bar moves, then the end
     api.addEventListener("mynode.models", async ({ detail }) => {
       const m = models.find((x) => x.key === detail.key)

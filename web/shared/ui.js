@@ -106,7 +106,7 @@ export function menu(e, values, pick, { title = "", current } = {}) {
   document.addEventListener("pointerdown", outside, true)
   addEventListener("resize", close)
   closePick = close
-  document.body.append(box)
+  ;(document.fullscreenElement ?? document.body).append(box) // a full-screen face shows nothing outside it
   render()
   find.focus({ preventScroll: true })
 }
@@ -135,11 +135,12 @@ export function nodeByExecId(execId) {
  * handle: left button drags the node, right button opens its menu (on contextmenu, so the release
  * doesn't close it); clicks on [data-click] inside the handle are left alone.
  * root: middle button pans, the wheel zooms unless the element under it is [data-scroll] and can scroll.
+ * A full-screen face hides the canvas: then none of this reaches it.
  */
 export function canvasControls(node, root, handle) {
   handle.addEventListener("pointerdown", (e) => {
     const c = app.canvas
-    if (e.target.closest("[data-click]") || e.button !== 0 || node.pinned || node.flags?.pinned) return
+    if (document.fullscreenElement || e.target.closest("[data-click]") || e.button !== 0 || node.pinned || node.flags?.pinned) return
     e.preventDefault()
     c.selectNode(node)
     c.bringToFront(node)
@@ -160,12 +161,13 @@ export function canvasControls(node, root, handle) {
   })
   handle.addEventListener("contextmenu", (e) => {
     e.preventDefault()
+    if (document.fullscreenElement) return
     LiteGraph.LGraphCanvas.active_canvas ??= app.canvas
     app.canvas.adjustMouseEvent(e)
     app.canvas.processContextMenu(node, e)
   })
   root.addEventListener("pointerdown", (e) => {
-    if (e.button !== 1) return
+    if (e.button !== 1 || document.fullscreenElement) return
     e.preventDefault()
     root.setPointerCapture(e.pointerId)
     app.canvas.processMouseDown(e)
@@ -193,11 +195,20 @@ export function canvasControls(node, root, handle) {
     if (!e.ctrlKey && sc && sc.scrollHeight > sc.clientHeight) return e.stopPropagation()
     e.preventDefault()
     e.stopPropagation()
-    app.canvas.processMouseWheel(e)
+    if (!document.fullscreenElement) app.canvas.processMouseWheel(e)
   }, { passive: false })
 }
 
-export const toast = (detail, severity = "info", life = 6000) => app.extensionManager.toast.add({ severity, summary: "GSEN", detail, life })
+export function toast(detail, severity = "info", life = 6000) {
+  const full = document.fullscreenElement
+  if (!full) return app.extensionManager.toast.add({ severity, summary: "GSEN", detail, life })
+  // ComfyUI's toasts stay under a full-screen face: one of its own, the newest only
+  full.querySelector(":scope>.mn-ftoast")?.remove()
+  const t = txt("div", `mn-ftoast ${severity}`, detail)
+  full.append(t)
+  full.addEventListener("fullscreenchange", () => t.remove(), { once: true }) // back on the canvas it would sit on the node
+  setTimeout(() => t.remove(), life)
+}
 
 // a hidden file input for pictures: the chosen file goes to ComfyUI's input/, put() gets its name there
 export function picker(put) {
