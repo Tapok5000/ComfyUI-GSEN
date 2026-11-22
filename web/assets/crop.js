@@ -358,7 +358,8 @@ export function cropEditor(img, read, write, signal) {
       const f = Math.exp(-clamp(step, -100, 100) * 0.0003)
       s.oval = Math.round(clamp(s.oval * f, 0.3, ovalMax(OVAL[s.ratio])) * 1000) / 1000
     } else {
-      const [mx, my] = local(e), f = Math.exp(step * 0.0015) // a notch ±15%
+      // a notch ±3% as the oval's: ±15% moved a 623 px crop by 101, and Windows' 100-300+ per notch made it worse
+      const [mx, my] = local(e), f = Math.exp(clamp(step, -100, 100) * 0.0003)
       s.box = zoomAt(s.box, s.cw / 2 + (mx - view.cx) / view.k, s.ch / 2 + (my - view.cy) / view.k, f, s.cw, s.ch)
       if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // rounding w and h apart must not walk it off
     }
