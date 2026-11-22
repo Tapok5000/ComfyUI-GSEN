@@ -16,6 +16,7 @@ export const PRESETS = [["face 1:1", "⛶ Face 1:1"], ["face 2:3", "⛶ Face 2:3
   ["1:1", "Square"], ...["9:16", "16:9", "4:5", "5:4", "3:4", "4:3", "2:3", "3:2", "5:7", "7:5", "1:2", "2:1"].map((k) => [k, k])]
 const OVAL = { "face 1:1": [0.5, 0.4358, 0.2467, 0.3026], "face 2:3": [0.5, 0.3861, 0.2962, 0.2927] }
 const FEATHER = 0.45 // crop_edit.FEATHER: Mask's soft edge, a part of the oval's radius
+const HOLD = 300, FADE = 400 // ms the oval's centre cross stays after the last move, then fades out
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
@@ -87,6 +88,18 @@ export function cropEditor(img, read, write, signal) {
   canvas.className = "mn-cropcv"
   label.className = "mn-croplbl"
   let s = null, view = null, drag = null, tween = 0, settle = false
+  // a small cross on the oval's middle while the picture moves under it: lit through a drag or wheel, out once they stop
+  let moved = -Infinity, fading = 0
+  const crossAlpha = () => (drag ? 1 : 1 - clamp((performance.now() - moved - HOLD) / FADE, 0, 1))
+  const fadeCross = () => {
+    moved = performance.now()
+    cancelAnimationFrame(fading)
+    const step = () => {
+      paint()
+      if (crossAlpha() > 0) fading = requestAnimationFrame(step)
+    }
+    fading = requestAnimationFrame(step)
+  }
 
   const aspect = () => aspectOf(s.ratio, s.W, s.H, s.angle)
   const fitBox = () => { s.box = fitIn(s.box, s.cw, s.ch, aspect()) }
@@ -230,6 +243,18 @@ export function cropEditor(img, read, write, signal) {
       ctx.stroke()
       ctx.setLineDash([])
       ctx.lineCap = "butt"
+      const a = crossAlpha()
+      if (a > 0) {
+        ctx.globalAlpha = 0.6 * a
+        ctx.beginPath()
+        ctx.moveTo(cx - 6, cy)
+        ctx.lineTo(cx + 6, cy)
+        ctx.moveTo(cx, cy - 6)
+        ctx.lineTo(cx, cy + 6)
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+        ctx.globalAlpha = 1
+      }
     } else if (drag) {
       ctx.beginPath() // Windows' thirds while the box changes
       for (const k of [1 / 3, 2 / 3]) {
@@ -363,6 +388,7 @@ export function cropEditor(img, read, write, signal) {
       s.box = zoomAt(s.box, s.cw / 2 + (mx - view.cx) / view.k, s.ch / 2 + (my - view.cy) / view.k, f, s.cw, s.ch)
       if (aspect()) s.box = withRatio(s.box, aspect(), s.cw, s.ch) // rounding w and h apart must not walk it off
     }
+    fadeCross()
     save()
   }, { capture: true, passive: false, signal })
   canvas.addEventListener("pointermove", (e) => {
@@ -379,8 +405,9 @@ export function cropEditor(img, read, write, signal) {
     const changed = JSON.stringify(drag.s0) !== JSON.stringify(s)
     settle = drag.h.kind !== "move" // a handle let go: the view glides to the new frame, as in Windows
     drag = null
-    if (changed) save()
-    else draw()
+    if (!changed) return draw() // a bare click: no cross
+    fadeCross()
+    save()
   }
   canvas.addEventListener("pointerup", end)
   canvas.addEventListener("lostpointercapture", end)
