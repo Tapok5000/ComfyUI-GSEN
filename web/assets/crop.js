@@ -245,7 +245,7 @@ export function cropEditor(img, read, write, signal) {
       ctx.lineCap = "butt"
       const a = crossAlpha()
       if (a > 0) {
-        ctx.globalAlpha = 0.6 * a
+        ctx.globalAlpha = a // solid while moving: at 60% it got lost on the picture
         ctx.beginPath()
         ctx.moveTo(cx - 6, cy)
         ctx.lineTo(cx + 6, cy)
