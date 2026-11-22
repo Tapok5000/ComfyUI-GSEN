@@ -74,6 +74,14 @@
 .mn-arrow.l{left:85.8px;border-right:13.5px solid var(--lime)}
 .mn-arrow.r{left:420.5px;border-left:13.5px solid var(--lime)}
 .mn-prev>.mn-arrow.r{top:262px} /* MyNode.svg's two arrows aren't level */
+/* ⛶: the picture's dark panel reaches down to the screen's foot, 15.37 px short as in MyNode.svg; the picture (or the crop
+   editor) and its arrows keep to the panel's middle, Format to its foot */
+.mn-fs:fullscreen .mn-prev{height:auto;bottom:15.37px}
+.mn-fs:fullscreen .mn-pbox{height:calc(100% - 105.9px)}
+.mn-fs:fullscreen .mn-cropcv{top:calc(50% - 223.5px)}
+.mn-fs:fullscreen .mn-prev>.mn-arrow.l{top:calc(50% - 12.25px)}
+.mn-fs:fullscreen .mn-prev>.mn-arrow.r{top:calc(50% - 14.45px)}
+.mn-fs:fullscreen .mn-fmt{top:auto;bottom:11.4px}
 
 .mn-mid{position:absolute;left:526.33px;top:44px;width:755px;bottom:0}
 .mn-lbl{position:absolute;left:19px;max-width:715px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:12px}
