@@ -1,9 +1,10 @@
 """Krea 2 identity edit: source patch + image-grounded prompt encode, on bare ComfyUI.
 
-Adapted from comfyui-krea2edit 1.2.5 (Apache License 2.0, copy in licenses/krea2edit.txt). Changes: trimmed to
-the path 444.json runs (one source image with vae -> pixel path, fit_mode "fit", stride-1 positions, ref_boost);
-the source is encoded before sampling (what krea2edit does when target_latent is wired); ref_boost can act on a
-mask's part of the source only (ours, like ref_boost_mask in RedNodeAI's Krea 2 nodes). The math is otherwise unchanged.
+Adapted from comfyui-krea2edit 1.2.5 and 2.0.0's two references (Apache License 2.0, copy in licenses/krea2edit.txt).
+Changes: trimmed to the path 444.json runs (source images with vae -> pixel path, fit_mode "fit", stride-1
+positions, aligned placement, ref_boost); the sources are encoded before sampling (what krea2edit does when
+target_latent is wired); ref_boost can act on a mask's part of the first source only (ours, like ref_boost_mask in
+RedNodeAI's Krea 2 nodes). The math is otherwise unchanged.
 """
 import math
 
@@ -24,15 +25,22 @@ TEMPLATE = (
 CROP_TOL = 0.08  # aspect gap under which the source fills the target grid by a small center crop
 
 
-def encode(clip, image, prompt, grounding_px):
-    """The edit prompt encoded together with the source image (Qwen3-VL sees both), as in training."""
+def _grounded(image, grounding_px):
     px = image.movedim(-1, 1)
     h, w = px.shape[-2:]
     if grounding_px and max(h, w) > grounding_px:
         s = grounding_px / max(h, w)
         px = comfy.utils.common_upscale(px, round(w * s), round(h * s), "area", "disabled")
-    tokens = clip.tokenize(prompt, images=[px.movedim(1, -1)[..., :3]], llama_template=TEMPLATE)
-    return clip.encode_from_tokens_scheduled(tokens)
+    return px.movedim(1, -1)[..., :3]
+
+
+def encode(clip, image, prompt, grounding_px, image_b=None):
+    """The edit prompt encoded together with the source image(s) (Qwen3-VL sees them all), as in training; a second
+    image gets a second vision block, in krea2edit 2.0's order."""
+    images = [_grounded(i, grounding_px) for i in (image, image_b) if i is not None]
+    vision = "<|vision_start|><|image_pad|><|vision_end|>"
+    template = TEMPLATE.replace(vision, vision * len(images))
+    return clip.encode_from_tokens_scheduled(clip.tokenize(prompt, images=images, llama_template=template))
 
 
 def fit_geometry(ih, iw, px_h, px_w):
@@ -78,44 +86,50 @@ def _4d(v):
     return v.reshape(v.shape[0] * v.shape[2], v.shape[1], *v.shape[-2:]) if v.ndim == 5 else v
 
 
-def forward(m, x, timesteps, context, src, transformer_options, ref_boost=1.0, mask=None):
-    """SingleStreamDiT._forward with the clean source prepended: [text | source (frame 1) | target (frame 0)].
-    src is already on the target grid (fit_encode); a smaller one sits at a centered offset, stride 1.
-    mask (fit_mask, src's size): where ref_boost acts, fading to none where it is 0; None: on all of src."""
+def forward(m, x, timesteps, context, srcs, transformer_options, ref_boost=1.0, masks=()):
+    """SingleStreamDiT._forward with the clean sources prepended: [text | source 1 (frame 1) | ... | target (frame 0)].
+    srcs are already on the target grid (fit_encode); a smaller one sits at a centered offset, stride 1. ref_boost acts
+    on every source; masks[i] (fit_mask, srcs[i]'s size): where it acts on source i, fading to none where it is 0."""
     patch = m.patch
     shape5 = x.shape if x.ndim == 5 else None
     x = _4d(x)
     bs, _, h0, w0 = x.shape
     x = comfy.ldm.common_dit.pad_to_patch_size(x, (patch, patch), padding_mode="replicate")
     h, w = x.shape[-2] // patch, x.shape[-1] // patch
-    src = _4d(src).to(x.device, x.dtype)
-    if src.shape[0] != bs:
-        src = src[:1].expand(bs, *src.shape[1:])
-    src = comfy.ldm.common_dit.pad_to_patch_size(src, (patch, patch), padding_mode="replicate")
-    gh, gw = src.shape[-2] // patch, src.shape[-1] // patch
 
     def tokens(v):
         return m.first(rearrange(v, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=patch, pw=patch))
 
-    tgt, ref = tokens(x), tokens(src)
+    refs, grids = [], []
+    for s in srcs:
+        src = _4d(s).to(x.device, x.dtype)
+        if src.shape[0] != bs:
+            src = src[:1].expand(bs, *src.shape[1:])
+        src = comfy.ldm.common_dit.pad_to_patch_size(src, (patch, patch), padding_mode="replicate")
+        grids.append((src.shape[-2] // patch, src.shape[-1] // patch))
+        refs.append(tokens(src))
+    tgt = tokens(x)
     t = m.tmlp(timestep_embedding(timesteps, m.tdim).unsqueeze(1).to(tgt.dtype))
     tvec = m.tproj(t)
     context = m.txtmlp(m.txtfusion(m._unpack_context(context), mask=None, transformer_options=transformer_options))
-    txtlen, srclen = context.shape[1], ref.shape[1]
-    combined = torch.cat([context, ref, tgt], dim=1)
+    txtlen, srclen = context.shape[1], sum(r.shape[1] for r in refs)
+    combined = torch.cat([context, *refs, tgt], dim=1)
     dev = combined.device
-    src_ids = _ids(bs, 1, gh, gw, dev, max(0.0, (h - gh) / 2), max(0.0, (w - gw) / 2))
-    freqs = m.pe_embedder(torch.cat([torch.zeros(bs, txtlen, 3, device=dev), src_ids, _ids(bs, 0, h, w, dev)], dim=1))
+    src_ids = [_ids(bs, i + 1, gh, gw, dev, max(0.0, (h - gh) / 2), max(0.0, (w - gw) / 2)) for i, (gh, gw) in enumerate(grids)]
+    freqs = m.pe_embedder(torch.cat([torch.zeros(bs, txtlen, 3, device=dev), *src_ids, _ids(bs, 0, h, w, dev)], dim=1))
 
     bias = None
     if ref_boost != 1.0:  # target->source attention x ref_boost: an additive log bias on those logits
         n = combined.shape[1]
         bias = torch.zeros(1, 1, n, n, device=dev, dtype=combined.dtype)
-        boost = math.log(max(ref_boost, 1e-4))
-        if mask is not None:  # per source token: x ref_boost where the mask is 1, x1 (no bias) where it is 0
-            mask = comfy.ldm.common_dit.pad_to_patch_size(mask.to(dev), (patch, patch), padding_mode="replicate")
-            boost = torch.log1p((max(ref_boost, 1e-4) - 1) * F.avg_pool2d(mask, patch).flatten())
-        bias[:, :, txtlen + srclen:, txtlen:txtlen + srclen] = boost
+        start = txtlen
+        for i, ref in enumerate(refs):
+            boost, mask = math.log(max(ref_boost, 1e-4)), masks[i] if i < len(masks) else None
+            if mask is not None:  # per source token: x ref_boost where the mask is 1, x1 (no bias) where it is 0
+                mask = comfy.ldm.common_dit.pad_to_patch_size(mask.to(dev), (patch, patch), padding_mode="replicate")
+                boost = torch.log1p((max(ref_boost, 1e-4) - 1) * F.avg_pool2d(mask, patch).flatten())
+            bias[:, :, txtlen + srclen:, start:start + ref.shape[1]] = boost
+            start += ref.shape[1]
     for block in m.blocks:
         combined = block(combined, tvec, freqs, bias, transformer_options=transformer_options)
 
@@ -126,16 +140,17 @@ def forward(m, x, timesteps, context, src, transformer_options, ref_boost=1.0, m
     return out
 
 
-def patch(model, vae, image, target_latent, ref_boost, mask=None):
+def patch(model, vae, image, target_latent, ref_boost, mask=None, image_b=None):
     """Clone of a Krea2 model whose diffusion forward sees the source image (and ref_boost, on mask's part of it
-    when there is one: [1, h, w] on the image). The source is encoded here, for the target size, so the VAE never
-    loads mid-sampling."""
+    when there is one: [1, h, w] on the image); image_b, when given, is a second source after it (frame 2). The
+    sources are encoded here, for the target size, so the VAE never loads mid-sampling."""
     m = model.clone()
     inner = model.model
+    images = [i for i in (image, image_b) if i is not None]
 
-    def encoded(size):  # the source latent for a target latent of this size, and the mask on its grid
-        src = inner.process_latent_in(fit_encode(image, vae, *size))
-        return src, None if mask is None else fit_mask(mask, *size, _4d(src).shape[-2:])
+    def encoded(size):  # the source latents for a target latent of this size, and the mask on the first one's grid
+        srcs = [inner.process_latent_in(fit_encode(i, vae, *size)) for i in images]
+        return srcs, [None if mask is None else fit_mask(mask, *size, _4d(srcs[0]).shape[-2:])]
 
     hw = tuple(_4d(target_latent["samples"]).shape[-2:])
     cache = {hw: encoded(hw)}
@@ -148,8 +163,8 @@ def patch(model, vae, image, target_latent, ref_boost, mask=None):
         size = tuple(_4d(x).shape[-2:])
         if size not in cache:  # sampled at another size than the target latent
             cache[size] = encoded(size)
-        src, src_mask = cache[size]
-        return forward(executor.class_obj, x, timesteps, context, src, opts, ref_boost, src_mask)
+        srcs, masks = cache[size]
+        return forward(executor.class_obj, x, timesteps, context, srcs, opts, ref_boost, masks)
 
     comfy.patcher_extension.add_wrapper_with_key(
         comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, "mynode_krea2_edit", wrapper,

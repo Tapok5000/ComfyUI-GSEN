@@ -83,6 +83,20 @@ def _files(id, kind, needle):
     return io.Combo.Input(id, options=options, default=default)
 
 
+NONE = "-"  # a family's model not chosen (or not on this PC): its mode can't run, every other mode still validates
+
+
+def _maybe(id, kind, needle):
+    """A model combo of a family other than Krea 2: like _files, with "-" first and the default when nothing matches."""
+    options = folder_paths.get_filename_list(kind)
+    family = [o for o in options if needle and needle.lower() in o.lower()]
+    return io.Combo.Input(id, options=[NONE, *options], default=max(family, key=_natural) if family else NONE, optional=True)
+
+
+FAMILIES = ["Krea 2", "QW 21", "H3"]
+MODES = ["EDIT", "2 IMG", "UpScale", "BG"]  # the tabs over the middle; Krea 2 has the first two
+
+
 # web/assets/index.js counts prompts with the same two rules
 DASHES = re.compile(r"^[ \t]*-{3,}[ \t]*\r?$", re.M)
 BLANK_LINES = re.compile(r"\n\s*\n")
@@ -176,27 +190,52 @@ class FaceProcessing(io.ComfyNode):
                 io.Boolean.Input("crop_mask", default=False, optional=True, label_on="on", label_off="off",
                                  tooltip="Crop's Mask. On, with Format ⛶ Face: ref_boost acts on the face oval only, "
                                          "the rest of the reference at x1, so it wants ref_boost 5-6. Does nothing at 1."),
+                # 1.32.0: the family (Settings → Krea 2 / QW 21 / H3) and its mode (the tabs over the middle)
+                io.Combo.Input("family", options=FAMILIES, default="Krea 2", optional=True),
+                io.Combo.Input("mode", options=MODES, default="EDIT", optional=True),
+                # a string, not a combo: a gone file must not stop the modes that don't use it
+                io.String.Input("image_2", default="", optional=True, tooltip="2 IMG: the second picture, from input."),
+                _maybe("qw_unet_name", "diffusion_models", "qwen-image-2.1"),
+                _maybe("qw_lora_name", "loras", "qwen-image-2.1-restore"),
+                _maybe("qw_clip_name", "text_encoders", "qwen3vl_8b"),
+                _maybe("qw_vae_name", "vae", "texture_fix_vae_for_qwen_image_2.1"),
+                _maybe("h3_unet_name", "diffusion_models", "_h3_"),
+                _maybe("h3_lora_name", "loras", None),
+                _maybe("h3_clip_name", "text_encoders", "minimax_h3"),
+                _maybe("h3_vae_video", "vae", "minimax_h3_video"),
+                _maybe("h3_vae_audio", "vae", "minimax_h3_audio"),
+                _maybe("seedvr2_name", "diffusion_models", "seedvr2"),
+                _maybe("seedvr2_vae", "vae", "seedvr2"),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
         )
 
     @classmethod
-    def fingerprint_inputs(cls, image, system_file="", **_):
-        # same name, new file -> rerun: the picture, and the system prompt the AI reads (edited in place)
+    def fingerprint_inputs(cls, image, system_file="", mode="EDIT", image_2="", **_):
+        # same name, new file -> rerun: the picture(s), and the system prompt the AI reads (edited in place)
         system = _system_path(system_file, PROMPTS)
-        return os.path.getmtime(folder_paths.get_annotated_filepath(image)), system.stat().st_mtime if system.exists() else 0
+        second = os.path.getmtime(folder_paths.get_annotated_filepath(image_2)) if mode == "2 IMG" and image_2 else 0
+        first = os.path.getmtime(folder_paths.get_annotated_filepath(image))
+        return first, system.stat().st_mtime if system.exists() else 0, second
 
     @classmethod
-    def validate_inputs(cls, image=None):
-        return True if image and folder_paths.exists_annotated_filepath(image) else f"Invalid image file: {image}"
+    def validate_inputs(cls, image=None, family="Krea 2", mode="EDIT", image_2=""):
+        if not (image and folder_paths.exists_annotated_filepath(image)):
+            return f"Invalid image file: {image}"
+        if family != "Krea 2" or mode not in ("EDIT", "2 IMG"):  # QW 21 comes in 1.33.0, H3 later
+            return f"{family} · {mode}: not in this GSEN version yet"
+        if mode == "2 IMG" and not (image_2 and folder_paths.exists_annotated_filepath(image_2)):
+            return f"2 IMG: pick the second picture ({image_2 or 'none'})"
+        return True
 
     @classmethod
     def execute(cls, image, text, seed, steps, sampler_name, scheduler, resolution_source, aspect_ratio,
                 custom_width, custom_height, ref_boost, max_resolution,
                 unet_name, lora_name, clip_name, vae_name, llm_name, ai_prompt=False, save_to="Krea2One",
-                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", crop_mask=False, **_):
-        # **_: the LLM tab's inputs, and grounding_px and face_crop, which saved workflows still carry
+                loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", crop_mask=False,
+                mode="EDIT", image_2="", **_):
+        # **_: the LLM tab's inputs, other families' models, and grounding_px and face_crop, which saved workflows still carry
         spec = crop_edit.spec_of(crop, image) if manual_crop else None
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)
@@ -206,6 +245,10 @@ class FaceProcessing(io.ComfyNode):
             ref = g.node("MyNode_CropRotatePad", image=ref, crop=json.dumps(spec)).out(0)
             face = crop_edit.face_oval(crop, image) if crop_mask else None
             oval = json.dumps({"oval": face, "pad": spec["pad"]}) if face else ""  # Mask: ref_boost on the face only
+        # 2 IMG, as the KREA2 2 IMG workflow: the second picture is a second reference after the first (frame 2), the
+        # prompt grounded on both at 384 px
+        second = g.node("LoadImage", image=image_2).out(0) if mode == "2 IMG" else None
+        two = {"image_b": second} if second else {}
 
         model = g.node("UNETLoader", unet_name=unet_name, weight_dtype="default").out(0)
         model = g.node("LoraLoaderModelOnly", model=model, lora_name=lora_name, strength_model=1.0).out(0)
@@ -227,11 +270,13 @@ class FaceProcessing(io.ComfyNode):
                     own = g.node("LoraLoaderModelOnly", model=own, lora_name=file, strength_model=strength).out(0)
                 else:
                     missing.add(name)
-            own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost, oval=oval).out(0)
+            own = g.node("MyNode_Krea2Patch", model=own, vae=vae, image=ref, target=latent, ref_boost=ref_boost, oval=oval,
+                         **two).out(0)
             if ai_prompt:
                 prompt = _generate(g, llm, ref, prompt, system)
             ru = g.node("MyNode_Translate", text=prompt).out(0)
-            pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=1024).out(0)
+            pos = g.node("MyNode_Krea2Encode", clip=clip, image=ref, prompt=prompt, grounding_px=384 if second else 1024,
+                         **two).out(0)
             neg = g.node("ConditioningZeroOut", conditioning=pos).out(0)
             samples = g.node("KSampler", model=own, positive=pos, negative=neg, latent_image=latent, seed=seed,
                              steps=steps, cfg=1.0, sampler_name=sampler_name, scheduler=scheduler, denoise=1.0).out(0)

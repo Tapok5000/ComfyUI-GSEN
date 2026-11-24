@@ -8,13 +8,18 @@
    on them; its <i> runs up-left (index.js: drift) and reaches 80 px past the box's end, one word of the texture */
 .mn-tex{position:absolute;overflow:hidden;pointer-events:none}
 .mn-tex>i{position:absolute;left:0;top:0;right:-80px;bottom:-80px;background:var(--mn-tile)}
-.mn-back{left:0;top:44px;right:0;bottom:0;background:linear-gradient(#303134 -30.6px,#202124 730.6px) 526.33px 0/755px 100% no-repeat,linear-gradient(#070a10,#303722) 1281.33px 0/609.24px 100% no-repeat,#303a24}
+.mn-back{left:0;top:44px;right:0;bottom:0;background:linear-gradient(#303134 -30.6px,#202124 730.6px) calc(526.33px + var(--two,0px)) 0/755px 100% no-repeat,linear-gradient(#070a10,#303722) calc(1281.33px + var(--two,0px)) 0/609.24px 100% no-repeat,#303a24}
 .mn-stex{left:6.32px;top:60.48px;right:.89px;bottom:1.13px}
-/* MyNode.svg's clouds over the panels' backgrounds at 20%: a 2048 x 1152 picture there, all blur, so 128 x 72 stretched */
-.mn-back::after{content:"";position:absolute;inset:0;background:url(fog.png) 0 0/100% 100%;opacity:.2}
+/* Krea2.svg's clouds at 20%, over the panels' backgrounds and the left column's boxes, under the middle's and the right's
+   (index.js puts it between them) and under the pictures (z-index): a 2048 x 1152 picture there, all blur, so 128 x 72 stretched */
+.mn-fog{position:absolute;left:0;top:44px;right:0;bottom:0;background:url(fog.png) 0 0/100% 100%;opacity:.2;pointer-events:none}
+.mn-pbox,.mn-empty{z-index:1}
 
 .mn-head{position:absolute;left:0;top:0;width:100%;height:44px;background:linear-gradient(#b6d806,#bbe204 12.5px,#6b7e1d);color:#111;cursor:move}
-.mn-head>*{position:absolute}
+.mn-head>*,.mn-hr>*{position:absolute}
+.mn-hr{left:var(--two,0px);top:0}
+/* Krea2.svg's name of the family and mode */
+.mn-title{left:22.05px;top:1.79px;font-size:29.33px;line-height:44px;color:rgba(0,0,0,.85);white-space:nowrap}
 .mn-pill{background:rgba(161,188,80,.336)}
 .mn-pill.t{left:485.02px;top:7.8px;width:89.6px;height:29.7px;border-radius:7.4px/7.9px}
 .mn-pill.p{left:1138.36px;top:8.5px;width:53.53px;height:29.7px;border-radius:10.66px/10.17px}
@@ -23,34 +28,40 @@
 .mn-track{left:579.92px;top:18px;width:553.2px;height:9.6px;background:#222326}
 .mn-fill{height:100%;width:0;background:linear-gradient(#000 .5px,#c7f400 .5px 5.95px,#000 5.95px)}
 .mn-pct{left:1143.35px;top:1.9px;width:44px;text-align:center;line-height:44px;font-size:18.7px}
-.mn-run{left:1201.2px;top:2.4px;width:74.4px;height:39.2px;border-radius:6.3px/8.3px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:17.35px;line-height:39.5px;text-align:center;text-indent:3.4px;cursor:pointer}
+.mn-run{left:1199.82px;top:2.9px;width:74.4px;height:39.2px;border-radius:6.3px/8.3px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:rgba(199,244,0,.9);font-size:17.35px;line-height:39.5px;text-align:center;text-indent:3.4px;cursor:pointer}
 .mn-run:hover{background-color:#262d12}
 .mn-run:active{background-color:#0b0d05}
 .mn-open{left:1286.43px;top:8.56px;cursor:pointer}
-.mn-full{left:1317.45px;top:8.39px;cursor:pointer;filter:drop-shadow(-.08px -.2px .46px #000)} /* drop-shadow's blur is the deviation itself */
+.mn-full{left:1316.04px;top:11.22px;cursor:pointer;filter:drop-shadow(-.08px -.2px .46px #000)} /* drop-shadow's blur is the deviation itself */
 .mn-dims{left:1311.92px;top:1.38px;width:584px;text-align:center;line-height:44px;font-size:17.33px;color:#3d4428;pointer-events:none}
 /* MyNode.svg has no timer under open Settings, and the pill straddles the panel's edge */
 .mn:has(.mn-set.open) :is(.mn-pill.t,.mn-clock,.mn-time){visibility:hidden}
 /* ⛶: the face on the whole screen, scaled by --k (index.js) to the screen's width, its panels stretched down to the
    screen's bottom (no black bars; only a screen wider than the node, 32:9, keeps them at the sides); toasts of its own (ui.js) */
 .mn-fs{position:absolute;inset:0}
-.mn-fs:fullscreen>.mn{inset:0 auto auto 50%;width:1890.6px;height:calc(100vh / var(--k));translate:-50%;transform-origin:50% 0;scale:var(--k)}
+.mn-fs:fullscreen>.mn{inset:0 auto auto 50%;width:var(--w,1890.6px);height:calc(100vh / var(--k));translate:-50%;transform-origin:50% 0;scale:var(--k)}
 .mn-ftoast{position:fixed;z-index:10001;top:16px;right:16px;max-width:420px;padding:10px 14px;background:#202124;border:1px solid #3c3d41;border-left:4px solid #c7f400;border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.55);color:#e3e3e3;font:13.5px/1.35 system-ui,"Segoe UI",Arial,sans-serif}
 .mn-ftoast.warn{border-left-color:#f2c14e}
 .mn-ftoast.error{border-left-color:#ff6b6b}
 
 /* panels reach the bottom, not 701px: Nodes 2.0 makes the node 30px taller (a title bar it doesn't have) */
 .mn-left{position:absolute;left:0;top:44px;width:526.34px;bottom:0}
-.mn-pick{position:absolute;left:9.92px;top:6.83px;width:510.1px;height:69.8px;border-radius:21px;background:#161a0a;color:var(--lime);cursor:pointer}
-.mn-pname{position:absolute;left:17.1px;max-width:228px;line-height:70px;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mn-pidx{position:absolute;left:255px;line-height:70px;font-size:13.7px}
+/* Krea2 Two: the first column 3.17 px further left, the second right after it */
+.mn.two>.mn-left{left:-3.17px}
+.mn.two>.mn-left.b{left:515.55px}
+.mn-pick{position:absolute;left:9.38px;top:8.78px;width:509.96px;height:69.83px;border-radius:21.26px/21.38px;background:#161a0a;color:var(--lime);cursor:pointer}
+.mn-pname{position:absolute;left:17.1px;top:-2.25px;max-width:228px;line-height:70px;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn-pidx{position:absolute;left:254.5px;top:1.25px;line-height:70px;font-size:13.7px}
 .mn-pbtn{position:absolute;right:0;top:0;width:63px;height:100%;border-radius:0 21px 21px 0;background:#030301}
-.mn-pbtn::after{content:"";position:absolute;left:20px;top:30px;border-left:12px solid transparent;border-right:12px solid transparent;border-top:11px solid var(--lime)}
-.mn-upload{position:absolute;left:9.92px;top:81.73px;width:510px;height:51px;border-radius:13px;background:var(--lime);border:1px solid #161a0a;color:#161a0a;font-size:29.7px;font-weight:700;line-height:48px;text-align:center;cursor:pointer}
-.mn-upload svg{position:absolute;left:169px;top:13px}
+.mn-pbtn::after{content:"";position:absolute;left:20px;top:29px;border-left:12px solid transparent;border-right:12px solid transparent;border-top:11px solid var(--lime)}
+.mn-upload{position:absolute;left:9.95px;top:83.99px;width:508.82px;height:49.86px;border-radius:12.93px;background:var(--lime);color:#161a0a;font-size:29.7px;font-weight:700;line-height:49.86px;text-align:center;text-indent:6.72px;cursor:pointer}
+.mn-upload svg{position:absolute;left:169.25px;top:14px}
 .mn-upload:hover,.mn-pick:hover .mn-pbtn{filter:brightness(1.08)}
-.mn-prev{position:absolute;left:9.92px;top:132.73px;width:510px;height:552.9px;border-radius:15.5px;background:#161a0a}
-.mn-pdims{position:absolute;left:8.3px;right:0;top:32.57px;text-align:center;font-size:17.33px;line-height:20px;color:var(--lime)}
+.mn-prev{position:absolute;left:9.38px;top:140.58px;width:509.96px;height:552.92px;border-radius:15.23px/15.77px;background:#161a0a}
+/* no picture: Krea2.svg's "?" (empty.svg) */
+.mn-empty{position:absolute;left:121.78px;top:73.81px;display:none}
+.mn-prev:has(.mn-pwrap>img:not([src]))>.mn-empty{display:block}
+.mn-pdims{position:absolute;left:8.3px;right:0;top:30.81px;text-align:center;font-size:17.33px;line-height:20px;color:var(--lime)}
 .mn-pbox{position:absolute;left:103.7px;width:306px;top:53.2px;height:447px;display:flex;align-items:center;justify-content:center}
 .mn-pwrap{position:relative;overflow:hidden;line-height:0}
 .mn-pwrap img{display:block;max-width:306px;max-height:447px}
@@ -61,29 +72,43 @@
 .mn-lbl.mn-cropreset{top:36.6px;left:19px;right:auto} /* Mask holds the right corner */
 /* Crop's Mask and its preview in the picture's panel, as MyNode.svg has them: LOAD TXT's button, a square all but
    invisible */
-.mn-cmask{position:absolute;left:421.92px;top:10.29px;width:74.44px;height:32.23px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:#8b8d91;font-size:17.3px;line-height:33.4px;text-align:center;cursor:pointer}
+.mn-cmask{position:absolute;left:421.91px;top:8.39px;width:74.44px;height:32.23px;border-radius:6.3px/6.8px;background:linear-gradient(rgba(255,255,255,.1) 50%,transparent 50%) #161a0a;box-shadow:0 0 4.9px #161a0a;color:#8b8d91;font-size:17.3px;line-height:33.4px;text-align:center;cursor:pointer}
 .mn-cmask.on{color:rgba(199,244,0,.9)}
 .mn-cmask:hover{background-color:#262d12}
-.mn-cmini{position:absolute;left:418.81px;top:59.65px;width:76.76px;height:83.17px;border-radius:7.41px;background:rgba(255,255,255,.01);overflow:hidden}
+.mn-cmini{position:absolute;left:418.81px;top:57.75px;width:76.71px;height:83.17px;border-radius:7.41px;background:rgba(255,255,255,.01);overflow:hidden}
 .mn-cmini canvas{display:block;width:100%;height:100%}
 .mn-cmask[hidden],.mn-cmini[hidden],.mn-cmini canvas[hidden]{display:none}
 /* Crop's Format under its editor (index.js): a middle pill's look, centred on the picture */
 .mn-row.mn-fmt{left:140px;top:511.5px;width:230px}
 .mn-row[data-w=crop_format]>.v{left:82px;right:10px}
-.mn-arrow{position:absolute;top:264.2px;width:0;height:0;border-top:13.5px solid transparent;border-bottom:13.5px solid transparent;cursor:pointer}
-.mn-arrow.l{left:85.8px;border-right:13.5px solid var(--lime)}
-.mn-arrow.r{left:420.5px;border-left:13.5px solid var(--lime)}
-.mn-prev>.mn-arrow.r{top:262px} /* MyNode.svg's two arrows aren't level */
-/* ⛶: the picture's dark panel reaches down to the screen's foot, 15.37 px short as in MyNode.svg; the picture (or the crop
-   editor) and its arrows keep to the panel's middle, Format to its foot */
-.mn-fs:fullscreen .mn-prev{height:auto;bottom:15.37px}
+.mn-arrow{position:absolute;top:262.99px;width:0;height:0;border-top:13.5px solid transparent;border-bottom:13.5px solid transparent;cursor:pointer}
+.mn-arrow.l{left:85.77px;border-right:13.5px solid var(--lime)}
+.mn-arrow.r{left:420.53px;border-left:13.5px solid var(--lime)}
+.mn-prev>.mn-arrow.r{top:260.82px} /* the mockups' two arrows aren't level */
+/* ⛶: the picture's dark panel reaches down to the screen's foot, 7.5 px short as in Krea2.svg; the picture (or the crop
+   editor, or the "?") and its arrows keep to the panel's middle, Format to its foot */
+.mn-fs:fullscreen .mn-prev{height:auto;bottom:7.5px}
+.mn-fs:fullscreen .mn-empty{top:calc(50% - 202.44px)}
 .mn-fs:fullscreen .mn-pbox{height:calc(100% - 105.9px)}
 .mn-fs:fullscreen .mn-cropcv{top:calc(50% - 223.5px)}
-.mn-fs:fullscreen .mn-prev>.mn-arrow.l{top:calc(50% - 12.25px)}
-.mn-fs:fullscreen .mn-prev>.mn-arrow.r{top:calc(50% - 14.45px)}
+.mn-fs:fullscreen .mn-prev>.mn-arrow.l{top:calc(50% - 13.46px)}
+.mn-fs:fullscreen .mn-prev>.mn-arrow.r{top:calc(50% - 15.63px)}
 .mn-fs:fullscreen .mn-fmt{top:auto;bottom:11.4px}
 
-.mn-mid{position:absolute;left:526.33px;top:44px;width:755px;bottom:0}
+.mn-mid{position:absolute;left:calc(526.33px + var(--two,0px));top:44px;width:755px;bottom:0;translate:.98px 19.31px}
+.mn-mid>:is(.mn-mode,.mn-wh,[data-w=aspect_ratio]){translate:-1.42px 2.82px}
+/* slanted tabs (index.js tabStrip): Krea2.svg's modes over the middle, SettingIU.svg's families in Settings. The lit one is
+   lime; each has its lower half a shade apart, and a dark line runs down the strip's left edge */
+.mn-tabs{position:absolute;height:27.83px}
+.mn-tabs::after{content:"";position:absolute;left:0;top:0;width:1.51px;height:100%;background:rgba(6,6,6,.85)}
+.mn-ttab{position:absolute;top:0;width:97.53px;height:27.83px;clip-path:polygon(25.4px 0,100% 0,72.13px 100%,0 100%);background:linear-gradient(transparent 13.92px,rgba(255,255,255,.1) 13.92px),rgba(6,6,7,.85);color:var(--lime);font-size:13.33px;line-height:27.83px;cursor:pointer}
+.mn-ttab:first-child{width:97.61px;clip-path:polygon(0 0,100% 0,72.21px 100%,0 100%)}
+.mn-ttab.on{background:linear-gradient(transparent 13.92px,rgba(0,0,0,.08) 13.92px),var(--lime);color:#111}
+.mn-ttab>span{position:absolute;top:0;translate:-50%;white-space:nowrap}
+.mn-ttab:not(.on,[data-t=XXX]):hover>span{color:#fff}
+.mn-ttab[data-t=XXX]{cursor:default} /* a mode to come */
+.mn-modes{left:calc(526.34px + var(--two,0px));top:44.04px}
+.mn-fams{left:1.7px;top:55.14px}
 .mn-lbl{position:absolute;left:19px;max-width:715px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:12px}
 .mn-box{position:absolute;width:725px;height:150px;margin:0;padding:8px 10px;background:var(--mn-cap,none) 0 0 no-repeat,var(--mn-mark) 279.98px 54.82px/158.4px 29.5px no-repeat rgba(34,35,38,.9);border:none;outline:none;resize:none;color:#d0d0d0;font:14px/1.35 Arial,Helvetica,sans-serif;overflow:auto;white-space:pre-wrap;user-select:text;-webkit-user-select:text;scrollbar-color:#454545 #2c2c2c}
 .mn-box.ru{background-position:0 0,278.7px 54.76px} /* MyNode.svg has RU's word and GSEN 1.3 px left of PROMT's */
@@ -126,7 +151,6 @@
 .mn-srow>.k{left:16.1px;top:1.35px;font-size:17.33px}
 .mn-srow:not(.c)[data-w=llm_name]>.k{left:15.24px;top:1.82px}
 .mn-srow.c>.k{left:15.74px;top:.35px}
-.mn-srow[data-w=system_file]>.k{left:17.89px;top:-.24px}
 .mn-srow[data-w=vae_name]>.k{left:17.31px}
 .mn-srow.c[data-w^=llm_]>.k{left:18.71px}
 .mn-srow.c[data-w=llm_name]>.k{left:18.24px}
@@ -156,7 +180,7 @@
 .mn-seedm:hover{background:#262d12}
 .mn-seedm.on{background:#c7f400;border-color:#c7f400;color:#161a0a}
 /* + beside seed (MyNode.svg): keeps the seed in the box in LIST */
-.mn-seedadd{position:absolute;left:671.06px;top:427.88px;width:27.89px;height:29.89px;cursor:pointer}
+.mn-seedadd{position:absolute;left:673.06px;top:428.63px;width:27.89px;height:29.89px;cursor:pointer}
 .mn-seedadd:hover{filter:brightness(1.1)}
 .mn-seedadd:active{filter:brightness(.9)}
 /* custom / preset: the active word is lime; a preset hides W x H and shows its own pill, arrows clear of custom / preset */
@@ -175,7 +199,7 @@ div.mn-val:hover{color:#fff}
 .mn-dot{width:20.4px;height:20.4px;border-radius:50%;background:#4a4b4e}
 .mn-row.on .mn-dot,.mn-srow.on .mn-dot{background:var(--lime)}
 
-.mn-right{position:absolute;left:1281.33px;top:44px;width:609.24px;bottom:0}
+.mn-right{position:absolute;left:calc(1281.33px + var(--two,0px));top:44px;width:609.24px;bottom:0}
 .mn-rbox{position:absolute;inset:28.1px 17.83px 78.1px 26.17px;container-type:size;display:flex;align-items:center;justify-content:center}
 .mn-stage{position:absolute;inset:8px;pointer-events:none}
 .mn-stage>img{position:absolute;inset:0}
@@ -200,7 +224,7 @@ div.mn-val:hover{color:#fff}
 
 /* Settings: tabs over the middle (MyNode.svg's Settings, Gallery, card and LLM boards); each tab is a pane that scrolls
    under the header, the board's drawing (its field of small x marks and lighter diagonals) stays put behind them */
-.mn-set{position:absolute;left:521.3px;top:0;width:760.2px;bottom:0;display:none;box-shadow:inset 0 0 0 1.7px #61732d;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760.17 744.1' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='g' width='48' height='68' patternUnits='userSpaceOnUse' patternTransform='matrix%28-.35355339 .35355339 -.35355339 -.35355339 -1952.418 -283.721%29'%3E%3Cpath d='M10 0v20M0 10h20' stroke='%23d0d0d0'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='760.17' height='744.1' fill='url%28%23g%29' opacity='.05'/%3E%3Cg fill='%234d4d4d' fill-opacity='.15'%3E%3Cpath d='M76.47 55.01H0v685.12h722.78V495.7z'/%3E%3Cpath d='M697.33 740.13V518.16L3.61 72.81v667.32z'/%3E%3Cpath d='M760.17 361.13h-3.57L336.53 77.91H211.1l545.15 367.54h3.92z'/%3E%3Cpath d='M756.6 340.53V57.31H332.96l420.07 283.22z'/%3E%3C/g%3E%3Crect x='3.61' y='57.31' width='752.99' height='682.82' fill='%234d4d4d' fill-opacity='.16'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat,linear-gradient(#252629,#17181b)}
+.mn-set{position:absolute;left:calc(521.3px + var(--two,0px));top:0;width:760.2px;bottom:0;display:none;box-shadow:inset 0 0 0 1.7px #61732d;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 760.17 744.1' preserveAspectRatio='none'%3E%3Cdefs%3E%3Cpattern id='g' width='48' height='68' patternUnits='userSpaceOnUse' patternTransform='matrix%28-.35355339 .35355339 -.35355339 -.35355339 -1952.418 -283.721%29'%3E%3Cpath d='M10 0v20M0 10h20' stroke='%23d0d0d0'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='760.17' height='744.1' fill='url%28%23g%29' opacity='.05'/%3E%3Cg fill='%234d4d4d' fill-opacity='.15'%3E%3Cpath d='M76.47 55.01H0v685.12h722.78V495.7z'/%3E%3Cpath d='M697.33 740.13V518.16L3.61 72.81v667.32z'/%3E%3Cpath d='M760.17 361.13h-3.57L336.53 77.91H211.1l545.15 367.54h3.92z'/%3E%3Cpath d='M756.6 340.53V57.31H332.96l420.07 283.22z'/%3E%3C/g%3E%3Crect x='3.61' y='57.31' width='752.99' height='682.82' fill='%234d4d4d' fill-opacity='.16'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat,linear-gradient(#252629,#17181b)}
 .mn-set.open{display:block}
 .mn-set::after{content:"";position:absolute;z-index:3;right:6.5px;bottom:7.9px;border-left:17.5px solid transparent;border-bottom:15.5px solid #bde503;pointer-events:none}
 .mn-shead{position:absolute;z-index:2;left:0;top:0;width:100%;height:44px;background:linear-gradient(#add107,#c2eb02 50%,#88a311);box-shadow:inset 1px 0 #87a13e,0 11px 0 #566521}
@@ -266,10 +290,20 @@ div.mn-val:hover{color:#fff}
 .mn-lbox{position:absolute;left:14.4px;top:71.9px;width:424.4px;height:468.4px;background:#000;--cs:13px;--cw:1.4px;--cl:6.9px;--ct:6.1px;--cr:7.4px;--cb:9px}
 .mn-lbox>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .mn-lbox>img:not([src]){visibility:hidden}
-.mn-lup{left:14.4px;top:549.3px;width:424.4px;height:40.1px;border-radius:10.8px/10.6px;border-width:.93px;font-size:23.5px;line-height:38.2px}
-.mn-lup svg{left:147.9px;top:10px;width:17.6px;height:17.6px}
+.mn-lup{left:14.4px;top:549.3px;width:424.4px;height:40.1px;border-radius:10.8px/10.6px;border:.93px solid #161a0a;text-indent:0;font-size:23.5px;line-height:38.2px}
+.mn-lup svg{left:147.9px;top:10px;width:16.84px;height:17.6px}
 .mn-lout{left:446.8px;top:115.3px;width:304.1px;height:591.2px}
-.mn-srow{left:27px;width:707px}
+.mn-page{position:absolute;left:0;top:0;width:100%;height:100%}
+.mn-srow{left:22.05px;width:707px}
+.mn-srow:not(.c)[data-w=llm_name]{left:31.88px;width:682.63px}
+.mn-page .mn-srow.c{height:30.49px;line-height:27.89px}
+.mn-page .mn-srow.c>.k{left:15.13px;top:.41px}
+.mn-page .mn-srow[data-w=system_file]>.k{left:16.49px;top:-1.26px}
+/* a page's fields: the row's grey edge round them, lime fading in at the open end (SVG mixes the colours unpremultiplied:
+   the stops between). The row is a path with the field as its hole, stroked: the edge straddles the field (margin -.65) */
+.mn-page .mn-srow>.sv{left:281.78px;right:-.2px;top:0;bottom:auto;height:30.02px;margin:-.65px;border-radius:15.31px/14.35px;background:linear-gradient(90deg,rgba(135,161,62,0),rgba(109,129,54,.25) 25%,rgba(83,96,47,.5) 50%,rgba(57,64,39,.75) 75%,#1f1f1f);line-height:27.42px}
+.mn-page .mn-srow[data-w=llm_name]>.sv{left:271.99px;top:-.67px;height:29.03px;line-height:26.43px}
+.mn-page .mn-srow.c>.sv{left:121.98px;right:0;height:29.26px;border-radius:14.34px/14.47px;background:linear-gradient(270deg,rgba(135,161,62,0),rgba(109,129,54,.25) 25%,rgba(83,96,47,.5) 50%,rgba(57,64,39,.75) 75%,#1f1f1f);line-height:26.66px}
 .mn-srow.combo{cursor:pointer}
 .mn-srow>.sv{position:absolute;left:282px;right:-1.3px;top:-1.3px;bottom:-1.3px;padding:0 13px 0 18px;border:1.3px solid #66676a;border-radius:16px;background:linear-gradient(90deg,rgba(135,161,62,.3),rgba(40,41,44,.6) 45%,#1f1f1f);font-size:15.5px;line-height:27.4px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mn-srow.combo:hover>.sv{color:#fff}
@@ -285,26 +319,27 @@ div.mn-val:hover{color:#fff}
 .mn-lora>.sv{cursor:pointer}
 .mn-lora>.sv:hover{color:#fff}
 .mn-send{position:absolute;width:1px;height:1px}
-/* Sound: its label and 🔊 switch it, the field picks the file (MyNode.svg has its label 2px higher than SAVE's) */
-/* zip, in Save's pill (MyNode.svg): a small lime button like Slide / A / B */
-.mn-zip{position:absolute;left:74.97px;top:3.85px;width:39.56px;height:21.27px;border-radius:3.34px/4.47px;background:linear-gradient(#cbf700 50%,#bbe500 50%);box-shadow:0 0 2.45px #161a0a;color:rgba(32,40,0,.9);font-size:17px;line-height:21.27px;text-align:center;cursor:pointer}
+/* zip, in Save's pill: a small lime button like Slide / A / B. Sound: its label and 🔊 switch it, the field picks the file */
+.mn-zip{position:absolute;left:71.96px;top:3.68px;width:38.98px;height:20.54px;border-radius:3.34px/4.47px;background:linear-gradient(#cbf700 50%,#bbe500 50%);box-shadow:0 0 2.45px #161a0a;color:rgba(32,40,0,.9);font-size:17px;line-height:20.54px;text-align:center;cursor:pointer}
 .mn-zip:hover{filter:brightness(1.08)}
 .mn-sound{cursor:pointer}
-.mn-srow.mn-sound>.k{left:16.04px;top:1.05px}
 .mn-sound>.sv:hover{color:#fff}
-.mn-sound>.mn-snd{left:86px;top:4.82px} /* past the 1px the 1.3px border rounds to */
-/* Krea2 One's models beside Save and Sound: ✅ here (lime); missing (red), the square is ⬇️; downloading, the field fills
-   to --p and the square says how far */
-.mn-mrow{position:absolute;left:475.89px;width:203.86px;height:18.91px;background:linear-gradient(transparent 9.45px,rgba(0,0,0,.1) 9.45px),rgba(0,0,0,.15);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#bde503;font:10.67px/18.91px Calibri,Carlito,Arial,sans-serif;white-space:nowrap}
+.mn-sound>.mn-snd{left:82.66px;top:4.35px}
+/* each page's files (index.js STATUS): ✅ here (lime); missing (red), the square is ⬇️; downloading, the field fills to --p
+   and the square says how far. MyNode.svg's rows, 8/7 the size in SettingIU.svg */
+.mn-mrow{position:absolute;left:93.11px;transform-origin:0 0;scale:1.142857;width:203.86px;height:18.91px;background:linear-gradient(transparent 9.45px,rgba(0,0,0,.1) 9.45px),rgba(0,0,0,.15);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);color:#bde503;font:10.67px/18.91px Calibri,Carlito,Arial,sans-serif;white-space:nowrap}
 .mn-mrow.missing{color:#f70000}
 .mn-mrow.busy{background:linear-gradient(90deg,rgba(189,229,3,.25) var(--p),transparent var(--p)),linear-gradient(transparent 9.45px,rgba(0,0,0,.1) 9.45px),rgba(0,0,0,.15);color:#d0d0d0}
-.mn-mrow>.k{position:absolute;right:calc(100% + 6.3px);top:1.8px;color:#d0d0d0;font:13.33px/18.91px Arial,Helvetica,sans-serif;text-shadow:1.2px 0 7px #000}
+.mn-mrow>.k{position:absolute;right:calc(100% + 6.3px);top:.84px;color:#d0d0d0;font:13.33px/18.91px Arial,Helvetica,sans-serif;text-shadow:1.2px 0 7px #000}
 .mn-mrow>.n{position:absolute;left:5.1px;right:23px;top:-.25px;overflow:hidden;text-overflow:ellipsis}
 .mn-mrow>.i{position:absolute;right:0;top:0;width:21.86px;height:100%;padding-left:.8px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.2);color:#fff;line-height:1}
-.mn-mrow.missing:not(.busy)>.i{cursor:pointer}
-.mn-mrow.missing:not(.busy)>.i:hover{color:var(--lime)}
+.mn-mrow.missing.get:not(.busy)>.i{cursor:pointer}
+.mn-mrow.missing.get:not(.busy)>.i:hover{color:var(--lime)}
+.mn-page.g .mn-mrow{left:476.9px}
+.mn-mrow>.i>svg{width:10.68px;height:10.68px}
+.mn-mrow.missing>.i>svg{width:13.34px;height:13.34px}
 
-.mn-gal{position:absolute;left:0;top:44px;width:526.34px;bottom:0;display:none;background:linear-gradient(#2b3321,#0b0e11)}
+.mn-gal{position:absolute;z-index:2;left:0;top:44px;width:526.34px;bottom:0;display:none;background:linear-gradient(#2b3321,#0b0e11)}
 .mn-gal.open{display:block}
 .mn-gfil{position:absolute;left:0;top:0;width:100%;height:34px;border-left:2px solid #87a13e;background:linear-gradient(90deg,rgba(19,19,19,0),#131313)}
 .mn-gfil svg{position:absolute;left:4px;top:8px;opacity:.5}

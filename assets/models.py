@@ -1,5 +1,6 @@
-"""Krea2 One's models, in Settings: which of them this ComfyUI's model folders hold, and a download of a missing one into
-the folder of its kind that already holds the most files (extra_model_paths.yaml's folders included)."""
+"""The models Settings lists, a page per family plus SeedVR2 and the LLM: which of them this ComfyUI's model folders
+hold, and a download of a missing one into the folder of its kind that already holds the most files
+(extra_model_paths.yaml's folders included)."""
 import contextlib
 import hashlib
 import http.client
@@ -24,13 +25,14 @@ class Model(NamedTuple):
     file: str
     size: int
     sha256: str
-    sources: tuple  # (repo, commit, path) on Hugging Face, tried in this order
+    sources: tuple  # (repo, commit, path) on Hugging Face, tried in this order; none: shown, not downloaded
 
 
 # Each source is pinned to a commit and a download must match the size and sha256: no link can hand over another file.
 # A source gone: add one with the same sha256 and release a version (Settings → Update brings it). No Civitai: its files
 # want a logged-in account (401 without a token). MODEL and CLIP: Comfy-Org's own builds, the files Krea2 One is made with.
 KREA2 = ("Comfy-Org/Krea-2", "588feaf955b08b9ac4723eeb751752ab045dba71")
+SEEDVR2 = ("Comfy-Org/SeedVR2", "df48879708206a403d2a61acd55578c2e80fd233")
 VAE = "Wan2.1_VAE_upscale2x_imageonly_real_v1.safetensors"
 MODELS = (
     Model("MODEL", "diffusion_models", "krea2_turbo_int8_convrot.safetensors", 13492686496,
@@ -50,6 +52,23 @@ MODELS = (
     Model("LLM", "text_encoders", "qwen3VLInstruct4bHeretic_v10.safetensors", 5242481504,
           "8ff7cf6676213361cf44db908dd8e427c0541f8ade53a08e4e4aa80b81c82f5e",
           (("martineux/altkreas", "21846a601dd2bebcfbc1f996cfb59757074cd58c", "qwen3VLInstruct4bHeretic_v10.safetensors"),)),
+    # SeedVR2 of ComfyUI's core (comfy_extras/nodes_seedvr.py), not the SeedVR2 pack's GGUF: QW 21's UpScale and BG
+    Model("SEEDVR2", "diffusion_models", "seedvr2_3b_int8_convrot.safetensors", 3458259704,
+          "c3dec8bcc5916843a8a858572970597462e1f2dc598d6dfd818f6cd40f53a157",
+          ((*SEEDVR2, "diffusion_models/seedvr2_3b_int8_convrot.safetensors"),)),
+    Model("SEEDVR2_VAE", "vae", "seedvr2_ema_vae_fp16.safetensors", 501324814,
+          "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1",
+          ((*SEEDVR2, "vae/seedvr2_ema_vae_fp16.safetensors"),)),
+    # shortcut: QW 21's and H3's files are only looked for, no download yet; give them pinned sources with QW 21's modes
+    *(Model(key, kind, file, 0, "", ()) for key, kind, file in (
+        ("QW_MODEL", "diffusion_models", "qwen-image-2.1-UC-int8_convrot.safetensors"),
+        ("QW_LORA", "loras", "qwen-image-2.1-restore.safetensors"),
+        ("QW_CLIP", "text_encoders", "qwen3vl_8b_int8_convrot.safetensors"),
+        ("QW_VAE", "vae", "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"),
+        ("H3_MODEL", "diffusion_models", "10Eros_Max_h3_8stepTURBO_beta7_int8HQ.safetensors"),
+        ("H3_CLIP", "text_encoders", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"),
+        ("H3_VAE_VIDEO", "vae", "minimax_h3_video_vae_fp16.safetensors"),
+        ("H3_VAE_AUDIO", "vae", "minimax_h3_audio_vae_fp32.safetensors"))),
 )
 JOBS = {}  # key -> {"got": bytes so far, "sent": when the face last heard} while that model downloads
 
@@ -68,7 +87,7 @@ def listed(m):
 
 def status():
     """Each model: where it is (name; None = missing), its size and, while it downloads, the bytes so far (got)."""
-    return [{"key": m.key, "file": m.file, "size": m.size, "name": listed(m),
+    return [{"key": m.key, "file": m.file, "size": m.size, "name": listed(m), "get": bool(m.sources),
              "got": JOBS[m.key]["got"] if m.key in JOBS else None} for m in MODELS]
 
 
@@ -136,7 +155,7 @@ async def _models(request):
 @PromptServer.instance.routes.post("/mynode/models/download")
 async def _download(request):
     """Starts one of MODELS by its key (never a link from the request), unless it is here or on its way already."""
-    m = next((m for m in MODELS if m.key == request.query.get("key")), None)
+    m = next((m for m in MODELS if m.key == request.query.get("key") and m.sources), None)
     if not m:
         return web.Response(status=404)
     if m.key not in JOBS and not listed(m):

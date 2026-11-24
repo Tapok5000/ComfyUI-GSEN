@@ -30,14 +30,15 @@ class Krea2Patch(io.ComfyNode):
         return io.Schema(node_id="MyNode_Krea2Patch", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Model.Input("model"), io.Vae.Input("vae"), io.Image.Input("image"),
                                  io.Latent.Input("target"), io.Float.Input("ref_boost", default=1.0, min=0.0, max=1000.0),
-                                 io.String.Input("oval", default="", optional=True)],
+                                 io.String.Input("oval", default="", optional=True),
+                                 io.Image.Input("image_b", optional=True)],  # 2 IMG: the second picture
                          outputs=[io.Model.Output()])
 
     @classmethod
-    def execute(cls, model, vae, image, target, ref_boost, oval=""):
+    def execute(cls, model, vae, image, target, ref_boost, oval="", image_b=None):
         face = json.loads(oval or "null")  # Mask: {"oval", "pad"} of the crop in image, where ref_boost acts
         mask = crop_edit.oval_mask(face["oval"], face["pad"], *image.shape[1:3]) if face else None
-        return io.NodeOutput(krea2_edit.patch(model, vae, image, target, ref_boost, mask))
+        return io.NodeOutput(krea2_edit.patch(model, vae, image, target, ref_boost, mask, image_b))
 
 
 class Krea2Encode(io.ComfyNode):
@@ -45,12 +46,13 @@ class Krea2Encode(io.ComfyNode):
     def define_schema(cls):
         return io.Schema(node_id="MyNode_Krea2Encode", category="🟩 GSEN", is_dev_only=True,
                          inputs=[io.Clip.Input("clip"), io.Image.Input("image"), io.String.Input("prompt", multiline=True),
-                                 io.Int.Input("grounding_px", default=768, min=0, max=4096)],
+                                 io.Int.Input("grounding_px", default=768, min=0, max=4096),
+                                 io.Image.Input("image_b", optional=True)],
                          outputs=[io.Conditioning.Output()])
 
     @classmethod
-    def execute(cls, clip, image, prompt, grounding_px):
-        return io.NodeOutput(krea2_edit.encode(clip, image, prompt, grounding_px))
+    def execute(cls, clip, image, prompt, grounding_px, image_b=None):
+        return io.NodeOutput(krea2_edit.encode(clip, image, prompt, grounding_px, image_b))
 
 
 _failed = set()  # texts whose translation failed: translate again next run instead of reusing the cached error

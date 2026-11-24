@@ -6,9 +6,15 @@ import { PRESETS, cropEditor } from "./crop.js"
 
 const NODE = "MyNode_FaceProcessing"
 const SIZE = [1890.6, 745]
+const TWO = 515.47 // 2 IMG (Krea2.svg's Krea2 Two): a second picture's column, everything right of it moved over
+// the tabs over the middle (Krea2.svg) and over Settings' pages (SettingIU.svg): [name, its word's centre] px; a family's
+// title per mode; XXX are places for modes to come
+const MODE_TABS = [["EDIT", 43.21], ["2 IMG", 47.93], ["XXX", 46.42], ["XXX", 48.13]]
+const FAMILY_TABS = [["Krea 2", 45.73], ["QW 21", 47.21], ["H3", 46.67]]
+const TITLES = { EDIT: "Krea2 One", "2 IMG": "Krea2 Two" }
 
-// [label, widget, top, left, width] px from MyNode.svg: the middle's two columns of pills under the prompt boxes.
-// Resize lies over Crop's left end and custom / preset over W x H's, as MyNode.svg draws them: the later one is on top
+// [label, widget, top, left, width] px from MyNode.svg: the middle's two columns of pills under the prompt boxes, all
+// moved by .mn-mid (Krea2.svg). Resize lies over Crop's left end and custom / preset over W x H's: the later one is on top
 const ROWS = [
   ["LLM", "ai_prompt", 426.9, 50.4, 138.91], ["Ref boost", "ref_boost", 426.9, 209.63, 199.93],
   ["Crop", "manual_crop", 483.19, 156.04, 144.89], ["Resize", "resolution_source", 483.17, 50.47, 138.55],
@@ -20,14 +26,30 @@ const ROWS = [
 // LIST is the seeds kept with + beside seed (MyNode.svg), one picked goes back in and is pinned (FIX)
 const SEED_MODES = [["FIX", "fixed", 468.19, 66.06], ["RANDOM", "randomize", 536.39, 98.41], ["LIST", null, 636.94, 66.06]]
 const SEED_KEEP = 20 // newest first, no repeats
-const SETTINGS = [
-  ["MODEL", "unet_name", 78], ["LoRa", "lora_name", 121], ["CLIP", "clip_name", 167], ["VAE", "vae_name", 211],
-  ["LLM", "llm_name", 281.4], ["System", "system_file", 325, 25.9, 282.8],
-  ["Save", "save_to", 413.74, 27.3, 282.8], ["Sound", "sound", 470.77, 27.3, 282.8], // no widget: node properties
-]
-// Krea2 One's models (assets/models.py), the block beside Save and Sound: [key, widget, top] px from MyNode.svg
-const MODEL_ROWS = [["MODEL", "unet_name", 375.62], ["LORA", "lora_name", 402.42], ["CLIP", "clip_name", 429.53],
-  ["VAE", "vae_name", 459.52], ["LLM", "llm_name", 488.23]]
+// Settings' pages (SettingIU.svg). The general one, no family lit: [label, widget, top, left, width] px on the panel; LLM is
+// a long row (face.css places it)
+const GENERAL = [["Sound", "sound", 151.68, 30.81, 273.11], ["Save", "save_to", 211.17, 30.81, 273.11], // Sound: node properties
+  ["LLM", "llm_name", 316.27], ["System", "system_file", 357.98, 31.8, 273.11]]
+// a family's page: its models' rows, [label, widget], at ROW_TOPS
+const FAMILY_ROWS = {
+  "Krea 2": [["MODEL", "unet_name"], ["LoRa", "lora_name"], ["CLIP", "clip_name"], ["VAE", "vae_name"]],
+  "QW 21": [["MODEL", "qw_unet_name"], ["LoRa", "qw_lora_name"], ["CLIP", "qw_clip_name"], ["VAE", "qw_vae_name"]],
+  H3: [["MODEL", "h3_unet_name"], ["LoRa", "h3_lora_name"], ["CLIP", "h3_clip_name"], ["VAE Video", "h3_vae_video"],
+    ["VAE Audio", "h3_vae_audio"]],
+}
+const ROW_TOPS = [343.61, 386.27, 432.53, 476.39, 520.23]
+// over them, each page's files (assets/models.py) and whether they are here: [label, key, widget], a family's at
+// STATUS_TOPS, the general page's at GENERAL_STATUS. H3 has no LoRA of its own: its row says "-"
+const STATUS = {
+  "": [["SeedVR2", "SEEDVR2", "seedvr2_name"], ["", "SEEDVR2_VAE", "seedvr2_vae"], ["LLM", "LLM", "llm_name"]],
+  "Krea 2": [["MODEL", "MODEL", "unet_name"], ["LORA", "LORA", "lora_name"], ["CLIP", "CLIP", "clip_name"], ["VAE", "VAE", "vae_name"]],
+  "QW 21": [["MODEL", "QW_MODEL", "qw_unet_name"], ["LORA", "QW_LORA", "qw_lora_name"], ["CLIP", "QW_CLIP", "qw_clip_name"],
+    ["VAE", "QW_VAE", "qw_vae_name"]],
+  H3: [["MODEL", "H3_MODEL", "h3_unet_name"], ["LORA", null, "h3_lora_name"], ["CLIP", "H3_CLIP", "h3_clip_name"],
+    ["VAE", "H3_VAE_VIDEO", "h3_vae_video"], ["VAE", "H3_VAE_AUDIO", "h3_vae_audio"]],
+}
+const STATUS_TOPS = [149.86, 180.49, 211.47, 245.75, 280.07]
+const GENERAL_STATUS = [159.75, 190.56, 273.23]
 // a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (assets/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
 const countPrompts = (t) => t.split(DASHES.test(t) ? DASHES : /\n\s*\n/).filter((p) => p.trim()).length
@@ -46,7 +68,8 @@ const ICON = {
     </g><g fill="#fff" fill-opacity=".1"><path d="m775.649-60.552-80.957,77.985h3.289v86.029c0,23 18.014,39.983 41.014,39.983h37.011v-203.998z"/>
     <path d="m383.346 317.288-80.997,78.025h203.76v-37.011c0-23-18.014-41.014-41.014-41.014z"/>
     <path d="m738.995 191.315h37.011v203.998h-203.998v-37.011c0-23 17.974-41.014 40.974-41.014h84.999v-84.999c0-23 18.014-40.974 41.014-40.974z"/></g></svg>`,
-  upload: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#161a0a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M4 13.5V20h16v-6.5"/></svg>`,
+  // Krea2.svg's Upload icon, an arrow into a tray
+  upload: `<svg viewBox="-39.96 74.04 5.597 5.848" width="21.14" height="22.1" fill="#161a0a"><path d="m-34.707 76.899c-.058-.001-.114.03-.193.095-.121.098-.125.126-.141 1.043-.014.77-.032.959-.101 1.034-.077.085-.242.093-2.026.093h-1.943l-.082-.117c-.066-.095-.082-.286-.082-.997 0-.762-.012-.894-.092-.987-.143-.166-.418-.193-.577-.068l-.017.118v.975c0 1.062.028 1.199.296 1.466.327.324.478.343 2.661.333 1.637-.008 1.895-.02 2.033-.097.222-.123.429-.353.525-.584.064-.153.082-.407.082-1.145v-.948-.18c-.086-.068-.285-.031-.342-.033z"/><path d="m-37.163 74.04-.726.726-.726.726h.541.541v.994c0 .547.021 1.038.019 1.038h.374.32l.014-1.016.014-1.016h.54.54l-.726-.726z"/></svg>`,
   search: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#777" stroke-width="2.6" stroke-linecap="round"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg>`,
   plus: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M11 6v10M6 11h10"/></svg>`,
   cross: `<svg viewBox="0 0 22 22" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m7 7 8 8m0-8-8 8"/></svg>`,
@@ -94,7 +117,10 @@ const clock = (ms) => new Date(ms).toISOString().slice(14, 19)
 
 // Model rows show a dot for the model's kind instead of the emoji marks in names (🟡 encoders, 🔴 VAE): drawn by
 // the node, it sits in the same place in every row, also where a name has no mark
-const KIND = { unet_name: "#b06cff", lora_name: "#35d07f", clip_name: "#ffd23f", vae_name: "#ff4d4d", llm_name: "#ffd23f" }
+const KIND = { unet_name: "#b06cff", lora_name: "#35d07f", clip_name: "#ffd23f", vae_name: "#ff4d4d", llm_name: "#ffd23f",
+  qw_unet_name: "#b06cff", qw_lora_name: "#35d07f", qw_clip_name: "#ffd23f", qw_vae_name: "#ff4d4d", h3_unet_name: "#b06cff",
+  h3_lora_name: "#35d07f", h3_clip_name: "#ffd23f", h3_vae_video: "#ff4d4d", h3_vae_audio: "#ff4d4d", seedvr2_name: "#b06cff",
+  seedvr2_vae: "#ff4d4d" }
 const DEFAULTS = {} // per model input, the node def's default: Python's pick of the newest file of that family
 const plain = (s) => String(s ?? "").replace(/[\p{Extended_Pictographic}️‍]/gu, "")
 const baseName = (s) => String(s ?? "").split(/[\\/]/).pop()
@@ -167,8 +193,10 @@ function build(node) {
   }
   const off = new AbortController()
   const root = el("div", "mn"), fs = el("div", "mn-fs") // fs: the node's DOM widget, the face in it
+  const wide = () => W("mode")?.value === "2 IMG"
+  const width = () => SIZE[0] + (wide() ? TWO : 0)
 
-  const head = el("div", "mn-head")
+  const head = el("div", "mn-head"), title = el("div", "mn-title"), hr = el("div", "mn-hr") // hr: what 2 IMG moves right
   const time = txt("div", "mn-time", "00:00"), track = el("div", "mn-track"), fill = el("div", "mn-fill")
   const pct = txt("div", "mn-pct", "0%"), openB = el("div", "mn-open", ICON.open), dims = el("div", "mn-dims")
   const run = txt("div", "mn-run", "Run"), fullB = el("div", "mn-full", ICON.full)
@@ -178,7 +206,7 @@ function build(node) {
   openB.dataset.click = run.dataset.click = fullB.dataset.click = ""
   // ⛶: the face on the whole screen, scaled to fit (face.css); pick lists and toasts open in it (shared/ui.js)
   fullB.onclick = () => { document.fullscreenElement === fs ? document.exitFullscreen() : fs.requestFullscreen() }
-  const fitScreen = () => fs.style.setProperty("--k", Math.min(innerWidth / SIZE[0], innerHeight / SIZE[1]))
+  const fitScreen = () => fs.style.setProperty("--k", Math.min(innerWidth / width(), innerHeight / SIZE[1]))
   addEventListener("resize", fitScreen, { signal: off.signal }) // entering full screen resizes the window too
   fitScreen()
   run.onclick = () => {
@@ -186,25 +214,72 @@ function build(node) {
     app.extensionManager.command.execute("Comfy.QueueSelectedOutputNodes")
   }
   track.append(fill)
-  head.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, fullB, dims)
+  hr.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, fullB, dims)
+  head.append(title, hr)
+  // the mode: the tabs over the middle; 2 IMG widens the node by a second picture's column
+  const modeTabs = tabStrip("mn-modes", MODE_TABS, (m) => { if (m in TITLES) set("mode", m) })
+  binds.push(() => {
+    const m = W("mode")?.value ?? "EDIT"
+    root.classList.toggle("two", wide())
+    root.style.setProperty("--two", wide() ? `${TWO}px` : "0px")
+    fs.style.setProperty("--w", `${width()}px`)
+    title.textContent = TITLES[m] ?? TITLES.EDIT
+    modeTabs.light(m)
+    if (Math.abs(node.size[0] - width()) + Math.abs(node.size[1] - SIZE[1]) > 0.01) node.setSize([width(), SIZE[1]]) // a float array
+    fitScreen()
+  })
 
-  const left = el("div", "mn-left")
-  const pick = el("div", "mn-pick"), pName = el("div", "mn-pname"), pIdx = el("div", "mn-pidx")
-  pick.append(pName, pIdx, el("div", "mn-pbtn"))
-  const putImage = (name) => {
-    const list = W("image").options.values
-    if (Array.isArray(list) && !list.includes(name)) list.push(name), list.sort()
-    set("image", name)
+  // a picture's column: its picker, Upload and preview (Krea2.svg); 2 IMG's second one takes image_2 from the same folder
+  const column = (name, onSrc) => {
+    const box = el("div", "mn-left"), pick = el("div", "mn-pick"), pName = el("div", "mn-pname"), pIdx = el("div", "mn-pidx")
+    pick.append(pName, pIdx, el("div", "mn-pbtn"))
+    const put = (f) => {
+      const list = W("image").options.values
+      if (Array.isArray(list) && !list.includes(f)) list.push(f), list.sort()
+      set(name, f)
+    }
+    const up = el("div", "mn-upload", ICON.upload + "Upload"), file = picker(put)
+    dropTo(box, put)
+    const prev = el("div", "mn-prev"), pDims = el("div", "mn-pdims"), pBox = el("div", "mn-pbox"), pWrap = el("div", "mn-pwrap")
+    const img = el("img"), crop = el("div", "mn-crop"), la = el("div", "mn-arrow l"), ra = el("div", "mn-arrow r")
+    const empty = el("img", "mn-empty") // no picture: Krea2.svg's "?"
+    empty.src = new URL("./empty.svg", import.meta.url)
+    img.draggable = empty.draggable = false
+    pWrap.append(img, crop)
+    pBox.append(pWrap)
+    prev.append(pDims, empty, pBox, la, ra)
+    box.append(pick, up, file, prev)
+    img.onload = () => {
+      pDims.textContent = `${img.naturalWidth}×${img.naturalHeight}`
+      refresh() // the crop's editor and its Format pill: the first refresh came before the picture
+    }
+    img.onerror = () => { img.removeAttribute("src") } // a file gone from input: the "?"
+    const step = (d) => {
+      const list = comboValues(W("image"))
+      if (list.length) set(name, list[(list.indexOf(W(name)?.value) + d + list.length) % list.length])
+    }
+    la.onclick = () => step(-1)
+    ra.onclick = () => step(1)
+    up.onclick = () => file.click()
+    pick.onclick = () => { openGal(name, box) }
+    binds.push(() => {
+      const v = W(name)?.value ?? "", list = comboValues(W("image"))
+      pName.textContent = baseOf(v)
+      pIdx.textContent = v ? `${list.indexOf(v) + 1}/${list.length}` : ""
+      const src = v ? view(baseOf(v), dirOf(v), "input") : ""
+      if (img.dataset.src === src) return
+      img.dataset.src = src
+      pDims.textContent = ""
+      if (src) img.src = src
+      else img.removeAttribute("src")
+      onSrc?.(src)
+    })
+    return { box, prev, pBox, pWrap, pDims, img, crop }
   }
-  const up = el("div", "mn-upload", ICON.upload + "Upload"), file = picker(putImage)
-  dropTo(left, putImage)
-  const prev = el("div", "mn-prev"), pDims = el("div", "mn-pdims"), pBox = el("div", "mn-pbox"), pWrap = el("div", "mn-pwrap")
-  const pImg = el("img"), crop = el("div", "mn-crop"), la = el("div", "mn-arrow l"), ra = el("div", "mn-arrow r")
-  pImg.draggable = false
-  pWrap.append(pImg, crop)
-  pBox.append(pWrap)
-  prev.append(pDims, pBox, la, ra)
-  left.append(pick, up, file, prev)
+  const c1 = column("image", (src) => { if (!shots.length) setA(src) }), c2 = column("image_2") // A: the input, until a result
+  const { box: left, prev, pBox, pWrap, pDims, img: pImg } = c1
+  c2.box.classList.add("b")
+  binds.push(() => { c2.box.hidden = !wide() })
 
   // Crop on: the preview becomes its editor (crop.js). A crop belongs to its picture: another one starts whole
   const readCrop = () => {
@@ -261,26 +336,17 @@ function build(node) {
     const f = String(W("aspect_ratio")?.value ?? "custom"), m = f.match(/(\d+)\s*x\s*(\d+)\s*$/)
     return f !== "custom" && m ? m[1] / m[2] : W("custom_width").value / W("custom_height").value
   }
-  // lime frame = the part of the input the output keeps, the rest dimmed. Krea2 trims the reference only when the
+  // lime frame = the part of each input the output keeps, the rest dimmed. Krea2 trims a reference only when the
   // shapes are within 8% (krea2_edit CROP_TOL); a farther one goes in whole, fitted inside, and there is no frame
   const updateCrop = () => {
-    const ai = pImg.naturalWidth / pImg.naturalHeight, at = targetAspect()
-    crop.hidden = !(ai && at) || Math.min(ai, at) / Math.max(ai, at) < 0.92
-    if (crop.hidden) return
-    const w = at >= ai ? 100 : (100 * at) / ai, h = at >= ai ? (100 * ai) / at : 100
-    Object.assign(crop.style, { width: w + "%", height: h + "%", left: (100 - w) / 2 + "%", top: (100 - h) / 2 + "%" })
+    for (const { img, crop } of [c1, c2]) {
+      const ai = img.naturalWidth / img.naturalHeight, at = targetAspect()
+      crop.hidden = !(ai && at) || Math.min(ai, at) / Math.max(ai, at) < 0.92
+      if (crop.hidden) continue
+      const w = at >= ai ? 100 : (100 * at) / ai, h = at >= ai ? (100 * ai) / at : 100
+      Object.assign(crop.style, { width: w + "%", height: h + "%", left: (100 - w) / 2 + "%", top: (100 - h) / 2 + "%" })
+    }
   }
-  pImg.onload = () => {
-    pDims.textContent = `${pImg.naturalWidth}×${pImg.naturalHeight}`
-    refresh() // the crop's editor and its Format pill: the first refresh came before the picture
-  }
-  const stepImage = (d) => {
-    const list = comboValues(W("image"))
-    if (list.length) set("image", list[(list.indexOf(W("image").value) + d + list.length) % list.length])
-  }
-  la.onclick = () => stepImage(-1)
-  ra.onclick = () => stepImage(1)
-  up.onclick = () => file.click()
 
   // a number widget's ◀ value ▶ (numberField); W and H reshape both frames while being typed
   const numberOf = (name) => {
@@ -562,7 +628,22 @@ function build(node) {
   }
   const logo = el("div", "mn-logo", `<svg viewBox="0 0 158.293 29.4603" preserveAspectRatio="none" fill="currentColor"><path d="${GSEN}"/></svg>`)
   shead.append(...tabs, logo, lRun, upB, ver)
-  const sRow = Object.fromEntries(SETTINGS.map((s) => [s[1], row(s, "mn-srow")]))
+  // Settings → Settings (SettingIU.svg): a family's tab in the strip shows its models' page, the same tab again the
+  // general one.
+  // shortcut: the node stays Krea 2 whichever page is open; let the tab set the family once QW 21 can run (1.33.0)
+  let page = ""
+  const pages = Object.fromEntries(["", ...Object.keys(FAMILY_ROWS)].map((f) => [f, el("div", f ? "mn-page" : "mn-page g")]))
+  const fams = tabStrip("mn-fams", FAMILY_TABS, (f) => { page = page === f ? "" : f; showPage() })
+  const showPage = () => {
+    for (const [f, p] of Object.entries(pages)) p.hidden = f !== page
+    fams.light(page)
+  }
+  showPage()
+  const sRow = Object.fromEntries(GENERAL.map((s) => [s[1], row(s, "mn-srow")]))
+  pages[""].append(...Object.values(sRow))
+  for (const [f, rows] of Object.entries(FAMILY_ROWS)) {
+    pages[f].append(...rows.map(([label, name], i) => (sRow[name] = row([label, name, ROW_TOPS[i]], "mn-srow"))))
+  }
 
   // zip, in Save's pill: what this node saved and what the LLM tab wrote, the two SAVE folders as one download (common.py)
   const zipB = txt("div", "mn-zip", "zip")
@@ -600,37 +681,39 @@ function build(node) {
     toast(r.ok ? `GSEN ${r.version} is in. Restart ComfyUI, then Ctrl+F5.` : r.error ?? r.log, r.ok ? "success" : "error", 15000)
   }
 
-  // Krea2 One's models, beside Save and Sound: ✅ in this ComfyUI's model folders; a missing one's square is ⬇️, which
-  // downloads it (models.py)
-  const mRows = MODEL_ROWS.map(([key, , top]) => {
+  // each page's files: ✅ in this ComfyUI's model folders; a missing one's square is ⬇️, which downloads it (models.py),
+  // or empty where GSEN has no source for it yet
+  const mRows = Object.entries(STATUS).flatMap(([f, list]) => list.map(([label, key], i) => {
     const r = el("div", "mn-mrow"), name = el("div", "n"), mark = el("div", "i")
-    r.style.top = top + "px"
-    mark.onclick = () => { if (r.classList.contains("missing") && !r.classList.contains("busy")) download(node, key) }
-    r.append(txt("div", "k", key), name, mark)
-    return { key, top, r, name, mark }
-  })
+    r.style.top = (f ? STATUS_TOPS : GENERAL_STATUS)[i] + "px"
+    mark.onclick = () => { if (r.matches(".missing.get:not(.busy)")) download(node, key) }
+    r.append(txt("div", "k", label), name, mark)
+    pages[f].append(r)
+    return { key, r, name, mark }
+  }))
   const paintModels = () => {
     for (const { key, r, name, mark } of mRows) {
-      const m = models.find((x) => x.key === key)
+      const m = key ? models.find((x) => x.key === key) : { file: "-", name: "-" } // H3's LoRA: none to have
       r.hidden = !m // until Settings has asked the server
       if (!m) continue
       const busy = m.got != null, p = busy ? Math.floor((100 * m.got) / m.size) : 0
       r.classList.toggle("missing", !m.name)
+      r.classList.toggle("get", !!m.get)
       r.classList.toggle("busy", busy)
       r.style.setProperty("--p", p + "%")
       name.textContent = plain(baseName(m.name ?? m.file)).replace(/\.[^.]+$/, "")
-      r.title = m.name ?? (busy ? `${p}% of ${gb(m.size)}` : `Not in this ComfyUI's models. ⬇️ downloads it: ${gb(m.size)}`)
-      mark.title = m.name || busy ? "" : "Download"
+      r.title = m.name ?? (busy ? `${p}% of ${gb(m.size)}` : m.get ? `Not in this ComfyUI's models. ⬇️ downloads it: ${gb(m.size)}`
+        : "Not in this ComfyUI's models: put it in its folder by hand")
+      mark.title = m.name || busy || !m.get ? "" : "Download"
       if (busy) mark.textContent = p + "%"
-      else mark.innerHTML = m.name ? ICON.ok : ICON.down
+      else mark.innerHTML = m.name ? ICON.ok : m.get ? ICON.down : ""
     }
   }
   modelEvents.addEventListener("paint", paintModels, { signal: off.signal })
   paintModels()
 
-  // more LoRAs: rows right under the LoRa row; the hidden "loras" widget keeps them as [[file, strength], ...]
-  const GAP = 44, LORA_TOP = SETTINGS.find((s) => s[1] === "lora_name")[2]
-  const END = Math.max(...SETTINGS.map((s) => s[2]), ...MODEL_ROWS.map((m) => m[2])) + GAP
+  // more LoRAs: rows right under Krea 2's LoRa row; the hidden "loras" widget keeps them as [[file, strength], ...]
+  const GAP = 44, LORA_TOP = ROW_TOPS[1], END = ROW_TOPS[3] + GAP
   const loraFiles = () => comboValues(W("lora_name"))
   const loras = () => { try { return JSON.parse(W("loras")?.value || "[]") } catch { return [] } }
   const putLoras = (list) => { set("loras", JSON.stringify(list)) }
@@ -663,11 +746,11 @@ function build(node) {
     shown = value
     const list = loras(), shift = GAP * list.length
     extra.replaceChildren(...list.map((_, i) => loraRow(list, i)))
-    for (const [, name, top] of SETTINGS) if (top > LORA_TOP) sRow[name].style.top = top + shift + "px"
-    for (const { r, top } of mRows) r.style.top = top + shift + "px"
+    FAMILY_ROWS["Krea 2"].slice(2).forEach(([, name], i) => { sRow[name].style.top = ROW_TOPS[i + 2] + shift + "px" })
     sEnd.style.top = END + shift + "px"
   })
-  panes.Settings.append(...Object.values(sRow), ...mRows.map((x) => x.r), extra, sEnd)
+  pages["Krea 2"].append(extra, sEnd)
+  panes.Settings.append(...Object.values(pages), fams.box) // the strip over the pages: they span the whole pane
 
   // Sound: 🔊 / 🔇 on the middle and in Settings switch it, its field picks the file; both save with the workflow
   const sIcon = el("div", "mn-snd"), sName = el("div", "sv")
@@ -832,9 +915,9 @@ function build(node) {
   gIn.spellcheck = false
   gfil.append(gIn)
   gal.append(gfil, gDirs, gHead, gList)
-  let dir = "All", mtimes = {}
+  let dir = "All", mtimes = {}, galFor = "image" // the column that opened it: image or 2 IMG's image_2
   const renderGal = () => {
-    const all = comboValues(W("image")), cur = W("image")?.value, q = gIn.value.trim().toLowerCase()
+    const all = comboValues(W("image")), cur = W(galFor)?.value, q = gIn.value.trim().toLowerCase()
     const dirs = ["All", "root", ...[...new Set(all.map(dirOf).filter(Boolean))].sort()]
     if (!dirs.includes(dir)) dir = "All"
     gDirs.replaceChildren(...dirs.map((d) => {
@@ -852,12 +935,14 @@ function build(node) {
       im.src = thumb(p, mtimes[p])
       it.title = p
       it.append(im, txt("span", null, baseOf(p)))
-      it.onclick = () => { set("image", p); gal.classList.remove("open") }
+      it.onclick = () => { set(galFor, p); gal.classList.remove("open") }
       return it
     }))
   }
   gIn.oninput = renderGal
-  pick.onclick = async () => {
+  const openGal = async (name, col) => {
+    galFor = name
+    gal.style.left = `${Math.max(0, col.offsetLeft)}px` // over that column
     gal.classList.add("open")
     try { // fresh list: files added to input/ since the page loaded show up too
       const r = await api.fetchApi("/mynode/images")
@@ -870,7 +955,7 @@ function build(node) {
     gIn.focus()
   }
 
-  root.append(texture("mn-back"), head, left, mid, right, setP, gal) // the panels' backgrounds, texture on them
+  root.append(texture("mn-back"), head, left, c2.box, el("div", "mn-fog"), mid, modeTabs.box, right, setP, gal) // texture on the backgrounds
 
   canvasControls(node, root, head)
   const laidOut = new ResizeObserver(() => fits.forEach(fitVal)) // the face gets its size when it lands on the canvas
@@ -890,17 +975,6 @@ function build(node) {
     binds.forEach((f) => f())
     fits.forEach(fitVal)
     if (document.activeElement !== prompt) prompt.value = loaded().trim() ? loaded() : W("text")?.value ?? ""
-    const name = W("image")?.value ?? "", list = comboValues(W("image"))
-    pName.textContent = baseOf(name)
-    pIdx.textContent = `${list.indexOf(name) + 1}/${list.length}`
-    const src = name ? view(baseOf(name), dirOf(name), "input") : ""
-    if (pImg.dataset.src !== src) {
-      pImg.dataset.src = src
-      pDims.textContent = ""
-      if (src) pImg.src = src
-      else pImg.removeAttribute("src")
-      if (!shots.length) setA(src) // no result yet: A is the input as it is now
-    }
     updateCrop()
     refreshFrame()
   }
@@ -943,7 +1017,7 @@ function build(node) {
       paintLang()
     },
     ding: () => { if (!muted() && soundName()) play(soundName()) },
-    model: (key, file) => { set(MODEL_ROWS.find((x) => x[0] === key)[1], file) },
+    model: (key, file) => { set(Object.values(STATUS).flat().find((x) => x[1] === key)?.[2], file) },
   }
 
   // hideInPanel: the right Parameters panel sets widget.width to its own width, and the canvas sizes this face by it
@@ -971,6 +1045,22 @@ function texture(cls) {
     run.animate([{ transform: "none" }, { transform: "translate(-80px,-80px)" }], { duration: 8000, iterations: Infinity }).startTime = 0
   }
   return box
+}
+
+// a strip of slanted tabs (Krea2.svg's modes, SettingIU.svg's families): [name, its word's centre]; the lit one is lime
+function tabStrip(cls, tabs, pick) {
+  const box = el("div", `mn-tabs ${cls}`)
+  const bs = tabs.map(([name, mid], i) => {
+    const b = el("div", "mn-ttab"), w = txt("span", null, name)
+    b.style.left = [0, 72.33, 144.55, 216.75][i] + "px"
+    b.dataset.t = name
+    w.style.left = mid + "px"
+    b.append(w)
+    b.onclick = () => { pick(name) }
+    return b
+  })
+  box.append(...bs)
+  return { box, light: (name) => bs.forEach((b) => b.classList.toggle("on", b.dataset.t === name)) }
 }
 
 const LLM_RUNS = new Map() // prompt id of a Settings → LLM run -> its node; the run isn't part of the graph
@@ -1043,7 +1133,7 @@ app.registerExtension({
 
   beforeRegisterNodeDef(nodeType, nodeData) {
     if (nodeData.name !== NODE) return
-    for (const name of Object.keys(KIND)) DEFAULTS[name] = nodeData.input?.required?.[name]?.[1]?.default
+    for (const name of Object.keys(KIND)) DEFAULTS[name] = (nodeData.input?.required?.[name] ?? nodeData.input?.optional?.[name])?.[1]?.default
     nodeType.title_mode = LiteGraph.NO_TITLE // the lime header is the title; no LiteGraph bar above it
     nodeType.collapsable = false
   },
@@ -1054,8 +1144,7 @@ app.registerExtension({
     node.resizable = false
     const ctl = node.widgets?.find((w) => w.name === "control_after_generate")
     if (ctl) ctl.value = "fixed" // the workflow kept its seed; saved workflows override this on load
-    build(node)
-    node.setSize([...SIZE])
+    build(node) // its refresh sizes the node for its mode
   },
 
   loadedGraphNode(node) {
@@ -1067,8 +1156,7 @@ app.registerExtension({
     // 1.9.0 saved "" or a file from anywhere, and a renamed prompt is gone: take the first one there is
     for (const w of [sys, lsys]) if (w && !comboValues(w).includes(w.value)) w.value = comboValues(w)[0] ?? ""
     relink(node)
-    node.setSize([...SIZE])
-    node._mn?.refresh()
+    node._mn?.refresh() // sizes the node for the mode it was saved in
   },
 
   async setup() {
