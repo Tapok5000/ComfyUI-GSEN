@@ -1,5 +1,5 @@
 /* Krea2 One. Every size and colour is taken 1:1 from MyNode.svg (node = 1890.6 x 745). */
-.mn{--lime:#c7f400;position:absolute;inset:0;overflow:hidden;background:#070a10;color:#d0d0d0;font-family:Arial,Helvetica,sans-serif;line-height:1.2;user-select:none;-webkit-user-select:none}
+.mn{--lime:#c7f400;position:absolute;inset:0;overflow:clip;background:#070a10;color:#d0d0d0;font-family:Arial,Helvetica,sans-serif;line-height:1.2;user-select:none;-webkit-user-select:none}
 .mn *{box-sizing:border-box}
 .mn [data-scroll]:focus{outline:none}
 .mn svg{display:block}
@@ -95,7 +95,7 @@
 .mn-fs:fullscreen .mn-prev>.mn-arrow.r{top:calc(50% - 15.63px)}
 .mn-fs:fullscreen .mn-fmt{top:auto;bottom:11.4px}
 
-.mn-mid{position:absolute;left:calc(526.33px + var(--two,0px));top:44px;width:755px;bottom:0;translate:.98px 19.31px}
+.mn-mid{position:absolute;left:calc(526.33px + var(--two,0px));top:44px;width:755px;bottom:19.31px;translate:.98px 19.31px} /* moved, not longer: nothing past the node's foot */
 .mn-mid>:is(.mn-mode,.mn-wh,[data-w=aspect_ratio]){translate:-1.42px 2.82px}
 /* slanted tabs (index.js tabStrip): Krea2.svg's modes over the middle, SettingIU.svg's families in Settings. The lit one is
    lime; each has its lower half a shade apart, and a dark line runs down the strip's left edge */

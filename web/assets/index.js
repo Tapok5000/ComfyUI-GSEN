@@ -1006,8 +1006,9 @@ function build(node) {
       if (r.ok && Array.isArray(list)) list.splice(0, list.length, ...Object.keys(mtimes))
     } catch {}
     renderGal()
-    gList.querySelector(".on")?.scrollIntoView({ block: "center" })
-    gIn.focus()
+    const on = gList.querySelector(".on") // centred by the list alone: scrollIntoView also scrolled the face up inside the node
+    if (on) gList.scrollTop = on.offsetTop - (gList.clientHeight - on.offsetHeight) / 2
+    gIn.focus({ preventScroll: true })
   }
 
   root.append(texture("mn-back"), head, left, c2.box, el("div", "mn-fog"), mid, ...Object.values(qwPanels),
