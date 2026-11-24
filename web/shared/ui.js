@@ -33,6 +33,7 @@ export function menu(e, values, pick, { title = "", current } = {}) {
   closePick?.()
   const t = tree(values, current)
   const box = el("div", "mn-menu"), find = el("input", "mn-menu-f"), list = el("div", "mn-menu-l")
+  box.style.setProperty("--lime", getComputedStyle(e.target).getPropertyValue("--lime")) // the face's accent: QW 21's purple
   find.placeholder = "Search"
   find.spellcheck = false
   list.setAttribute("role", "listbox")

@@ -384,12 +384,17 @@ div.mn-val:hover{color:#fff}
 .mn-menu-r>.c{padding-right:4px;color:#9d9d9d}
 .mn-menu-r .d{color:#8d8d8d}
 .mn-menu-r.back{color:#bdbdbd}
-.mn-menu-r.cur>.n{color:#c7f400}
+.mn-menu-r.cur>.n{color:var(--lime,#c7f400)} /* the opener's accent (ui.js menu) */
 .mn-menu-none{padding:8px;color:#8d8d8d}
 
-/* QW 21 (QW21.svg): the face in purples; Settings and the picture list keep Krea 2's lime, as SettingIU.svg draws them */
+/* QW 21 (QW21.svg): the face and its picture list in purples; Settings keeps Krea 2's lime, as SettingIU.svg draws it */
 .mn.qw{--lime:#8a49ff}
-.mn.qw :is(.mn-set,.mn-gal){--lime:#c7f400}
+.mn.qw .mn-set{--lime:#c7f400}
+.mn.qw .mn-gal{background:linear-gradient(#36138a,#0b0e11)}
+.mn.qw .mn-gfil{border-left-color:#8a49ff}
+.mn.qw :is(.mn-gdir,.mn-gitem):hover{background:rgba(138,73,255,.08)}
+.mn.qw .mn-gdir.on{background:rgba(138,73,255,.2);color:#bfa3fc}
+.mn.qw .mn-gitem.on{background:rgba(138,73,255,.2)}
 .mn.qw .mn-back{background:linear-gradient(#303134 -30.6px,#202124 730.6px) calc(526.33px + var(--two,0px)) 0/755px 100% no-repeat,linear-gradient(#070a10,#581eda) calc(1281.33px + var(--two,0px)) 0/609.24px 100% no-repeat,#4819b3}
 .mn.qw .mn-head{background:linear-gradient(#763bf7,#7b41f8 12.5px,#520bf2)}
 .mn.qw .mn-title{left:8.6px;top:-.21px;color:rgba(207,207,207,.85)}
