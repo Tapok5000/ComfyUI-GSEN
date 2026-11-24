@@ -2,17 +2,22 @@
 import json
 import logging
 import math
+import types
 import urllib.request
+from fractions import Fraction
+from pathlib import Path
 from urllib.parse import urlencode
 
+import numpy as np
 import torch.nn.functional as F
+from PIL import Image
 
-from comfy_api.latest import io
+from comfy_api.latest import InputImpl, Types, io
 
 import torch
 
 from ..common import save_images, save_llm
-from . import crop_edit, krea2_edit, tiles as tiling
+from . import crop_edit, h3, krea2_edit, tiles as tiling
 
 
 class CropRotatePad(io.ComfyNode):
@@ -115,6 +120,71 @@ class Look(io.ComfyNode):
         return io.NodeOutput(x.clamp(0, 1))
 
 
+class H3Prompt(io.ComfyNode):
+    """H3 · CH SHEET's prompt (h3.prompt) once its description is in: typed, or written by the LLM in the same run."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_H3Prompt", category="🟩 GSEN", is_dev_only=True,
+                         inputs=[io.String.Input("description", multiline=True), io.String.Input("words", default="")],
+                         outputs=[io.String.Output()])
+
+    @classmethod
+    def execute(cls, description, words=""):
+        return io.NodeOutput(h3.prompt(description, [w for w in words.split(", ") if w]))
+
+
+def _halves(self, x):  # tokens don't mix in the feed-forward: two halves of a long sequence give the same rows
+    return type(self).forward(self, x) if x.shape[0] <= 4096 else torch.cat([type(self).forward(self, p) for p in x.chunk(2)])
+
+
+class H3Memory(io.ComfyNode):
+    """H3 on a 12 GB card, INSTALLATION.md's Chunk Feed-Forward (2 chunks over 4096 tokens): each DiT block's
+    feed-forward, a block's biggest buffer (2 x 14336 values a token), on two halves of the tokens. Our own patch of
+    core's blocks, not KJNodes' (GPL); its Low-VRAM Attention is left out: core hands q, k, v to the kernel to free."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_H3Memory", category="🟩 GSEN", is_dev_only=True,
+                         inputs=[io.Model.Input("model")], outputs=[io.Model.Output()])
+
+    @classmethod
+    def execute(cls, model):
+        m = model.clone()
+        for n, block in enumerate(m.get_model_object("diffusion_model").blocks):
+            m.add_object_patch(f"diffusion_model.blocks.{n}.mlp.forward", types.MethodType(_halves, block.mlp))
+        return io.NodeOutput(m)
+
+
+class Sheet(io.ComfyNode):
+    """H3 · CH SHEET's sheet, Muse's Character Sheet Compositor at the workflow's settings: five frames (h3.PICKS) side
+    by side at 1080 px high, the close-up whole, the four turns cut to 60% of their width around the middle, 12 px of
+    white around and between them."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_Sheet", category="🟩 GSEN", is_dev_only=True,
+                         inputs=[io.Image.Input("frames")], outputs=[io.Image.Output()])
+
+    @classmethod
+    def execute(cls, frames):
+        panels = []
+        for n, i in enumerate(h3.PICKS):
+            im = Image.fromarray(frames[min(i, len(frames) - 1), ..., :3].clamp(0, 1).mul(255).round().byte().cpu().numpy())
+            w = max(1, round(im.width * (1080 / im.height)))
+            im = im.resize((w, 1080), Image.LANCZOS)
+            if n:
+                c = max(1, round(w * 60 / 100.0))
+                im = im.crop(((w - c) // 2, 0, (w - c) // 2 + c, 1080))
+            panels.append(im)
+        sheet = Image.new("RGB", (sum(p.width for p in panels) + 6 * 12, 1080 + 2 * 12), (255, 255, 255))
+        x = 12
+        for p in panels:
+            sheet.paste(p, (x, 12))
+            x += p.width + 12
+        return io.NodeOutput(torch.from_numpy(np.asarray(sheet, dtype=np.float32) / 255.0)[None])
+
+
 _failed = set()  # texts whose translation failed: translate again next run instead of reusing the cached error
 
 
@@ -169,22 +239,31 @@ class Decode(io.ComfyNode):
         return io.NodeOutput(images)
 
 
+def _mp4(frames, audio, path):  # the workflow's video: H.264 at crf 14, H3's 24 fps, its sound
+    video = InputImpl.VideoFromComponents(Types.VideoComponents(images=frames, audio=audio, frame_rate=Fraction(24)))
+    video.save_to(path, format=Types.VideoContainer.MP4, codec=Types.VideoCodec.H264, crf=14)
+
+
 class Show(io.ComfyNode):
     """Saves the result and sends one UI message with it, RU and EN (separate messages would overwrite each other).
-    info: the sampling settings, JSON; saved in the PNG with the prompt for Settings → Gallery."""
+    info: the sampling settings, JSON; saved in the PNG with the prompt for Settings → Gallery. frames and audio (H3):
+    the video as ID_<n>.mp4 and the prompt as ID_<n>.txt beside the result, Muse's video output and Save Text."""
 
     @classmethod
     def define_schema(cls):
         return io.Schema(node_id="MyNode_Show", category="🟩 GSEN", is_output_node=True, is_dev_only=True,
                          inputs=[io.Image.Input("images"), io.String.Input("ru", force_input=True),
                                  io.String.Input("en", force_input=True), io.String.Input("save_to", default=""),
-                                 io.String.Input("info", default="{}")],
+                                 io.String.Input("info", default="{}"), io.Image.Input("frames", optional=True),
+                                 io.Audio.Input("audio", optional=True)],
                          outputs=[])
 
     @classmethod
-    def execute(cls, images, ru, en, save_to="", info="{}"):
+    def execute(cls, images, ru, en, save_to="", info="{}", frames=None, audio=None):
         meta = {**json.loads(info or "{}"), "en": en, "ru": ru}
-        saved = save_images(images, save_to, cls, meta)
+        beside = None if frames is None else {".mp4": lambda p: _mp4(frames, audio, p),
+                                              ".txt": lambda p: Path(p).write_text(en, encoding="utf-8")}
+        saved = save_images(images, save_to, cls, meta, beside)
         # not "images": that key makes the frontend add its own preview widget and break the layout
         return io.NodeOutput(ui={"mn_images": saved, "ru": [ru], "en": [en], "mn_info": [meta]})
 

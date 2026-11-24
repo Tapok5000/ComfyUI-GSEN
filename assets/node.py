@@ -19,12 +19,13 @@ from comfy_execution.graph_utils import GraphBuilder
 from server import PromptServer
 
 from ..common import Expansion, input_images
-from . import crop_edit, qw21
+from . import crop_edit, h3, qw21
 from .sizes import PRESETS, target_size
 
 # system prompts, a .txt each, one folder per task: the photo's (Settings → System), picture → prompt (LLM → System)
 PROMPTS = Path(__file__).parent / "prompts"
 IMG_TO_TEXT = PROMPTS / "img_to_text"
+H3_REFERENCE = IMG_TO_TEXT / "h3_reference.txt"  # Muse's Analyze: CH SHEET's LLM pill, and the LLM tab's too
 
 
 # The core nodes and inputs execute() builds its graph from. A ComfyUI update that renames one breaks Run, so
@@ -48,6 +49,14 @@ CORE = {
     "SeedVR2PostProcessing": ("images", "original_resized_images", "color_correction_method"),
     "VAEEncodeTiled": ("pixels", "vae", "tile_size", "overlap", "temporal_size", "temporal_overlap"),
     "VAEDecodeTiled": ("samples", "vae", "tile_size", "overlap", "temporal_size", "temporal_overlap"),
+    # H3 (h3.py)
+    "MiniMaxH3ReferenceToVideo": ("clip", "vae", "audio_vae", "prompt", "width", "height", "length", "ref_image_size"),
+    "BasicGuider": ("model", "conditioning"),
+    "BasicScheduler": ("model", "scheduler", "steps", "denoise"),
+    "KSamplerSelect": ("sampler_name",),
+    "RandomNoise": ("noise_seed",),
+    "SamplerCustomAdvanced": ("noise", "guider", "sampler", "sigmas", "latent_image"),
+    "VAEDecodeAudio": ("samples", "vae"),
 }
 LLM_INPUTS = ("clip", "prompt", "max_length", "thinking", "use_default_template", "mtp", "system_prompt", "sampling_mode")
 
@@ -103,9 +112,17 @@ def _maybe(id, kind, needle):
     return io.Combo.Input(id, options=[NONE, *options], default=max(family, key=_natural) if family else NONE, optional=True)
 
 
+def _h3_loras():
+    """h3_loras' default: INSTALLATION.md's Realism People at 0.75 and Polyhedron at 0.6, those of them this PC has."""
+    files = folder_paths.get_filename_list("loras")
+    found = ((next((f for f in files if key in f.lower()), None), s) for key, s in (("h3-realism-people", 0.75),
+                                                                                     ("perfe8ct", 0.6)))
+    return json.dumps([[f, s] for f, s in found if f])
+
+
 FAMILIES = ["Krea 2", "QW 21", "H3"]
-MODES = ["EDIT", "2 IMG", "UpScale", "BG"]  # the tabs over the middle
-RUNS = {("Krea 2", "EDIT"), ("Krea 2", "2 IMG"), ("QW 21", "UpScale"), ("QW 21", "BG")}  # what this version can run
+MODES = ["EDIT", "2 IMG", "UpScale", "BG", "CH SHEET"]  # the tabs over the middle
+RUNS = {("Krea 2", "EDIT"), ("Krea 2", "2 IMG"), ("QW 21", "UpScale"), ("QW 21", "BG"), ("H3", "CH SHEET")}  # this version's
 
 
 # web/assets/index.js counts prompts with the same two rules
@@ -211,7 +228,7 @@ class FaceProcessing(io.ComfyNode):
                 _maybe("qw_clip_name", "text_encoders", "qwen3vl_8b_int8_convrot"),
                 _maybe("qw_vae_name", "vae", "texture_fix_vae_for_qwen_image_2.1"),
                 _maybe("h3_unet_name", "diffusion_models", "_h3_"),
-                _maybe("h3_lora_name", "loras", None),
+                _maybe("h3_lora_name", "loras", "ref2v_turbo_8step"),  # INSTALLATION.md's Reference-mode Turbo
                 _maybe("h3_clip_name", "text_encoders", "minimax_h3"),
                 _maybe("h3_vae_video", "vae", "minimax_h3_video"),
                 _maybe("h3_vae_audio", "vae", "minimax_h3_audio"),
@@ -230,6 +247,15 @@ class FaceProcessing(io.ComfyNode):
                 io.Int.Input("up_steps", default=25, min=1, max=200, optional=True),
                 io.Combo.Input("up_sampler", options=comfy.samplers.KSampler.SAMPLERS, default="euler", optional=True),
                 io.Combo.Input("up_scheduler", options=comfy.samplers.KSampler.SCHEDULERS, default="simple", optional=True),
+                # 1.34.0: H3 · CH SHEET (h3.py), its sampling as INSTALLATION.md has it
+                io.String.Input("h3_text", multiline=True, default="", optional=True,
+                                tooltip="CH SHEET: the person in the picture, H3's <Subject 1>. With the LLM pill on the LLM "
+                                        "writes it (assets/prompts/img_to_text/h3_reference.txt)."),
+                io.String.Input("h3_loras", default=_h3_loras(), optional=True,
+                                tooltip="More H3 LoRAs after h3_lora_name: JSON [[file, strength], ...]. Edited in Settings."),
+                io.Int.Input("h3_steps", default=8, min=1, max=200, optional=True),
+                io.Combo.Input("h3_sampler", options=comfy.samplers.KSampler.SAMPLERS, default="euler", optional=True),
+                io.Combo.Input("h3_scheduler", options=comfy.samplers.KSampler.SCHEDULERS, default="simple", optional=True),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -241,24 +267,29 @@ class FaceProcessing(io.ComfyNode):
         system = _system_path(system_file, PROMPTS)
         second = os.path.getmtime(folder_paths.get_annotated_filepath(image_2)) if mode == "2 IMG" and image_2 else 0
         first = os.path.getmtime(folder_paths.get_annotated_filepath(image))
-        return first, system.stat().st_mtime if system.exists() else 0, second
+        h3_llm = H3_REFERENCE.stat().st_mtime if H3_REFERENCE.exists() else 0
+        return first, system.stat().st_mtime if system.exists() else 0, second, h3_llm
 
     @classmethod
     def validate_inputs(cls, image=None, family="Krea 2", mode="EDIT", image_2="", qw_unet_name=NONE, qw_lora_name=NONE,
-                        qw_clip_name=NONE, qw_vae_name=NONE, seedvr2=True, seedvr2_name=NONE, seedvr2_vae=NONE):
+                        qw_clip_name=NONE, qw_vae_name=NONE, seedvr2=True, seedvr2_name=NONE, seedvr2_vae=NONE,
+                        h3_unet_name=NONE, h3_clip_name=NONE, h3_vae_video=NONE, h3_vae_audio=NONE):
         if not (image and folder_paths.exists_annotated_filepath(image)):
             return f"Invalid image file: {image}"
-        if (family, mode) not in RUNS:  # QW 21's EDIT and 2 IMG come later, H3 after them
+        if (family, mode) not in RUNS:  # QW 21's EDIT and 2 IMG come later
             return f"{family} · {mode}: not in this GSEN version yet"
         if mode == "2 IMG" and not (image_2 and folder_paths.exists_annotated_filepath(image_2)):
             return f"2 IMG: pick the second picture ({image_2 or 'none'})"
-        wanted = {"MODEL": qw_unet_name, "CLIP": qw_clip_name, "VAE": qw_vae_name} if family == "QW 21" else {}
+        wanted = ({"MODEL": qw_unet_name, "CLIP": qw_clip_name, "VAE": qw_vae_name} if family == "QW 21" else
+                  {"MODEL": h3_unet_name, "CLIP": h3_clip_name, "VAE Video": h3_vae_video, "VAE Audio": h3_vae_audio}
+                  if family == "H3" else {})
         if mode == "UpScale":
             wanted["LoRa"] = qw_lora_name
         if family == "QW 21" and seedvr2:
             wanted |= {"SeedVR2": seedvr2_name, "SeedVR2 VAE": seedvr2_vae}
         if missing := [k for k, v in wanted.items() if v == NONE]:
-            return f"{family} · {mode}: no {', '.join(missing)} picked (Settings → {family}, or SeedVR2 off)"
+            off = ", or SeedVR2 off" if family == "QW 21" else ""
+            return f"{family} · {mode}: no {', '.join(missing)} picked (Settings → {family}{off})"
         return True
 
     @classmethod
@@ -268,6 +299,20 @@ class FaceProcessing(io.ComfyNode):
                 loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", crop_mask=False,
                 family="Krea 2", mode="EDIT", image_2="", **more):
         # **more: QW 21's inputs; the LLM tab's, H3's, and grounding_px and face_crop, which saved workflows still carry
+        if family == "H3":  # CH SHEET (h3.py): the picture is <Picture 1>; the LLM pill writes its description, else h3_text
+            g = GraphBuilder()
+            picture = g.node("LoadImage", image=image).out(0)
+            text = more.get("h3_text", "")
+            if ai_prompt:
+                llm = g.node("CLIPLoader", clip_name=llm_name, type="krea2", device="default").out(0)
+                text = _generate(g, llm, picture, "", H3_REFERENCE.read_text(encoding="utf-8"))
+            lora = more.get("h3_lora_name", NONE)
+            loras = ([[lora, 1.0]] if lora != NONE else []) + json.loads(more.get("h3_loras") or "[]")
+            sheet, frames, audio, prompt, (steps, sampler, sched) = h3.build(g, picture, text, seed, loras, more)
+            info = json.dumps({"seed": seed, "steps": steps, "sampler": sampler, "scheduler": sched})
+            g.node("MyNode_Show", images=sheet, ru=g.node("MyNode_Translate", text=prompt).out(0), en=prompt,
+                   save_to=save_to, info=info, frames=frames, audio=audio)
+            return Expansion(expand=g.finalize())
         if family == "QW 21":  # BG or UpScale (qw21.py): the prompt boxes, Crop and the LoRAs are Krea 2's
             g = GraphBuilder()
             size = target_size(folder_paths.get_annotated_filepath(image), True, None, 0, 0, 0, div=1)

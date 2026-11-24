@@ -34,6 +34,7 @@ class Model(NamedTuple):
 KREA2 = ("Comfy-Org/Krea-2", "588feaf955b08b9ac4723eeb751752ab045dba71")
 SEEDVR2 = ("Comfy-Org/SeedVR2", "df48879708206a403d2a61acd55578c2e80fd233")
 RUNPOD = ("Balkhaev/Qwen-Image-2.1-UC-RunPod", "66e46ce69cfe0d8f28cb84a8be4160a8aa2ade6d")
+H3 = ("Comfy-Org/MiniMax-H3", "4b53a35191437de05370da548e59aeabe2a5a09a")
 VAE = "Wan2.1_VAE_upscale2x_imageonly_real_v1.safetensors"
 MODELS = (
     Model("MODEL", "diffusion_models", "krea2_turbo_int8_convrot.safetensors", 13492686496,
@@ -78,12 +79,29 @@ MODELS = (
           "36f56608b02077a50a08ea3dbcdb88351298ceba49948f41f9f87186378e6908",
           (("madebyollin/texture-fix-vae-for-qwen-image-2.1", "9a10df811f183323e4e94d255c18add1924ce340",
             "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"),)),
-    # shortcut: H3's files are only looked for, no download; give them pinned sources with H3's modes
-    *(Model(key, kind, file, 0, "", ()) for key, kind, file in (
-        ("H3_MODEL", "diffusion_models", "10Eros_Max_h3_8stepTURBO_beta7_int8HQ.safetensors"),
-        ("H3_CLIP", "text_encoders", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"),
-        ("H3_VAE_VIDEO", "vae", "minimax_h3_video_vae_fp16.safetensors"),
-        ("H3_VAE_AUDIO", "vae", "minimax_h3_audio_vae_fp32.safetensors"))),
+    # H3 · CH SHEET: Muse-CharacterSheet-H3's INSTALLATION.md. Its 4-step FastVideo int8 is no file on Hugging Face, so
+    # MODEL is Comfy-Org's reference-mode int8 under the Turbo LoRA's 8 steps; Polyhedron is on Civitai only
+    Model("H3_MODEL", "diffusion_models", "minimax_h3_ref2va_pruned_int8_convrot.safetensors", 20970379616,
+          "9255f52b6677845ad238f20dfaafa94727053694127ab7f255c048f0f9365779",
+          ((*H3, "diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors"),)),
+    Model("H3_LORA", "loras", "minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors", 1956193000,
+          "6a56f41ab4229c9dd845b9501bbd475ee57e112d846cf2e819d534a1ae928c5a",
+          (("lightx2v/Minimax-h3-Turbo", "ff0edf44b7a96e1b1b4a0c84287dfe9f6a7d133e",
+            "minimax_h3_ref2v_turbo_8step_v1.0_768p_comfyui_bf16.safetensors"),)),
+    Model("H3_REALISM", "loras", "h3-realism-people-t2v-i2v-r2v.safetensors", 131229656,
+          "acc529601d2da117fb81179e76c56e488a3beab1171659d305f04fa3655b787e",
+          (("fal/MiniMax-H3-Realism-People-LoRA", "039cc8579d7aa357a882d7f4111b25da4f72dccc",
+            "h3-realism-people-t2v-i2v-r2v.safetensors"),)),
+    Model("H3_POLYHEDRON", "loras", "polyhedron_minimax_h3_image_lora_v2__perfe8ct.safetensors", 0, "", ()),
+    Model("H3_CLIP", "text_encoders", "qwen3vl_32b_minimax_h3_int8_convrot.safetensors", 27141342152,
+          "bc2ced0fbea64757fa9acddccfc0b3f4819d1dcf1da6c124d690d368be283923",
+          ((*H3, "text_encoders/qwen3vl_32b_minimax_h3_int8_convrot.safetensors"),)),
+    Model("H3_VAE_VIDEO", "vae", "minimax_h3_video_vae_fp16.safetensors", 5207808496,
+          "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522",
+          ((*H3, "vae/minimax_h3_video_vae_fp16.safetensors"),)),
+    Model("H3_VAE_AUDIO", "vae", "minimax_h3_audio_vae_fp32.safetensors", 605254808,
+          "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48",
+          ((*H3, "vae/minimax_h3_audio_vae_fp32.safetensors"),)),
 )
 JOBS = {}  # key -> {"got": bytes so far, "sent": when the face last heard} while that model downloads
 

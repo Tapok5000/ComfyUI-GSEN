@@ -1,0 +1,25 @@
+{
+ "style": "A plain, seamless WHITE void with soft, even, shadowless studio lighting - no floor line, no props, no set dressing. REF 1 stands centered in frame for the full 10 seconds, performing one continuous, slow, steady turn under a static camera that never moves, pans or zooms. No dialogue, no other performers.",
+ "cuts": [
+  [
+   "REF 1 stands facing the camera directly, full body visible from head to toe, feet shoulder-width apart, arms relaxed at their sides. The pose is already settled at the start of the cut and holds completely still, square-on to camera, for the full 3 seconds.",
+   0.6011626431222432
+  ],
+  [
+   "REF 1 begins turning smoothly to their own left, completing the rotation to a full side-on left-profile view within the first half of this cut, full body still visible head to toe. They hold that profile position, still and level, for the remainder of the cut.",
+   0.6001327414262277
+  ],
+  [
+   "REF 1 continues the same steady rotation, completing the turn to face directly away from camera - a full back view, full body visible head to toe - within the first half of this cut, then holds that position still for the remainder.",
+   0.6008477862254508
+  ],
+  [
+   "REF 1 continues the same steady rotation, completing the turn to a full side-on right-profile view, full body visible head to toe, within the first half of this cut, then holds that position still for the remainder.",
+   0.5978568292260782
+  ],
+  [
+   "REF 1 completes the rotation back to face the camera directly, full body visible, within the first half of this cut. Simultaneously, the camera\nperforms a slow push-in that ends framed as a close-up on the head and shoulders only, face square to camera. Both the turn and the push-in finish by the midpoint of the cut; the final close-up composition holds completely\nstill for the remainder.",
+   0.6000000000000001
+  ]
+ ]
+}

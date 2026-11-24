@@ -10,9 +10,12 @@ const TWO = 515.47 // 2 IMG (Krea2.svg's Krea2 Two): a second picture's column, 
 // the tabs over the middle (Krea2.svg, QW21.svg) and over Settings' pages (SettingIU.svg): [name, its word's centre] px;
 // XXX are places for modes to come. TITLES: the modes a family runs, each one's title (a tab not in it can't be picked)
 const MODE_TABS = { "Krea 2": [["EDIT", 43.21], ["2 IMG", 47.93], ["XXX", 46.42], ["XXX", 48.13]],
-  "QW 21": [["EDIT", 43.2], ["2 IMG", 47.8], ["UpScale", 46.6], ["BG", 48.4], ["XXX", 46.2]] }
+  "QW 21": [["EDIT", 43.2], ["2 IMG", 47.8], ["UpScale", 46.6], ["BG", 48.4], ["XXX", 46.2]],
+  H3: [["CH SHEET", 48.8], ["XXX", 47.93], ["XXX", 46.42], ["XXX", 48.13]] }
 const FAMILY_TABS = [["Krea 2", 45.73], ["QW 21", 47.21], ["H3", 46.67]]
-const TITLES = { "Krea 2": { EDIT: "Krea2 One", "2 IMG": "Krea2 Two" }, "QW 21": { UpScale: "QW21 UpScale", BG: "QW21 BG" } }
+const TITLES = { "Krea 2": { EDIT: "Krea2 One", "2 IMG": "Krea2 Two" }, "QW 21": { UpScale: "QW21 UpScale", BG: "QW21 BG" },
+  H3: { "CH SHEET": "H3 CH SHEET" } }
+const SHEET = 2152 / 1104 // H3 · CH SHEET's result (parts.Sheet of 544 x 960 frames): the frame takes its shape
 // QW 21's middle (QW21.svg): its modes' pills, [label, widget, top, left, width] px on the middle; BG's SeedVR2 a row lower
 // than drawn, to make room for No Person under No LOGO. Its presets: [name, top, left, width]
 const QW_ROWS = {
@@ -35,6 +38,9 @@ const ROWS = [
   ["", "aspect_ratio", 540.18, 152.53, 199.88], // a preset's name, in W x H's place (not in MyNode.svg)
   ["seed", "seed", 426.88, 468.17, 199.89], ["steps", "steps", 504.85, 468.74, 140],
   ["sampler", "sampler_name", 546.71, 470.14, 200], ["scheduler", "scheduler", 592.08, 470.14, 200],
+  // H3 · CH SHEET's own sampling in their place: face.css shows the family's set
+  ["steps", "h3_steps", 504.85, 468.74, 140], ["sampler", "h3_sampler", 546.71, 470.14, 200],
+  ["scheduler", "h3_scheduler", 592.08, 470.14, 200],
 ]
 // under seed: [label, control_after_generate value, left, width]. FIX keeps the seed, RANDOM rolls one after each Run;
 // LIST is the seeds kept with + beside seed (MyNode.svg), one picked goes back in and is pinned (FIX)
@@ -44,7 +50,7 @@ const SEED_KEEP = 20 // newest first, no repeats
 // a long row (face.css places it)
 const GENERAL = [["Sound", "sound", 151.68, 30.81, 273.11], ["Save", "save_to", 211.17, 30.81, 273.11], // Sound: node properties
   ["LLM", "llm_name", 316.27], ["System", "system_file", 357.98, 31.8, 273.11]]
-// a family's page: its models' rows, [label, widget], at ROW_TOPS
+// a family's page: its models' rows, [label, widget], at ROW_TOPS, H3's two status rows lower (PAGE_SHIFT)
 const FAMILY_ROWS = {
   "Krea 2": [["MODEL", "unet_name"], ["LoRa", "lora_name"], ["CLIP", "clip_name"], ["VAE", "vae_name"]],
   "QW 21": [["MODEL", "qw_unet_name"], ["LoRa", "qw_lora_name"], ["CLIP", "qw_clip_name"], ["VAE", "qw_vae_name"]],
@@ -53,16 +59,19 @@ const FAMILY_ROWS = {
 }
 const ROW_TOPS = [343.61, 386.27, 432.53, 476.39, 520.23]
 // over them, each page's files (assets/models.py) and whether they are here: [label, key, widget], a family's at
-// STATUS_TOPS, the general page's at GENERAL_STATUS. H3 has no LoRA of its own: its row says "-"
+// STATUS_TOPS, the general page's at GENERAL_STATUS. H3 has CH SHEET's three LoRAs (INSTALLATION.md): a downloaded
+// Realism goes into its LoRA list at its strength there; Polyhedron (Civitai) is put in by hand
 const STATUS = {
   "": [["SeedVR2", "SEEDVR2", "seedvr2_name"], ["", "SEEDVR2_VAE", "seedvr2_vae"], ["LLM", "LLM", "llm_name"]],
   "Krea 2": [["MODEL", "MODEL", "unet_name"], ["LORA", "LORA", "lora_name"], ["CLIP", "CLIP", "clip_name"], ["VAE", "VAE", "vae_name"]],
   "QW 21": [["MODEL", "QW_MODEL", "qw_unet_name"], ["LORA", "QW_LORA", "qw_lora_name"], ["CLIP", "QW_CLIP", "qw_clip_name"],
     ["VAE", "QW_VAE", "qw_vae_name"]],
-  H3: [["MODEL", "H3_MODEL", "h3_unet_name"], ["LORA", null, "h3_lora_name"], ["CLIP", "H3_CLIP", "h3_clip_name"],
-    ["VAE", "H3_VAE_VIDEO", "h3_vae_video"], ["VAE", "H3_VAE_AUDIO", "h3_vae_audio"]],
+  H3: [["MODEL", "H3_MODEL", "h3_unet_name"], ["LORA", "H3_LORA", "h3_lora_name"], ["LORA", "H3_REALISM", "h3_loras", 0.75],
+    ["LORA", "H3_POLYHEDRON", null], ["CLIP", "H3_CLIP", "h3_clip_name"], ["VAE", "H3_VAE_VIDEO", "h3_vae_video"],
+    ["VAE", "H3_VAE_AUDIO", "h3_vae_audio"]],
 }
-const STATUS_TOPS = [149.86, 180.49, 211.47, 245.75, 280.07]
+const STATUS_TOPS = [149.86, 180.49, 211.47, 245.75, 280.07, 314.39, 348.71]
+const PAGE_SHIFT = { H3: 68.64 } // its two more status rows
 const GENERAL_STATUS = [159.75, 190.56, 273.23]
 // a loaded .txt: prompts split by lines of dashes (---) if it has any, else by blank lines (assets/node.py: _prompts)
 const DASHES = /^[ \t]*-{3,}[ \t]*$/m
@@ -207,8 +216,10 @@ function build(node) {
   }
   const off = new AbortController()
   const root = el("div", "mn"), fs = el("div", "mn-fs") // fs: the node's DOM widget, the face in it
-  const family = () => (W("family")?.value in TITLES ? W("family").value : "Krea 2") // H3 runs nothing yet
+  const family = () => (W("family")?.value in TITLES ? W("family").value : "Krea 2")
   const qw = () => family() === "QW 21"
+  const h3 = () => family() === "H3"
+  const textKey = () => (h3() ? "h3_text" : "text") // the prompt box: CH SHEET's is the person's description
   const wide = () => !qw() && W("mode")?.value === "2 IMG"
   const width = () => SIZE[0] + (wide() ? TWO : 0)
 
@@ -285,7 +296,8 @@ function build(node) {
     pick.onclick = () => { openGal(name, box) }
     binds.push(() => {
       const v = W(name)?.value ?? "", list = comboValues(W("image"))
-      if (empty.src !== EMPTY[family()]) empty.src = EMPTY[family()]
+      const q = EMPTY[family()] ?? EMPTY["Krea 2"] // H3: the lime one, it has no colours of its own yet
+      if (empty.src !== q) empty.src = q
       pName.textContent = baseOf(v)
       pIdx.textContent = v ? `${list.indexOf(v) + 1}/${list.length}` : ""
       const src = v ? view(baseOf(v), dirOf(v), "input") : ""
@@ -339,7 +351,7 @@ function build(node) {
   pBox.append(ed.canvas)
   prev.append(ed.label, cropReset, fmt, maskB, mini)
   binds.push(() => {
-    const on = !!W("manual_crop")?.value && !qw() // QW 21 takes the picture whole
+    const on = !!W("manual_crop")?.value && family() === "Krea 2" // QW 21 and H3 take the picture whole
     pWrap.hidden = pDims.hidden = on // the crop's own line takes the input's size's place
     ed.canvas.hidden = ed.label.hidden = cropReset.hidden = fmt.hidden = maskB.hidden = mini.hidden = !on
     if (on) ed.draw()
@@ -352,6 +364,7 @@ function build(node) {
   // output aspect: the image itself (as cropped, with its gray padding: sizes.py takes it so), a preset "… - WxH",
   // or custom W/H
   const targetAspect = () => {
+    if (h3()) return SHEET
     const c = !W("resolution_source")?.value && W("manual_crop")?.value && readCrop(), [l, t, r, b] = c?.pad ?? [0, 0, 0, 0]
     if (c?.box) return (c.box[2] + l + r) / (c.box[3] + t + b)
     if (!W("resolution_source")?.value) return pImg.naturalWidth ? pImg.naturalWidth / pImg.naturalHeight : 0
@@ -363,7 +376,7 @@ function build(node) {
   const updateCrop = () => {
     for (const { img, crop } of [c1, c2]) {
       const ai = img.naturalWidth / img.naturalHeight, at = targetAspect()
-      crop.hidden = !(ai && at) || Math.min(ai, at) / Math.max(ai, at) < 0.92
+      crop.hidden = h3() || !(ai && at) || Math.min(ai, at) / Math.max(ai, at) < 0.92
       if (crop.hidden) continue
       const w = at >= ai ? 100 : (100 * at) / ai, h = at >= ai ? (100 * ai) / at : 100
       Object.assign(crop.style, { width: w + "%", height: h + "%", left: (100 - w) / 2 + "%", top: (100 - h) / 2 + "%" })
@@ -449,8 +462,8 @@ function build(node) {
   Object.assign(prompt.style, { left: "15.01px", top: "25.11px" })
   Object.assign(ru.style, { left: "15.01px", top: "237.42px" })
   prompt.oninput = () => {
-    W("text").value = prompt.value
-    W("text").callback?.(prompt.value)
+    W(textKey()).value = prompt.value
+    W(textKey()).callback?.(prompt.value)
   }
   // PROMT and RU are the boxes' background, faint under their text like MyNode.svg draws them; a loaded .txt says its
   // name and count in small lime over the prompt box
@@ -506,7 +519,8 @@ function build(node) {
     const on = !!loaded().trim(), n = countPrompts(loaded())
     lp.textContent = on ? `${W("prompt_file")?.value || "prompts"} · ${n} prompt${n === 1 ? "" : "s"}` : ""
     lt.textContent = on ? "CLOSE TXT" : "LOAD TXT"
-    prompt.readOnly = on
+    prompt.readOnly = on && !h3() // a loaded .txt is Krea 2's
+    prompt.placeholder = h3() ? "Who is in the picture (H3's <Subject 1>), or the LLM pill writes it" : ""
   })
   // custom / preset: aspect_ratio "custom" is W x H, one pill with the numbers typed (MyNode.svg has no arrows there);
   // a preset shows its name in that pill's place
@@ -578,6 +592,7 @@ function build(node) {
   }))
   binds.push(() => {
     mid.hidden = qw()
+    mid.classList.toggle("h3", h3()) // CH SHEET: Krea 2's middle without its picture and size pills (face.css)
     for (const [m, p] of Object.entries(qwPanels)) p.hidden = !(qw() && W("mode")?.value === m)
   })
 
@@ -677,8 +692,8 @@ function build(node) {
   }
   const logo = el("div", "mn-logo", `<svg viewBox="0 0 158.293 29.4603" preserveAspectRatio="none" fill="currentColor"><path d="${GSEN}"/></svg>`)
   shead.append(...tabs, logo, lRun, upB, ver)
-  // Settings → Settings (SettingIU.svg): a family's tab in the strip shows its models' page and, for a family that runs
-  // (Krea 2, QW 21; not H3 yet), makes the node that family, in a mode it has; the same tab again: the general page
+  // Settings → Settings (SettingIU.svg): a family's tab in the strip shows its models' page and makes the node that
+  // family, in a mode it has; the same tab again: the general page
   let page = ""
   const pages = Object.fromEntries(["", ...Object.keys(FAMILY_ROWS)].map((f) => [f, el("div", f ? "mn-page" : "mn-page g")]))
   const fams = tabStrip("mn-fams", FAMILY_TABS, (f) => {
@@ -697,7 +712,7 @@ function build(node) {
   const sRow = Object.fromEntries(GENERAL.map((s) => [s[1], row(s, "mn-srow")]))
   pages[""].append(...Object.values(sRow))
   for (const [f, rows] of Object.entries(FAMILY_ROWS)) {
-    pages[f].append(...rows.map(([label, name], i) => (sRow[name] = row([label, name, ROW_TOPS[i]], "mn-srow"))))
+    pages[f].append(...rows.map(([label, name], i) => (sRow[name] = row([label, name, ROW_TOPS[i] + (PAGE_SHIFT[f] ?? 0)], "mn-srow"))))
   }
 
   // zip, in Save's pill: what this node saved and what the LLM tab wrote, the two SAVE folders as one download (common.py)
@@ -767,44 +782,49 @@ function build(node) {
   modelEvents.addEventListener("paint", paintModels, { signal: off.signal })
   paintModels()
 
-  // more LoRAs: rows right under Krea 2's LoRa row; the hidden "loras" widget keeps them as [[file, strength], ...]
-  const GAP = 44, LORA_TOP = ROW_TOPS[1], END = ROW_TOPS[3] + GAP
-  const loraFiles = () => comboValues(W("lora_name"))
-  const loras = () => { try { return JSON.parse(W("loras")?.value || "[]") } catch { return [] } }
-  const putLoras = (list) => { set("loras", JSON.stringify(list)) }
-  const extra = el("div"), sEnd = el("div", "mn-send"), add = el("div", "mn-x add", ICON.plus)
-  add.title = "Add LoRA"
-  add.onclick = (e) => {
-    e.stopPropagation() // the row under it opens lora_name's own menu
-    menu(e, loraFiles(), (f) => putLoras([...loras(), [f, 1]]), { title: "LoRa" })
-  }
-  sRow.lora_name?.append(add)
-  let shown = null // the "loras" value the rows were drawn from
-  const loraRow = (list, i) => {
-    const r = el("div", "mn-srow mn-lora"), v = el("div", "v"), x = el("div", "mn-x", ICON.cross), sv = el("div", "sv")
-    r.style.top = LORA_TOP + GAP * (i + 1) + "px"
-    modelValue(sv, KIND.lora_name, () => list[i][0], loraFiles)()
-    sv.onclick = (e) => {
-      menu(e, loraFiles(), (f) => { list[i][0] = f; putLoras(list) }, { title: `LoRa ${i + 2}`, current: list[i][0] })
+  // more LoRAs: rows right under a family's LoRa row; a hidden widget keeps them as [[file, strength], ...]
+  const loraList = (fam, base, key) => {
+    const GAP = 44, rows = FAMILY_ROWS[fam], top = PAGE_SHIFT[fam] ?? 0
+    const LORA_TOP = ROW_TOPS[1] + top, END = ROW_TOPS[rows.length - 1] + top + GAP
+    const loraFiles = () => comboValues(W(base)).filter((f) => f !== "-") // H3's "-": none, not a file
+    const loras = () => { try { return JSON.parse(W(key)?.value || "[]") } catch { return [] } }
+    const putLoras = (list) => { set(key, JSON.stringify(list)) }
+    const extra = el("div"), sEnd = el("div", "mn-send"), add = el("div", "mn-x add", ICON.plus)
+    add.title = "Add LoRA"
+    add.onclick = (e) => {
+      e.stopPropagation() // the row under it opens the LoRa row's own menu
+      menu(e, loraFiles(), (f) => putLoras([...loras(), [f, 1]]), { title: "LoRa" })
     }
-    x.title = "Remove LoRA"
-    x.onclick = () => { list.splice(i, 1); putLoras(list) }
-    const f = numberField(() => list[i][1], (s) => { list[i][1] = s; putLoras(list) },
-      (s) => { list[i][1] = s; W("loras").value = shown = JSON.stringify(list) }, { min: -100, max: 100, precision: 2, step: 0.05 })
-    v.append(...f.nodes)
-    r.append(txt("div", "k", `LoRa ${i + 2}`), v, x, sv)
-    return r
+    sRow[base]?.append(add)
+    let shown = null // the value the rows were drawn from
+    const loraRow = (list, i) => {
+      const r = el("div", "mn-srow mn-lora"), v = el("div", "v"), x = el("div", "mn-x", ICON.cross), sv = el("div", "sv")
+      r.style.top = LORA_TOP + GAP * (i + 1) + "px"
+      modelValue(sv, KIND.lora_name, () => list[i][0], loraFiles)()
+      sv.onclick = (e) => {
+        menu(e, loraFiles(), (f) => { list[i][0] = f; putLoras(list) }, { title: `LoRa ${i + 2}`, current: list[i][0] })
+      }
+      x.title = "Remove LoRA"
+      x.onclick = () => { list.splice(i, 1); putLoras(list) }
+      const f = numberField(() => list[i][1], (s) => { list[i][1] = s; putLoras(list) },
+        (s) => { list[i][1] = s; W(key).value = shown = JSON.stringify(list) }, { min: -100, max: 100, precision: 2, step: 0.05 })
+      v.append(...f.nodes)
+      r.append(txt("div", "k", `LoRa ${i + 2}`), v, x, sv)
+      return r
+    }
+    binds.push(() => {
+      const value = W(key)?.value ?? "[]"
+      if (value === shown) return
+      shown = value
+      const list = loras(), shift = GAP * list.length
+      extra.replaceChildren(...list.map((_, i) => loraRow(list, i)))
+      rows.slice(2).forEach(([, name], i) => { sRow[name].style.top = ROW_TOPS[i + 2] + top + shift + "px" })
+      sEnd.style.top = END + shift + "px"
+    })
+    pages[fam].append(extra, sEnd)
   }
-  binds.push(() => {
-    const value = W("loras")?.value ?? "[]"
-    if (value === shown) return
-    shown = value
-    const list = loras(), shift = GAP * list.length
-    extra.replaceChildren(...list.map((_, i) => loraRow(list, i)))
-    FAMILY_ROWS["Krea 2"].slice(2).forEach(([, name], i) => { sRow[name].style.top = ROW_TOPS[i + 2] + shift + "px" })
-    sEnd.style.top = END + shift + "px"
-  })
-  pages["Krea 2"].append(extra, sEnd)
+  loraList("Krea 2", "lora_name", "loras")
+  loraList("H3", "h3_lora_name", "h3_loras")
   panes.Settings.append(...Object.values(pages), fams.box) // the strip over the pages: they span the whole pane
 
   // Sound: 🔊 / 🔇 on the middle and in Settings switch it, its field picks the file; both save with the workflow
@@ -1031,7 +1051,7 @@ function build(node) {
   const refresh = () => {
     binds.forEach((f) => f())
     fits.forEach(fitVal)
-    if (document.activeElement !== prompt) prompt.value = loaded().trim() ? loaded() : W("text")?.value ?? ""
+    if (document.activeElement !== prompt) prompt.value = !h3() && loaded().trim() ? loaded() : W(textKey())?.value ?? ""
     updateCrop()
     refreshFrame()
   }
@@ -1074,7 +1094,12 @@ function build(node) {
       paintLang()
     },
     ding: () => { if (!muted() && soundName()) play(soundName()) },
-    model: (key, file) => { set(Object.values(STATUS).flat().find((x) => x[1] === key)?.[2], file) },
+    model: (key, file) => {
+      const [, , name, strength] = Object.values(STATUS).flat().find((x) => x[1] === key) ?? []
+      if (strength === undefined) return set(name, file)
+      const list = JSON.parse(W(name)?.value || "[]") // a LoRA list: the file joins it, once
+      if (!list.some(([f]) => f === file)) set(name, JSON.stringify([...list, [file, strength]]))
+    },
   }
 
   // hideInPanel: the right Parameters panel sets widget.width to its own width, and the canvas sizes this face by it

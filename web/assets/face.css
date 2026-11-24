@@ -187,6 +187,8 @@
 .mn-mode>.k>span{color:#b2b2b3}
 .mn-mid:not(.preset) .cu,.mn-mid.preset .pr{color:var(--lime)}
 .mn-mid.preset .mn-wh,.mn-mid:not(.preset) [data-w=aspect_ratio]{display:none}
+/* H3 · CH SHEET: Krea 2's middle without the picture's and the size's pills, and its own sampling in their place */
+.mn-mid.h3>:is([data-w=ref_boost],[data-w=manual_crop],[data-w=resolution_source],[data-w=aspect_ratio],[data-w=steps],[data-w=sampler_name],[data-w=scheduler],.mn-wh,.mn-mode,.mn-ltxt,.mn-lbl),.mn-mid:not(.h3)>[data-w^=h3_]{display:none}
 .mn-row[data-w=aspect_ratio]>.v{left:54.15px;right:10.34px}
 .mn-tri{flex:none;width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;cursor:pointer}
 .mn-tri.l{border-right:9px solid #d0d0d0}

@@ -108,10 +108,11 @@ def results(path):
     return sorted(((i, n) for n in names if (i := result_id(n))), reverse=True)
 
 
-def save_images(images, folder, cls, info=None):
+def save_images(images, folder, cls, info=None, beside=None):
     """Results as SAVE/<day>/ID_<n>.png, named like their gallery cards, with the workflow inside and info as a "mynode"
     text chunk (the card reads it). n goes on from the highest result in SAVE, other days and old names included, so an
-    ID never repeats. folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed)."""
+    ID never repeats. folder: a subfolder of ComfyUI's output, a full path, or empty (not saved, only previewed).
+    beside: more files of each result, {".mp4": write(path)}, saved next to its PNG as ID_<n>.mp4."""
     folder = folder.strip().strip('"')  # Explorer's "Copy as path" quotes the path
     if not folder:
         return ui.PreviewImage(images, cls=cls).as_dict()["images"]
@@ -123,6 +124,8 @@ def save_images(images, folder, cls, info=None):
     files = [f"ID_{first + i}.png" for i in range(len(images))]
     for file, im in zip(files, images, strict=True):
         ui.ImageSaveHelper._convert_tensor_to_pil(im).save(os.path.join(full, file), pnginfo=meta, compress_level=4)
+        for ext, write in (beside or {}).items():
+            write(os.path.join(full, file.removesuffix(".png") + ext))
     # mn_id, not id: newer core registers each output entry as an asset and writes its UUID into "id"
     if os.path.isabs(folder):  # /view only serves output, input and temp: the face gets a temp copy, and the ID
         return [{**e, "mn_id": first + i} for i, e in enumerate(ui.PreviewImage(images, cls=cls).as_dict()["images"])]
