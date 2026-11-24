@@ -188,7 +188,7 @@
 .mn-mid:not(.preset) .cu,.mn-mid.preset .pr{color:var(--lime)}
 .mn-mid.preset .mn-wh,.mn-mid:not(.preset) [data-w=aspect_ratio]{display:none}
 /* H3 · CH SHEET: Krea 2's middle without the picture's and the size's pills, and its own sampling in their place */
-.mn-mid.h3>:is([data-w=ref_boost],[data-w=manual_crop],[data-w=resolution_source],[data-w=aspect_ratio],[data-w=steps],[data-w=sampler_name],[data-w=scheduler],.mn-wh,.mn-mode,.mn-ltxt,.mn-lbl),.mn-mid:not(.h3)>[data-w^=h3_]{display:none}
+.mn.h3 .mn-mid>:is([data-w=ref_boost],[data-w=manual_crop],[data-w=resolution_source],[data-w=aspect_ratio],[data-w=steps],[data-w=sampler_name],[data-w=scheduler],.mn-wh,.mn-mode,.mn-ltxt,.mn-lbl),.mn:not(.h3) .mn-mid>[data-w^=h3_]{display:none}
 .mn-row[data-w=aspect_ratio]>.v{left:54.15px;right:10.34px}
 .mn-tri{flex:none;width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;cursor:pointer}
 .mn-tri.l{border-right:9px solid #d0d0d0}
@@ -450,3 +450,66 @@ div.mn-val:hover{color:#fff}
 .mn.qw .mn-lout.busy:empty::before{color:#8a49ff} /* a pseudo-element can't go in :is() */
 .mn.qw .mn-ressize{color:rgba(138,73,255,.85)}
 .mn.qw .mn-respar>span{color:#bfa3fc}
+/* H3 (#0823f2): QW 21's rules with its purples turned to that blue (same saturation and lightness as QW's #5008f2), then
+   the parts of Krea 2's middle H3 shows */
+.mn.h3{--lime:#4955ff}
+.mn.h3 .mn-gal{background:linear-gradient(#13228a,#0b0e11)}
+.mn.h3 .mn-gfil{border-left-color:#4955ff}
+.mn.h3 :is(.mn-gdir,.mn-gitem):hover{background:rgba(73,85,255,.08)}
+.mn.h3 .mn-gdir.on{background:rgba(73,85,255,.2);color:#a3adfc}
+.mn.h3 .mn-gitem.on{background:rgba(73,85,255,.2)}
+.mn.h3 .mn-back{background:linear-gradient(#303134 -30.6px,#202124 730.6px) calc(526.33px + var(--two,0px)) 0/755px 100% no-repeat,linear-gradient(#070a10,#1e34da) calc(1281.33px + var(--two,0px)) 0/609.24px 100% no-repeat,#192bb3}
+.mn.h3 .mn-head{background:linear-gradient(#3b50f7,#4154f8 12.5px,#0b26f2)}
+.mn.h3 .mn-title{left:8.6px;top:-.21px;color:rgba(207,207,207,.85)}
+.mn.h3 .mn-fill{background:linear-gradient(#000 .5px,#4955ff .5px 5.95px,#1a1a1b 5.95px)}
+.mn.h3 .mn-run{background-color:#0a0c1a;color:rgba(163,173,252,.9)}
+.mn.h3 .mn-run:hover{background-color:#141830}
+.mn.h3 .mn-run:active{background-color:#05060d}
+.mn.h3 .mn-dims{color:#d0d0d0}
+.mn.h3 .mn-pick{background:#1e34da;color:#dedede}
+.mn.h3 .mn-pbtn::after{border-top-color:#1e34da}
+.mn.h3 .mn-left>.mn-upload{background:#0823f2;color:#fff}
+.mn.h3 .mn-left>.mn-upload svg{fill:#fff}
+.mn.h3 .mn-prev{background:#040720}
+.mn.h3 .mn-pdims{color:#e0e0e0}
+.mn.h3 .mn-arrow.l{border-right-color:#1e34da}
+.mn.h3 .mn-arrow.r{border-left-color:#1e34da}
+.mn.h3 .mn-crop{border-color:#0823f2}
+.mn.h3 .mn-ttab{color:#d0d0d0}
+.mn.h3 .mn-ttab.on{background:linear-gradient(transparent 13.92px,rgba(0,0,0,.1) 13.92px),rgba(49,64,178,.85)}
+.mn.h3 .mn-row.on .mn-dot{background:#1e34da}
+.mn.h3 .mn-frame :is(.tl,.tr){border-top-color:#1e34da}
+.mn.h3 .mn-frame :is(.bl,.br){border-bottom-color:#1e34da}
+.mn.h3 .mn-seam{background:#1e34da}
+.mn.h3 .mn-cbtn{background:linear-gradient(#1e34da 50%,#192bb3 50%);color:rgba(73,85,255,.6)}
+.mn.h3 :is(.mn-cbtn.on,.mn-cbtn:hover){color:#4955ff}
+.mn.h3 .mn-set{box-shadow:inset 0 0 0 1.7px #2233a8}
+.mn.h3 .mn-set::after{border-bottom-color:#4955ff}
+.mn.h3 .mn-shead{background:linear-gradient(#384ef1,#4c5ff9 50%,#1729e0);box-shadow:inset 1px 0 #1f36c0,0 11px 0 #172892}
+.mn.h3 .mn-tab{border-right-color:#1f36c0;color:#131312}
+.mn.h3 .mn-up{color:#a3adfc}
+.mn.h3 .mn-up:hover{color:#d0d7ff}
+.mn.h3 .mn-page .mn-srow>.sv{background:linear-gradient(90deg,rgba(73,85,255,0),rgba(63,73,199,.25) 25%,rgba(52,57,143,.5) 50%,rgba(42,45,87,.75) 75%,#1f1f1f)}
+.mn.h3 .mn-page .mn-srow.c>.sv{background:linear-gradient(270deg,rgba(73,85,255,0),rgba(63,73,199,.25) 25%,rgba(52,57,143,.5) 50%,rgba(42,45,87,.75) 75%,#1f1f1f)}
+.mn.h3 .mn-srow.c>.sv{background:linear-gradient(90deg,#222220,#292c4a 50%,#1e1f22)}
+.mn.h3 .mn-zip{background:linear-gradient(#1e34da 50%,#192bb3 50%);color:#4955ff}
+.mn.h3 .mn-mrow{color:#4955ff}
+.mn.h3 .mn-mrow.missing{color:#f70000}
+.mn.h3 .mn-mrow.busy{background:linear-gradient(90deg,rgba(73,85,255,.25) var(--p),transparent var(--p)),linear-gradient(transparent 9.45px,rgba(0,0,0,.1) 9.45px),rgba(0,0,0,.15);color:#d0d0d0}
+.mn.h3 :is(.mn-enru,.mn-ltxt){background-color:#0a0c1a;color:rgba(73,85,255,.9)}
+.mn.h3 .mn-enru::after{background:rgba(62,74,161,.1)}
+.mn.h3 .mn-lup{background:#0823f2;color:#fff;border-color:#040720}
+.mn.h3 .mn-lup svg{fill:#fff}
+.mn.h3 .mn-subtab{color:rgba(73,85,255,.85)}
+.mn.h3 .mn-subtab.on{background:linear-gradient(rgba(49,64,178,.85) 50%,#192bb3 50%);color:#d0d0d0}
+.mn.h3 .mn-gfind{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160.32 27.83' preserveAspectRatio='none'%3E%3Cpath d='M25.9 0H160.32L134.91 27.83H.5Z' fill-opacity='.5'/%3E%3Cpath d='M25.4 0h.5L.5 27.83H0ZM159.81 0h.5l-25.4 27.83h-.5Z' fill='%233e4aa1' fill-opacity='.85'/%3E%3C/svg%3E")}
+.mn.h3 :is(.mn-rescard,.mn-resbig,.mn-lbox)>i{border-color:#4955ff}
+.mn.h3 .mn-resid{color:#4955ff}
+.mn.h3 .mn-rescard:hover>.mn-resid{background:#4955ff;color:#fff}
+.mn.h3 :is(.mn-resnone,.mn-respar>.v){color:#4955ff}
+.mn.h3 .mn-lout.busy:empty::before{color:#4955ff} /* a pseudo-element can't go in :is() */
+.mn.h3 .mn-ressize{color:rgba(73,85,255,.85)}
+.mn.h3 .mn-respar>span{color:#a3adfc}
+.mn.h3 .mn-seedm:hover{background:#141830}
+.mn.h3 .mn-seedadd circle{fill:#0a0c1a}
+.mn.h3 .mn-seedadd path{fill:var(--lime)}

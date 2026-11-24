@@ -26,7 +26,8 @@ const QW_ROWS = {
     ["scheduler", "bg_scheduler", 256.35, 132.46, 200], ["Resolution", "qw_resolution", 307.25, 132.46, 200],
     ["SeedVR2", "seedvr2", 340.76, 397.1, 138.91]],
 }
-const EMPTY = { "Krea 2": new URL("./empty.svg", import.meta.url).href, "QW 21": new URL("./empty-qw.svg", import.meta.url).href }
+const EMPTY = { "Krea 2": new URL("./empty.svg", import.meta.url).href, "QW 21": new URL("./empty-qw.svg", import.meta.url).href,
+  H3: new URL("./empty-h3.svg", import.meta.url).href }
 const BG_PRESETS = [["BG", 191.06, 395.33, 66.06], ["White", 191.06, 470.32, 66.06], ["No TEXT", 229.04, 414.69, 102.33],
   ["No LOGO", 261.75, 415.39, 102.33], ["No Person", 295.21, 415.39, 102.33]]
 
@@ -244,13 +245,14 @@ function build(node) {
   hr.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, fullB, dims)
   head.append(title, hr)
   // the mode: the tabs over the middle, a strip per family; 2 IMG widens the node by a second picture's column. QW 21 is
-  // purple (face.css .qw)
+  // purple, H3 blue (face.css .qw, .h3)
   const modeTabs = Object.fromEntries(Object.entries(MODE_TABS).map(([f, tabs]) =>
     [f, tabStrip("mn-modes", tabs, (m) => set("mode", m), (m) => m in TITLES[f])]))
   binds.push(() => {
     const m = W("mode")?.value ?? "EDIT"
     root.classList.toggle("two", wide())
     root.classList.toggle("qw", qw())
+    root.classList.toggle("h3", h3()) // blue; CH SHEET's middle is Krea 2's without its picture and size pills
     root.style.setProperty("--two", wide() ? `${TWO}px` : "0px")
     fs.style.setProperty("--w", `${width()}px`)
     title.textContent = TITLES[family()][m] ?? Object.values(TITLES[family()])[0]
@@ -296,8 +298,7 @@ function build(node) {
     pick.onclick = () => { openGal(name, box) }
     binds.push(() => {
       const v = W(name)?.value ?? "", list = comboValues(W("image"))
-      const q = EMPTY[family()] ?? EMPTY["Krea 2"] // H3: the lime one, it has no colours of its own yet
-      if (empty.src !== q) empty.src = q
+      if (empty.src !== EMPTY[family()]) empty.src = EMPTY[family()]
       pName.textContent = baseOf(v)
       pIdx.textContent = v ? `${list.indexOf(v) + 1}/${list.length}` : ""
       const src = v ? view(baseOf(v), dirOf(v), "input") : ""
@@ -592,7 +593,6 @@ function build(node) {
   }))
   binds.push(() => {
     mid.hidden = qw()
-    mid.classList.toggle("h3", h3()) // CH SHEET: Krea 2's middle without its picture and size pills (face.css)
     for (const [m, p] of Object.entries(qwPanels)) p.hidden = !(qw() && W("mode")?.value === m)
   })
 
