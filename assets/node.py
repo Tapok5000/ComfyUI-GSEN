@@ -19,7 +19,7 @@ from comfy_execution.graph_utils import GraphBuilder
 from server import PromptServer
 
 from ..common import Expansion, input_images
-from . import crop_edit
+from . import crop_edit, qw21
 from .sizes import PRESETS, target_size
 
 # system prompts, a .txt each, one folder per task: the photo's (Settings → System), picture → prompt (LLM → System)
@@ -38,6 +38,16 @@ CORE = {
     "EmptyLatentImage": ("width", "height", "batch_size"),
     "ConditioningZeroOut": ("conditioning",),
     "KSampler": ("model", "positive", "negative", "latent_image", "seed", "steps", "cfg", "sampler_name", "scheduler", "denoise"),
+    # QW 21 (qw21.py)
+    "QwenImage21Cache": ("model", "device", "dtype"),
+    "TextEncodeQwenImage21": ("clip", "prompt", "negative_prompt", "vae", "resolution"),
+    "VAEDecode": ("samples", "vae"),
+    "ImageScale": ("image", "upscale_method", "width", "height", "crop"),
+    "SeedVR2Preprocess": ("resized_images",),
+    "SeedVR2Conditioning": ("model", "vae_conditioning"),
+    "SeedVR2PostProcessing": ("images", "original_resized_images", "color_correction_method"),
+    "VAEEncodeTiled": ("pixels", "vae", "tile_size", "overlap", "temporal_size", "temporal_overlap"),
+    "VAEDecodeTiled": ("samples", "vae", "tile_size", "overlap", "temporal_size", "temporal_overlap"),
 }
 LLM_INPUTS = ("clip", "prompt", "max_length", "thinking", "use_default_template", "mtp", "system_prompt", "sampling_mode")
 
@@ -94,7 +104,8 @@ def _maybe(id, kind, needle):
 
 
 FAMILIES = ["Krea 2", "QW 21", "H3"]
-MODES = ["EDIT", "2 IMG", "UpScale", "BG"]  # the tabs over the middle; Krea 2 has the first two
+MODES = ["EDIT", "2 IMG", "UpScale", "BG"]  # the tabs over the middle
+RUNS = {("Krea 2", "EDIT"), ("Krea 2", "2 IMG"), ("QW 21", "UpScale"), ("QW 21", "BG")}  # what this version can run
 
 
 # web/assets/index.js counts prompts with the same two rules
@@ -195,17 +206,30 @@ class FaceProcessing(io.ComfyNode):
                 io.Combo.Input("mode", options=MODES, default="EDIT", optional=True),
                 # a string, not a combo: a gone file must not stop the modes that don't use it
                 io.String.Input("image_2", default="", optional=True, tooltip="2 IMG: the second picture, from input."),
-                _maybe("qw_unet_name", "diffusion_models", "qwen-image-2.1"),
+                _maybe("qw_unet_name", "diffusion_models", "qwen-image-2.1-UC-int8_convrot"),
                 _maybe("qw_lora_name", "loras", "qwen-image-2.1-restore"),
-                _maybe("qw_clip_name", "text_encoders", "qwen3vl_8b"),
+                _maybe("qw_clip_name", "text_encoders", "qwen3vl_8b_int8_convrot"),
                 _maybe("qw_vae_name", "vae", "texture_fix_vae_for_qwen_image_2.1"),
                 _maybe("h3_unet_name", "diffusion_models", "_h3_"),
                 _maybe("h3_lora_name", "loras", None),
                 _maybe("h3_clip_name", "text_encoders", "minimax_h3"),
                 _maybe("h3_vae_video", "vae", "minimax_h3_video"),
                 _maybe("h3_vae_audio", "vae", "minimax_h3_audio"),
-                _maybe("seedvr2_name", "diffusion_models", "seedvr2"),
-                _maybe("seedvr2_vae", "vae", "seedvr2"),
+                _maybe("seedvr2_name", "diffusion_models", "seedvr2_3b_int8_convrot"),
+                _maybe("seedvr2_vae", "vae", "seedvr2_ema_vae_fp16"),
+                # 1.33.0: QW 21's BG and UpScale (qw21.py), each with its own sampling, as their workflows have it
+                io.Combo.Input("bg_preset", options=list(qw21.BG["presets"]), default="BG", optional=True),
+                io.Int.Input("qw_resolution", default=1536, min=256, max=4096, step=32, optional=True),
+                io.Boolean.Input("seedvr2", default=True, optional=True, label_on="on", label_off="off"),
+                io.Boolean.Input("grain", default=True, optional=True, label_on="on", label_off="off"),
+                io.Boolean.Input("grain_preset", default=False, optional=True,
+                                 tooltip="UpScale's Grain / preset: off, grain only; on, a phone camera's look too (parts.Look)"),
+                io.Int.Input("bg_steps", default=8, min=1, max=200, optional=True),
+                io.Combo.Input("bg_sampler", options=comfy.samplers.KSampler.SAMPLERS, default="er_sde", optional=True),
+                io.Combo.Input("bg_scheduler", options=comfy.samplers.KSampler.SCHEDULERS, default="beta", optional=True),
+                io.Int.Input("up_steps", default=25, min=1, max=200, optional=True),
+                io.Combo.Input("up_sampler", options=comfy.samplers.KSampler.SAMPLERS, default="euler", optional=True),
+                io.Combo.Input("up_scheduler", options=comfy.samplers.KSampler.SCHEDULERS, default="simple", optional=True),
             ],
             outputs=[],  # the node shows its own result; no sockets, as in MyNode.svg
             enable_expand=True,
@@ -220,13 +244,21 @@ class FaceProcessing(io.ComfyNode):
         return first, system.stat().st_mtime if system.exists() else 0, second
 
     @classmethod
-    def validate_inputs(cls, image=None, family="Krea 2", mode="EDIT", image_2=""):
+    def validate_inputs(cls, image=None, family="Krea 2", mode="EDIT", image_2="", qw_unet_name=NONE, qw_lora_name=NONE,
+                        qw_clip_name=NONE, qw_vae_name=NONE, seedvr2=True, seedvr2_name=NONE, seedvr2_vae=NONE):
         if not (image and folder_paths.exists_annotated_filepath(image)):
             return f"Invalid image file: {image}"
-        if family != "Krea 2" or mode not in ("EDIT", "2 IMG"):  # QW 21 comes in 1.33.0, H3 later
+        if (family, mode) not in RUNS:  # QW 21's EDIT and 2 IMG come later, H3 after them
             return f"{family} · {mode}: not in this GSEN version yet"
         if mode == "2 IMG" and not (image_2 and folder_paths.exists_annotated_filepath(image_2)):
             return f"2 IMG: pick the second picture ({image_2 or 'none'})"
+        wanted = {"MODEL": qw_unet_name, "CLIP": qw_clip_name, "VAE": qw_vae_name} if family == "QW 21" else {}
+        if mode == "UpScale":
+            wanted["LoRa"] = qw_lora_name
+        if family == "QW 21" and seedvr2:
+            wanted |= {"SeedVR2": seedvr2_name, "SeedVR2 VAE": seedvr2_vae}
+        if missing := [k for k, v in wanted.items() if v == NONE]:
+            return f"{family} · {mode}: no {', '.join(missing)} picked (Settings → {family}, or SeedVR2 off)"
         return True
 
     @classmethod
@@ -234,8 +266,16 @@ class FaceProcessing(io.ComfyNode):
                 custom_width, custom_height, ref_boost, max_resolution,
                 unet_name, lora_name, clip_name, vae_name, llm_name, ai_prompt=False, save_to="Krea2One",
                 loras="[]", prompt_file="", prompts="", manual_crop=False, crop="", system_file="", crop_mask=False,
-                mode="EDIT", image_2="", **_):
-        # **_: the LLM tab's inputs, other families' models, and grounding_px and face_crop, which saved workflows still carry
+                family="Krea 2", mode="EDIT", image_2="", **more):
+        # **more: QW 21's inputs; the LLM tab's, H3's, and grounding_px and face_crop, which saved workflows still carry
+        if family == "QW 21":  # BG or UpScale (qw21.py): the prompt boxes, Crop and the LoRAs are Krea 2's
+            g = GraphBuilder()
+            size = target_size(folder_paths.get_annotated_filepath(image), True, None, 0, 0, 0, div=1)
+            picture = g.node("LoadImage", image=image).out(0)
+            result, prompt, (steps, sampler, sched) = qw21.build(g, picture, size, mode, seed, more)
+            info = json.dumps({"seed": seed, "steps": steps, "sampler": sampler, "scheduler": sched})
+            g.node("MyNode_Show", images=result, ru="", en=prompt, save_to=save_to, info=info)
+            return Expansion(expand=g.finalize())
         spec = crop_edit.spec_of(crop, image) if manual_crop else None
         width, height = target_size(folder_paths.get_annotated_filepath(image), not resolution_source, aspect_ratio,
                                     custom_width, custom_height, max_resolution, crop=spec)

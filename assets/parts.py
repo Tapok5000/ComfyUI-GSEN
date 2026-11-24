@@ -9,8 +9,10 @@ import torch.nn.functional as F
 
 from comfy_api.latest import io
 
+import torch
+
 from ..common import save_images, save_llm
-from . import crop_edit, krea2_edit
+from . import crop_edit, krea2_edit, tiles as tiling
 
 
 class CropRotatePad(io.ComfyNode):
@@ -53,6 +55,64 @@ class Krea2Encode(io.ComfyNode):
     @classmethod
     def execute(cls, clip, image, prompt, grounding_px, image_b=None):
         return io.NodeOutput(krea2_edit.encode(clip, image, prompt, grounding_px, image_b))
+
+
+TILES = io.Custom("MYNODE_TILES")  # tiles.split's stitcher, from TiledUpscale to TiledStitch
+
+
+class TiledUpscale(io.ComfyNode):
+    """QW 21 UpScale: the picture at megapixels, as tiles the sampler redraws one by one (an output list)."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_TiledUpscale", category="🟩 GSEN", is_dev_only=True,
+                         inputs=[io.Image.Input("image"), io.Float.Input("megapixels", default=4.0, min=0.1, max=64.0)],
+                         outputs=[io.Image.Output("tiles", is_output_list=True), TILES.Output("stitcher")])
+
+    @classmethod
+    def execute(cls, image, megapixels):
+        return io.NodeOutput(*tiling.split(image, megapixels))
+
+
+class TiledStitch(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_TiledStitch", category="🟩 GSEN", is_dev_only=True, is_input_list=True,
+                         inputs=[io.Image.Input("redrawn"), TILES.Input("stitcher")], outputs=[io.Image.Output()])
+
+    @classmethod
+    def execute(cls, redrawn, stitcher):
+        return io.NodeOutput(tiling.stitch(redrawn, stitcher[0]))
+
+
+class Look(io.ComfyNode):
+    """QW 21 UpScale's Grain: fine luminance grain; camera adds a phone camera's visible traits at the strengths the
+    UpScale workflow set: a 5% grey-world white balance, sensor shot noise, ~0.6 px colour fringing, a 1% vignette. Our
+    own code; the workflow's detector-facing steps (spectral, GLCM/LBP, pixel perturbation) are left out on purpose."""
+
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="MyNode_Look", category="🟩 GSEN", is_dev_only=True,
+                         inputs=[io.Image.Input("image"), io.Int.Input("seed", default=0, min=0, max=0xffffffffffffffff),
+                                 io.Boolean.Input("camera", default=False)],
+                         outputs=[io.Image.Output()])
+
+    @classmethod
+    def execute(cls, image, seed, camera):
+        x = image[..., :3].float().clone()
+        g = torch.Generator().manual_seed(seed % (1 << 63))
+        b, h, w, _ = x.shape
+        if camera:
+            grey = x.mean(dim=(1, 2), keepdim=True)
+            x = x * (0.95 + 0.05 * grey.mean(-1, keepdim=True) / grey.clamp_min(1e-4))
+            x = x + torch.randn(x.shape, generator=g) * (x.clamp_min(0) / 255).sqrt() * 0.5  # Poisson-like: grows with light
+            red, blue = x[..., 0], x[..., 2]  # red and blue 0.6 px apart, the edge columns repeated
+            x[..., 0] = red * 0.4 + torch.cat([red[..., :1], red[..., :-1]], -1) * 0.6
+            x[..., 2] = blue * 0.4 + torch.cat([blue[..., 1:], blue[..., -1:]], -1) * 0.6
+            yy, xx = torch.linspace(-1, 1, h)[:, None], torch.linspace(-1, 1, w)[None, :]
+            x = x * (1 - 0.01 * (xx**2 + yy**2))[None, :, :, None]
+        x = x + torch.randn((b, h, w, 1), generator=g) * 0.005
+        return io.NodeOutput(x.clamp(0, 1))
 
 
 _failed = set()  # texts whose translation failed: translate again next run instead of reusing the cached error

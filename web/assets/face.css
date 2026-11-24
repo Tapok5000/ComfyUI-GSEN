@@ -105,8 +105,8 @@
 .mn-ttab:first-child{width:97.61px;clip-path:polygon(0 0,100% 0,72.21px 100%,0 100%)}
 .mn-ttab.on{background:linear-gradient(transparent 13.92px,rgba(0,0,0,.08) 13.92px),var(--lime);color:#111}
 .mn-ttab>span{position:absolute;top:0;translate:-50%;white-space:nowrap}
-.mn-ttab:not(.on,[data-t=XXX]):hover>span{color:#fff}
-.mn-ttab[data-t=XXX]{cursor:default} /* a mode to come */
+.mn-ttab:not(.on,.off):hover>span{color:#fff}
+.mn-ttab.off{cursor:default} /* a mode to come */
 .mn-modes{left:calc(526.34px + var(--two,0px));top:44.04px}
 .mn-fams{left:1.7px;top:55.14px}
 .mn-lbl{position:absolute;left:19px;max-width:715px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:12px}
@@ -146,8 +146,8 @@
 .mn-row[data-w=manual_crop]>.k{left:38.69px;top:.75px;color:#ccc} /* its left end is under Resize */
 .mn-row.mn-mode>.k{left:14.13px}
 .mn-row[data-w=seed]>.k{left:13.57px;top:0;font-size:17.28px}
-.mn-row[data-w=steps]>.k{left:9.36px;top:0;font-size:18px}
-.mn-row:is([data-w=sampler_name],[data-w=scheduler])>.k{left:10.03px;top:0;font-size:17.94px}
+.mn-row:is([data-w=steps],[data-w$=_steps])>.k{left:9.36px;top:0;font-size:18px}
+.mn-row:is([data-w=sampler_name],[data-w=scheduler],[data-w$=_sampler],[data-w$=_scheduler],[data-w=qw_resolution])>.k{left:10.03px;top:0;font-size:17.94px}
 .mn-srow>.k{left:16.1px;top:1.35px;font-size:17.33px}
 .mn-srow:not(.c)[data-w=llm_name]>.k{left:15.24px;top:1.82px}
 .mn-srow.c>.k{left:15.74px;top:.35px}
@@ -162,12 +162,12 @@
 .mn-row.c:not(.tog) .mn-val{flex:1;min-width:0;padding:.9px 3px 0;text-align:center;overflow:hidden;text-overflow:ellipsis}
 .mn-row[data-w=ref_boost]>.v{left:118.77px;right:14.29px}
 .mn-row[data-w=seed]>.v{left:65.16px;right:9.26px}
-.mn-row[data-w=steps]>.v{left:76.29px;right:11.44px}
-.mn-row:is([data-w=sampler_name],[data-w=scheduler])>.v{left:104.11px;right:10.34px}
+.mn-row:is([data-w=steps],[data-w$=_steps])>.v{left:76.29px;right:11.44px}
+.mn-row:is([data-w=sampler_name],[data-w=scheduler],[data-w$=_sampler],[data-w$=_scheduler],[data-w=qw_resolution])>.v{left:104.11px;right:10.34px}
 .mn-row.tog>.v{right:5.6px;gap:8.6px}
 .mn-row.tog>.v>span{position:relative;top:1px}
 /* MyNode.svg's dots and on / off sit a little differently in each of these three */
-.mn-row[data-w=ai_prompt]>.v{right:3.76px;gap:5.37px}
+.mn-row:is([data-w=ai_prompt],[data-w=seedvr2],[data-w=grain])>.v{right:3.76px;gap:5.37px}
 .mn-row[data-w=resolution_source]>.v{right:3.47px}
 .mn-row[data-w=manual_crop]>.v{right:5.55px;gap:5.03px}
 /* W x H: the numbers typed, end-aligned on MyNode.svg's spots, a small lime X between; its left end is under custom / preset */
@@ -176,9 +176,9 @@
 .mn-wh>.mn-val:last-child{left:125.85px}
 .mn-wh>.x{position:absolute;left:115.39px;top:8.75px;color:var(--lime);font-size:13.33px;line-height:13.33px}
 /* under seed: ComfyUI's control_after_generate as MyNode.svg's three buttons; the one in use is lit */
-.mn-seedm{position:absolute;top:465.36px;height:20.17px;border:1px solid #66676a;border-radius:10px;background:linear-gradient(#2a2b2e,#26272a);color:#c7f400;font:10.67px/18.17px Arial,Helvetica,sans-serif;text-align:center;cursor:pointer}
+.mn-seedm{position:absolute;top:465.36px;height:20.17px;border:1px solid #66676a;border-radius:10px;background:linear-gradient(#2a2b2e,#26272a);color:var(--lime);font:10.67px/18.17px Arial,Helvetica,sans-serif;text-align:center;cursor:pointer}
 .mn-seedm:hover{background:#262d12}
-.mn-seedm.on{background:#c7f400;border-color:#c7f400;color:#161a0a}
+.mn-seedm.on{background:var(--lime);border-color:var(--lime);color:#161a0a}
 /* + beside seed (MyNode.svg): keeps the seed in the box in LIST */
 .mn-seedadd{position:absolute;left:673.06px;top:428.63px;width:27.89px;height:29.89px;cursor:pointer}
 .mn-seedadd:hover{filter:brightness(1.1)}
@@ -199,6 +199,16 @@ div.mn-val:hover{color:#fff}
 .mn-dot{width:20.4px;height:20.4px;border-radius:50%;background:#4a4b4e}
 .mn-row.on .mn-dot,.mn-srow.on .mn-dot{background:var(--lime)}
 
+/* QW 21's middle (QW21.svg): its modes' pills, no prompt boxes; BG's presets are FIX / RANDOM's buttons, Arial 13.33 */
+.mn-qw{position:absolute;left:calc(526.33px + var(--two,0px));top:44px;width:755px;bottom:0}
+.mn-row[data-w=seedvr2]>.k{left:8.97px;top:.6px;font-size:16px}
+.mn-row[data-w=grain]>.k{left:13.55px}
+.mn-row.mn-gp>.k{left:16.9px;top:-.75px}
+.mn-gp>.k>span{color:#b2b2b3}
+.mn-gp:not(.on) .gr,.mn-gp.on .pr{color:var(--lime)}
+.mn-qwlbl{position:absolute;left:436.5px;top:160.62px;color:var(--lime);font-size:17.33px;line-height:20px}
+.mn-seedm.mn-bgp{font:13.33px/18.17px Arial,Helvetica,sans-serif}
+.mn-snd.mn-bgsnd{left:295.18px;top:173.91px}
 .mn-right{position:absolute;left:calc(1281.33px + var(--two,0px));top:44px;width:609.24px;bottom:0}
 .mn-rbox{position:absolute;inset:28.1px 17.83px 78.1px 26.17px;container-type:size;display:flex;align-items:center;justify-content:center}
 .mn-stage{position:absolute;inset:8px;pointer-events:none}
@@ -341,6 +351,7 @@ div.mn-val:hover{color:#fff}
 
 .mn-gal{position:absolute;z-index:2;left:0;top:44px;width:526.34px;bottom:0;display:none;background:linear-gradient(#2b3321,#0b0e11)}
 .mn-gal.open{display:block}
+.mn:has(.mn-set.open) .mn-gal{width:521.2px} /* ends at Settings' edge: its scrollbar lay over Settings' strip */
 .mn-gfil{position:absolute;left:0;top:0;width:100%;height:34px;border-left:2px solid #87a13e;background:linear-gradient(90deg,rgba(19,19,19,0),#131313)}
 .mn-gfil svg{position:absolute;left:4px;top:8px;opacity:.5}
 .mn-gfil input{position:absolute;left:24px;right:8px;top:0;height:34px;margin:0;padding:0;background:none;border:none;outline:none;color:#d0d0d0;font:12px Arial,Helvetica,sans-serif;user-select:text;-webkit-user-select:text}
@@ -375,3 +386,32 @@ div.mn-val:hover{color:#fff}
 .mn-menu-r.back{color:#bdbdbd}
 .mn-menu-r.cur>.n{color:#c7f400}
 .mn-menu-none{padding:8px;color:#8d8d8d}
+
+/* QW 21 (QW21.svg): the face in purples; Settings and the picture list keep Krea 2's lime, as SettingIU.svg draws them */
+.mn.qw{--lime:#8a49ff}
+.mn.qw :is(.mn-set,.mn-gal){--lime:#c7f400}
+.mn.qw .mn-back{background:linear-gradient(#303134 -30.6px,#202124 730.6px) calc(526.33px + var(--two,0px)) 0/755px 100% no-repeat,linear-gradient(#070a10,#581eda) calc(1281.33px + var(--two,0px)) 0/609.24px 100% no-repeat,#4819b3}
+.mn.qw .mn-head{background:linear-gradient(#763bf7,#7b41f8 12.5px,#520bf2)}
+.mn.qw .mn-title{left:8.6px;top:-.21px;color:rgba(207,207,207,.85)}
+.mn.qw .mn-fill{background:linear-gradient(#000 .5px,#8a49ff .5px 5.95px,#1a1a1b 5.95px)}
+.mn.qw .mn-run{background-color:#0f0a1a;color:rgba(191,163,252,.9)}
+.mn.qw .mn-run:hover{background-color:#1c1430}
+.mn.qw .mn-run:active{background-color:#07050d}
+.mn.qw .mn-dims{color:#d0d0d0}
+.mn.qw .mn-pick{background:#581eda;color:#dedede}
+.mn.qw .mn-pbtn::after{border-top-color:#581eda}
+.mn.qw .mn-left>.mn-upload{background:#5008f2;color:#fff}
+.mn.qw .mn-left>.mn-upload svg{fill:#fff}
+.mn.qw .mn-prev{background:#0d0420}
+.mn.qw .mn-pdims{color:#e0e0e0}
+.mn.qw .mn-arrow.l{border-right-color:#581eda}
+.mn.qw .mn-arrow.r{border-left-color:#581eda}
+.mn.qw .mn-crop{border-color:#5008f2}
+.mn.qw .mn-modes .mn-ttab{color:#d0d0d0}
+.mn.qw .mn-modes .mn-ttab.on{background:linear-gradient(transparent 13.92px,rgba(0,0,0,.1) 13.92px),rgba(89,49,178,.85)}
+.mn.qw .mn-row.on .mn-dot{background:#581eda}
+.mn.qw .mn-frame :is(.tl,.tr){border-top-color:#581eda}
+.mn.qw .mn-frame :is(.bl,.br){border-bottom-color:#581eda}
+.mn.qw .mn-seam{background:#581eda}
+.mn.qw .mn-cbtn{background:linear-gradient(#581eda 50%,#4819b3 50%);color:rgba(138,73,255,.6)}
+.mn.qw :is(.mn-cbtn.on,.mn-cbtn:hover){color:#8a49ff}

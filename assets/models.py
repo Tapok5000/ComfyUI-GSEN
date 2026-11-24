@@ -33,6 +33,7 @@ class Model(NamedTuple):
 # want a logged-in account (401 without a token). MODEL and CLIP: Comfy-Org's own builds, the files Krea2 One is made with.
 KREA2 = ("Comfy-Org/Krea-2", "588feaf955b08b9ac4723eeb751752ab045dba71")
 SEEDVR2 = ("Comfy-Org/SeedVR2", "df48879708206a403d2a61acd55578c2e80fd233")
+RUNPOD = ("Balkhaev/Qwen-Image-2.1-UC-RunPod", "66e46ce69cfe0d8f28cb84a8be4160a8aa2ade6d")
 VAE = "Wan2.1_VAE_upscale2x_imageonly_real_v1.safetensors"
 MODELS = (
     Model("MODEL", "diffusion_models", "krea2_turbo_int8_convrot.safetensors", 13492686496,
@@ -59,12 +60,26 @@ MODELS = (
     Model("SEEDVR2_VAE", "vae", "seedvr2_ema_vae_fp16.safetensors", 501324814,
           "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1",
           ((*SEEDVR2, "vae/seedvr2_ema_vae_fp16.safetensors"),)),
-    # shortcut: QW 21's and H3's files are only looked for, no download yet; give them pinned sources with QW 21's modes
+    # QW 21: the files its two workflows were made with, matched by sha256; the UC int8 build is only in a RunPod repo, the
+    # text encoder comes from Comfy-Org first
+    Model("QW_MODEL", "diffusion_models", "qwen-image-2.1-UC-int8_convrot.safetensors", 7256796840,
+          "5bc5a6c007eff1e0d4004344a24c4af966b9d2c83d142e613b0d456ccceb19ae",
+          ((*RUNPOD, "diffusion_models/qwen-image-2.1-UC-int8_convrot.safetensors"),)),
+    Model("QW_LORA", "loras", "qwen-image-2.1-restore.safetensors", 159436584,
+          "65de4f6c2468071d5aa6ffbd82c76bfee7cc8ac28fe960e91bbca4a58f43c08c",
+          (("ausboss/Qwen-Image-2.1-Restore-LoRA", "a223f1255f4738b89b36d79c44d61740d3b3546f",
+            "qwen-image-2.1-restore.safetensors"),)),
+    Model("QW_CLIP", "text_encoders", "qwen3vl_8b_int8_convrot.safetensors", 9350798360,
+          "8bfd0f6e12abf2d2d697ecc888e5e90b0d6741d6708f05799f53afa560452e8f",
+          (("Comfy-Org/Qwen-Image-2.1", "aacf31a6d48e707f352ecba714cee0680da3479b",
+            "text_encoders/qwen3vl_8b_int8_convrot.safetensors"),
+           (*RUNPOD, "text_encoders/qwen3vl_8b_int8_convrot.safetensors"))),
+    Model("QW_VAE", "vae", "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors", 675509688,
+          "36f56608b02077a50a08ea3dbcdb88351298ceba49948f41f9f87186378e6908",
+          (("madebyollin/texture-fix-vae-for-qwen-image-2.1", "9a10df811f183323e4e94d255c18add1924ce340",
+            "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"),)),
+    # shortcut: H3's files are only looked for, no download; give them pinned sources with H3's modes
     *(Model(key, kind, file, 0, "", ()) for key, kind, file in (
-        ("QW_MODEL", "diffusion_models", "qwen-image-2.1-UC-int8_convrot.safetensors"),
-        ("QW_LORA", "loras", "qwen-image-2.1-restore.safetensors"),
-        ("QW_CLIP", "text_encoders", "qwen3vl_8b_int8_convrot.safetensors"),
-        ("QW_VAE", "vae", "texture_fix_vae_for_qwen_image_2.1_bf16.safetensors"),
         ("H3_MODEL", "diffusion_models", "10Eros_Max_h3_8stepTURBO_beta7_int8HQ.safetensors"),
         ("H3_CLIP", "text_encoders", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"),
         ("H3_VAE_VIDEO", "vae", "minimax_h3_video_vae_fp16.safetensors"),

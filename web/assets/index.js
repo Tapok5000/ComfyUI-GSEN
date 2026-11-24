@@ -7,11 +7,25 @@ import { PRESETS, cropEditor } from "./crop.js"
 const NODE = "MyNode_FaceProcessing"
 const SIZE = [1890.6, 745]
 const TWO = 515.47 // 2 IMG (Krea2.svg's Krea2 Two): a second picture's column, everything right of it moved over
-// the tabs over the middle (Krea2.svg) and over Settings' pages (SettingIU.svg): [name, its word's centre] px; a family's
-// title per mode; XXX are places for modes to come
-const MODE_TABS = [["EDIT", 43.21], ["2 IMG", 47.93], ["XXX", 46.42], ["XXX", 48.13]]
+// the tabs over the middle (Krea2.svg, QW21.svg) and over Settings' pages (SettingIU.svg): [name, its word's centre] px;
+// XXX are places for modes to come. TITLES: the modes a family runs, each one's title (a tab not in it can't be picked)
+const MODE_TABS = { "Krea 2": [["EDIT", 43.21], ["2 IMG", 47.93], ["XXX", 46.42], ["XXX", 48.13]],
+  "QW 21": [["EDIT", 43.2], ["2 IMG", 47.8], ["UpScale", 46.6], ["BG", 48.4], ["XXX", 46.2]] }
 const FAMILY_TABS = [["Krea 2", 45.73], ["QW 21", 47.21], ["H3", 46.67]]
-const TITLES = { EDIT: "Krea2 One", "2 IMG": "Krea2 Two" }
+const TITLES = { "Krea 2": { EDIT: "Krea2 One", "2 IMG": "Krea2 Two" }, "QW 21": { UpScale: "QW21 UpScale", BG: "QW21 BG" } }
+// QW 21's middle (QW21.svg): its modes' pills, [label, widget, top, left, width] px on the middle; BG's SeedVR2 a row lower
+// than drawn, to make room for No Person under No LOGO. Its presets: [name, top, left, width]
+const QW_ROWS = {
+  UpScale: [["steps", "up_steps", 93.11, 36.97, 140], ["sampler", "up_sampler", 134.97, 38.37, 200],
+    ["scheduler", "up_scheduler", 180.33, 38.37, 200], ["SeedVR2", "seedvr2", 129.99, 273.9, 138.91],
+    ["Grain", "grain", 180.42, 275.7, 138.91]],
+  BG: [["steps", "bg_steps", 169.12, 131.06, 140], ["sampler", "bg_sampler", 210.98, 132.46, 200],
+    ["scheduler", "bg_scheduler", 256.35, 132.46, 200], ["Resolution", "qw_resolution", 307.25, 132.46, 200],
+    ["SeedVR2", "seedvr2", 340.76, 397.1, 138.91]],
+}
+const EMPTY = { "Krea 2": new URL("./empty.svg", import.meta.url).href, "QW 21": new URL("./empty-qw.svg", import.meta.url).href }
+const BG_PRESETS = [["BG", 191.06, 395.33, 66.06], ["White", 191.06, 470.32, 66.06], ["No TEXT", 229.04, 414.69, 102.33],
+  ["No LOGO", 261.75, 415.39, 102.33], ["No Person", 295.21, 415.39, 102.33]]
 
 // [label, widget, top, left, width] px from MyNode.svg: the middle's two columns of pills under the prompt boxes, all
 // moved by .mn-mid (Krea2.svg). Resize lies over Crop's left end and custom / preset over W x H's: the later one is on top
@@ -193,7 +207,9 @@ function build(node) {
   }
   const off = new AbortController()
   const root = el("div", "mn"), fs = el("div", "mn-fs") // fs: the node's DOM widget, the face in it
-  const wide = () => W("mode")?.value === "2 IMG"
+  const family = () => (W("family")?.value in TITLES ? W("family").value : "Krea 2") // H3 runs nothing yet
+  const qw = () => family() === "QW 21"
+  const wide = () => !qw() && W("mode")?.value === "2 IMG"
   const width = () => SIZE[0] + (wide() ? TWO : 0)
 
   const head = el("div", "mn-head"), title = el("div", "mn-title"), hr = el("div", "mn-hr") // hr: what 2 IMG moves right
@@ -216,15 +232,21 @@ function build(node) {
   track.append(fill)
   hr.append(el("div", "mn-pill t"), el("div", "mn-pill p"), el("div", "mn-clock", ICON.clock), time, track, pct, run, openB, fullB, dims)
   head.append(title, hr)
-  // the mode: the tabs over the middle; 2 IMG widens the node by a second picture's column
-  const modeTabs = tabStrip("mn-modes", MODE_TABS, (m) => { if (m in TITLES) set("mode", m) })
+  // the mode: the tabs over the middle, a strip per family; 2 IMG widens the node by a second picture's column. QW 21 is
+  // purple (face.css .qw)
+  const modeTabs = Object.fromEntries(Object.entries(MODE_TABS).map(([f, tabs]) =>
+    [f, tabStrip("mn-modes", tabs, (m) => set("mode", m), (m) => m in TITLES[f])]))
   binds.push(() => {
     const m = W("mode")?.value ?? "EDIT"
     root.classList.toggle("two", wide())
+    root.classList.toggle("qw", qw())
     root.style.setProperty("--two", wide() ? `${TWO}px` : "0px")
     fs.style.setProperty("--w", `${width()}px`)
-    title.textContent = TITLES[m] ?? TITLES.EDIT
-    modeTabs.light(m)
+    title.textContent = TITLES[family()][m] ?? Object.values(TITLES[family()])[0]
+    for (const [f, t] of Object.entries(modeTabs)) {
+      t.box.hidden = f !== family()
+      t.light(m)
+    }
     if (Math.abs(node.size[0] - width()) + Math.abs(node.size[1] - SIZE[1]) > 0.01) node.setSize([width(), SIZE[1]]) // a float array
     fitScreen()
   })
@@ -242,8 +264,7 @@ function build(node) {
     dropTo(box, put)
     const prev = el("div", "mn-prev"), pDims = el("div", "mn-pdims"), pBox = el("div", "mn-pbox"), pWrap = el("div", "mn-pwrap")
     const img = el("img"), crop = el("div", "mn-crop"), la = el("div", "mn-arrow l"), ra = el("div", "mn-arrow r")
-    const empty = el("img", "mn-empty") // no picture: Krea2.svg's "?"
-    empty.src = new URL("./empty.svg", import.meta.url)
+    const empty = el("img", "mn-empty") // no picture: the "?" of Krea2.svg, or QW21.svg's
     img.draggable = empty.draggable = false
     pWrap.append(img, crop)
     pBox.append(pWrap)
@@ -264,6 +285,7 @@ function build(node) {
     pick.onclick = () => { openGal(name, box) }
     binds.push(() => {
       const v = W(name)?.value ?? "", list = comboValues(W("image"))
+      if (empty.src !== EMPTY[family()]) empty.src = EMPTY[family()]
       pName.textContent = baseOf(v)
       pIdx.textContent = v ? `${list.indexOf(v) + 1}/${list.length}` : ""
       const src = v ? view(baseOf(v), dirOf(v), "input") : ""
@@ -317,7 +339,7 @@ function build(node) {
   pBox.append(ed.canvas)
   prev.append(ed.label, cropReset, fmt, maskB, mini)
   binds.push(() => {
-    const on = !!W("manual_crop")?.value
+    const on = !!W("manual_crop")?.value && !qw() // QW 21 takes the picture whole
     pWrap.hidden = pDims.hidden = on // the crop's own line takes the input's size's place
     ed.canvas.hidden = ed.label.hidden = cropReset.hidden = fmt.hidden = maskB.hidden = mini.hidden = !on
     if (on) ed.draw()
@@ -532,6 +554,33 @@ function build(node) {
   }
   mid.append(lp, lt, txtIn, prompt, enru("m"), ru, snd, ...ROWS.map((s) => row(s, "mn-row")), wh, mode, ...seedModes, keep)
 
+  // QW 21's middle (QW21.svg): UpScale's and BG's own pills in place of Krea 2's prompt boxes
+  const qwPanels = Object.fromEntries(Object.entries(QW_ROWS).map(([m, rows]) => {
+    const p = el("div", "mn-qw")
+    p.append(...rows.map((s) => row(s, "mn-row")))
+    return [m, p]
+  }))
+  // UpScale's Grain / preset: grain alone, or with a phone camera's look (parts.Look); the word in use is lit
+  const grainPick = row(["", "", 180.42, 424.42, 138.91], "mn-row tog mn-gp")
+  grainPick.firstChild.append(txt("span", "gr", "Grain /"), " ", txt("span", "pr", "preset"))
+  grainPick.onclick = () => { set("grain_preset", !W("grain_preset")?.value) }
+  binds.push(() => { grainPick.classList.toggle("on", !!W("grain_preset")?.value) })
+  // BG's presets (assets/qw21_bg.json) and its own 🔊, the middle's switch
+  const bgSnd = el("div", "mn-snd mn-bgsnd")
+  bgSnd.title = "Sound when a Run is done: on / off"
+  qwPanels.UpScale.append(grainPick)
+  qwPanels.BG.append(txt("div", "mn-qwlbl", "Presets"), bgSnd, ...BG_PRESETS.map(([name, top, left, width]) => {
+    const b = txt("div", "mn-seedm mn-bgp", name)
+    Object.assign(b.style, { top: top + "px", left: left + "px", width: width + "px" })
+    b.onclick = () => { set("bg_preset", name) }
+    binds.push(() => { b.classList.toggle("on", W("bg_preset")?.value === name) })
+    return b
+  }))
+  binds.push(() => {
+    mid.hidden = qw()
+    for (const [m, p] of Object.entries(qwPanels)) p.hidden = !(qw() && W("mode")?.value === m)
+  })
+
   const right = el("div", "mn-right"), rbox = el("div", "mn-rbox"), frame = el("div", "mn-frame"), rImg = el("img")
   const rPrev = el("div", "mn-arrow l"), rNext = el("div", "mn-arrow r"), rNum = el("div", "mn-rnum")
   // A/B compare as in ausboss Image Compare A/B: A = the input, B = the result; A lies over B, cut at the line
@@ -628,12 +677,18 @@ function build(node) {
   }
   const logo = el("div", "mn-logo", `<svg viewBox="0 0 158.293 29.4603" preserveAspectRatio="none" fill="currentColor"><path d="${GSEN}"/></svg>`)
   shead.append(...tabs, logo, lRun, upB, ver)
-  // Settings → Settings (SettingIU.svg): a family's tab in the strip shows its models' page, the same tab again the
-  // general one.
-  // shortcut: the node stays Krea 2 whichever page is open; let the tab set the family once QW 21 can run (1.33.0)
+  // Settings → Settings (SettingIU.svg): a family's tab in the strip shows its models' page and, for a family that runs
+  // (Krea 2, QW 21; not H3 yet), makes the node that family, in a mode it has; the same tab again: the general page
   let page = ""
   const pages = Object.fromEntries(["", ...Object.keys(FAMILY_ROWS)].map((f) => [f, el("div", f ? "mn-page" : "mn-page g")]))
-  const fams = tabStrip("mn-fams", FAMILY_TABS, (f) => { page = page === f ? "" : f; showPage() })
+  const fams = tabStrip("mn-fams", FAMILY_TABS, (f) => {
+    page = page === f ? "" : f
+    if (page && f in TITLES && f !== family()) {
+      if (!(W("mode")?.value in TITLES[f])) set("mode", Object.keys(TITLES[f])[0])
+      set("family", f)
+    }
+    showPage()
+  })
   const showPage = () => {
     for (const [f, p] of Object.entries(pages)) p.hidden = f !== page
     fams.light(page)
@@ -760,10 +815,10 @@ function build(node) {
   const soundName = () => (sounds.includes(node.properties?.mn_sound) ? node.properties.mn_sound : sounds[0] ?? "")
   let shownMute = null
   const paintSound = () => {
-    if (muted() !== shownMute) snd.innerHTML = sIcon.innerHTML = (shownMute = muted()) ? ICON.off : ICON.on
+    if (muted() !== shownMute) snd.innerHTML = sIcon.innerHTML = bgSnd.innerHTML = (shownMute = muted()) ? ICON.off : ICON.on
     sName.textContent = sName.title = soundName()
   }
-  snd.onclick = sRow.sound.onclick = async (e) => {
+  snd.onclick = sRow.sound.onclick = bgSnd.onclick = async (e) => {
     if (!e.target.closest(".sv")) {
       node.setProperty("mn_mute", !muted())
       return paintSound()
@@ -955,7 +1010,8 @@ function build(node) {
     gIn.focus()
   }
 
-  root.append(texture("mn-back"), head, left, c2.box, el("div", "mn-fog"), mid, modeTabs.box, right, setP, gal) // texture on the backgrounds
+  root.append(texture("mn-back"), head, left, c2.box, el("div", "mn-fog"), mid, ...Object.values(qwPanels),
+    ...Object.values(modeTabs).map((t) => t.box), right, setP, gal) // texture on the backgrounds
 
   canvasControls(node, root, head)
   const laidOut = new ResizeObserver(() => fits.forEach(fitVal)) // the face gets its size when it lands on the canvas
@@ -1048,15 +1104,16 @@ function texture(cls) {
 }
 
 // a strip of slanted tabs (Krea2.svg's modes, SettingIU.svg's families): [name, its word's centre]; the lit one is lime
-function tabStrip(cls, tabs, pick) {
+function tabStrip(cls, tabs, pick, can = () => true) {
   const box = el("div", `mn-tabs ${cls}`)
   const bs = tabs.map(([name, mid], i) => {
     const b = el("div", "mn-ttab"), w = txt("span", null, name)
-    b.style.left = [0, 72.33, 144.55, 216.75][i] + "px"
+    b.style.left = [0, 72.33, 144.55, 216.75, 288.96][i] + "px"
     b.dataset.t = name
+    b.classList.toggle("off", !can(name)) // a mode to come
     w.style.left = mid + "px"
     b.append(w)
-    b.onclick = () => { pick(name) }
+    b.onclick = () => { if (can(name)) pick(name) }
     return b
   })
   box.append(...bs)
